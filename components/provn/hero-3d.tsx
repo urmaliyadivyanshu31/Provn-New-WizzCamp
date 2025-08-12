@@ -16,8 +16,11 @@ export function Hero3D() {
   const containerRef = useRef<HTMLDivElement>(null)
   const [floatingVideos, setFloatingVideos] = useState<FloatingVideo[]>([])
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
+    setIsClient(true)
+    
     // Initialize floating videos
     const videos: FloatingVideo[] = Array.from({ length: 5 }, (_, i) => ({
       id: i,
@@ -51,7 +54,7 @@ export function Hero3D() {
     >
       {/* Particle System */}
       <div className="absolute inset-0">
-        {Array.from({ length: 20 }).map((_, i) => (
+        {isClient && Array.from({ length: 20 }).map((_, i) => (
           <div
             key={i}
             className="particle"
