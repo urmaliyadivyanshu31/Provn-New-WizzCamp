@@ -214,3 +214,26 @@ CREATE TRIGGER update_stats_on_tip AFTER INSERT ON tips
 
 CREATE TRIGGER update_stats_on_license AFTER INSERT ON licenses
     FOR EACH ROW EXECUTE FUNCTION update_video_stats();
+
+-- Blockchain transactions table for tracking all on-chain operations
+CREATE TABLE blockchain_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    hash VARCHAR(66) UNIQUE NOT NULL,
+    block_number BIGINT NOT NULL,
+    gas_used VARCHAR(20) NOT NULL,
+    type VARCHAR(20) NOT NULL CHECK (type IN ('mint', 'license_purchase', 'tip', 'transfer', 'approval')),
+    user_address VARCHAR(42) NOT NULL,
+    token_id VARCHAR(100),
+    status VARCHAR(10) NOT NULL CHECK (status IN ('success', 'failed', 'pending')),
+    amount VARCHAR(78), -- Large enough for wei values
+    contract_address VARCHAR(42),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for blockchain transactions
+CREATE INDEX idx_blockchain_transactions_hash ON blockchain_transactions(hash);
+CREATE INDEX idx_blockchain_transactions_user ON blockchain_transactions(user_address);
+CREATE INDEX idx_blockchain_transactions_type ON blockchain_transactions(type);
+CREATE INDEX idx_blockchain_transactions_token ON blockchain_transactions(token_id);
+CREATE INDEX idx_blockchain_transactions_status ON blockchain_transactions(status);
+CREATE INDEX idx_blockchain_transactions_created_at ON blockchain_transactions(created_at DESC);

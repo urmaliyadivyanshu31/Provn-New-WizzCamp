@@ -1,71 +1,182 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from 'next/server'
+import { authService } from '@/lib/auth'
+import { db } from '@/lib/database'
 
-interface ProfileUpdateRequest {
-  handle?: string
-  displayName?: string
-  bio?: string
-  avatar?: string
-}
-
-export async function GET(request: NextRequest, { params }: { params: { address: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ address: string }> }
+) {
   try {
-    const { address } = params
+    const { address } = await params
 
-    // Mock profile data - in real app would fetch from database
-    const mockProfile = {
-      address: address.toLowerCase(),
-      handle: "creativedancer",
-      displayName: "Creative Dancer",
-      bio: "Digital creator exploring the intersection of movement and technology. Passionate about on-chain provenance and creative ownership.",
-      avatar: "/placeholder.svg?key=profile",
-      joinedDate: "2024-01-01T00:00:00Z",
-      isVerified: true,
-      stats: {
-        totalVideos: 4,
-        totalViews: 4240,
-        totalEarnings: 167.5,
-        totalTips: 85,
-        totalLicenses: 9,
-        followers: 1250,
-        following: 340,
-      },
-      socialLinks: {
-        twitter: "@creativedancer",
-        instagram: "@creativedancer",
-      },
+    // Get user profile from database
+    const result = await db.query(`
+      SELECT 
+        u.handle,
+        u.display_name,
+        u.bio,
+        u.avatar_url,
+        u.created_at,
+        u.updated_at,
+        COUNT(DISTINCT v.id) as video_count,
+        COALESCE(SUM(vs.total_earnings), 0) as total_earnings
+      FROM users u
+      LEFT JOIN videos v ON u.address = v.creator_address
+      LEFT JOIN video_stats vs ON v.id = vs.video_id
+      WHERE u.address = $1
+      GROUP BY u.address, u.handle, u.display_name, u.bio, u.avatar_url, u.created_at, u.updated_at
+    `, [address])
+
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    return NextResponse.json(mockProfile)
+    const profile = result.rows[0]
+
+    return NextResponse.json({
+      address,
+      handle: profile.handle,
+      displayName: profile.display_name,
+      bio: profile.bio,
+      avatarUrl: profile.avatar_url,
+      createdAt: profile.created_at,
+      updatedAt: profile.updated_at,
+      videoCount: parseInt(profile.video_count),
+      totalEarnings: parseFloat(profile.total_earnings)
+    })
   } catch (error) {
-    console.error("Get profile error:", error)
-    return NextResponse.json({ error: "Profile not found" }, { status: 404 })
+    console.error('Profile fetch error:', error)
+    return NextResponse.json({ error: 'Failed to fetch profile' }, { status: 500 })
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { address: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ address: string }> }
+) {
   try {
-    const { address } = params
-    const updates: ProfileUpdateRequest = await request.json()
+    const { address } = await params
+    const { handle, displayName, bio, isPublic } = await request.json()
 
-    // In real implementation:
-    // 1. Verify user owns this address
-    // 2. Validate handle uniqueness
-    // 3. Update profile in database
-    // 4. Handle avatar upload if provided
-
-    const updatedProfile = {
-      address: address.toLowerCase(),
-      ...updates,
-      updatedAt: new Date().toISOString(),
+    // Verify wallet address from header
+    const walletAddress = request.headers.get('X-Wallet-Address')
+    if (!walletAddress || walletAddress.toLowerCase() !== address.toLowerCase()) {
+      return NextResponse.json({ error: 'Invalid wallet address' }, { status: 401 })
     }
 
+    // Validate required fields
+    if (!handle || !displayName) {
+      return NextResponse.json({ error: 'Handle and display name are required' }, { status: 400 })
+    }
+
+    // Validate handle format
+    if (!/^[a-zA-Z0-9_]+$/.test(handle)) {
+      return NextResponse.json({ error: 'Invalid handle format' }, { status: 400 })
+    }
+
+    // Check if handle is available
+    const existingHandle = await db.query(
+      'SELECT address FROM users WHERE handle = $1',
+      [handle.toLowerCase()]
+    )
+    
+    if (existingHandle.rows.length > 0) {
+      return NextResponse.json({ error: 'Handle already taken' }, { status: 400 })
+    }
+
+    // Check if user already exists
+    const existingUser = await db.query(
+      'SELECT address FROM users WHERE address = $1',
+      [address]
+    )
+
+    if (existingUser.rows.length > 0) {
+      return NextResponse.json({ error: 'Profile already exists' }, { status: 400 })
+    }
+
+    // Create new user profile
+    const result = await db.query(`
+      INSERT INTO users (address, handle, display_name, bio, is_public)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `, [address, handle.toLowerCase(), displayName, bio || '', isPublic !== false])
+
+    const newProfile = result.rows[0]
+
     return NextResponse.json({
-      success: true,
-      profile: updatedProfile,
-      message: "Profile updated successfully",
+      address: newProfile.address,
+      handle: newProfile.handle,
+      displayName: newProfile.display_name,
+      bio: newProfile.bio,
+      isPublic: newProfile.is_public,
+      createdAt: newProfile.created_at
     })
   } catch (error) {
-    console.error("Update profile error:", error)
-    return NextResponse.json({ error: "Failed to update profile" }, { status: 500 })
+    console.error('Profile creation error:', error)
+    return NextResponse.json({ error: 'Failed to create profile' }, { status: 500 })
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ address: string }> }
+) {
+  try {
+    const { address } = await params
+    const { handle, displayName, bio, avatarUrl } = await request.json()
+
+    // Verify authentication
+    const authResult = await authService.verifyAuth(request)
+    if (!authResult.success) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    // Users can only update their own profile
+    if (authResult.user.address !== address) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
+    // Validate handle uniqueness if provided
+    if (handle) {
+      const existingUser = await db.query(
+        'SELECT address FROM users WHERE handle = $1 AND address != $2',
+        [handle, address]
+      )
+      
+      if (existingUser.rows.length > 0) {
+        return NextResponse.json({ error: 'Handle already taken' }, { status: 400 })
+      }
+    }
+
+    // Update profile
+    const result = await db.query(`
+      UPDATE users 
+      SET 
+        handle = COALESCE($1, handle),
+        display_name = COALESCE($2, display_name),
+        bio = COALESCE($3, bio),
+        avatar_url = COALESCE($4, avatar_url),
+        updated_at = NOW()
+      WHERE address = $5
+      RETURNING *
+    `, [handle, displayName, bio, avatarUrl, address])
+
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    const updatedProfile = result.rows[0]
+
+    return NextResponse.json({
+      address: updatedProfile.address,
+      handle: updatedProfile.handle,
+      displayName: updatedProfile.display_name,
+      bio: updatedProfile.bio,
+      avatarUrl: updatedProfile.avatar_url,
+      updatedAt: updatedProfile.updated_at
+    })
+  } catch (error) {
+    console.error('Profile update error:', error)
+    return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 })
   }
 }

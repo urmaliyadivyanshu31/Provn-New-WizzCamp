@@ -1,12 +1,12 @@
 "use client"
 
-import type React from "react"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ProvnButton } from "@/components/provn/button"
 import { ProvnCard, ProvnCardContent } from "@/components/provn/card"
 import { ProvnBadge } from "@/components/provn/badge"
 import { Navigation } from "@/components/provn/navigation"
+import { useWalletAuth } from "@/components/provn/wallet-connection"
 
 interface UploadedFile {
   file: File
@@ -28,15 +28,41 @@ interface MintResult {
   blockscoutUrl: string
 }
 
+interface ProcessingStatus {
+  processingId: string
+  status: string
+  progress: number
+  currentStep: string
+  steps: Array<{
+    id: string
+    status: string
+    progress: number
+    completedAt?: string
+  }>
+  result?: {
+    tokenId: string
+    ipfsHash: string
+    thumbnailHash: string
+    duration: number
+    resolution: string
+    format: string
+  }
+  errorMessage?: string
+}
+
 export default function UploadPage() {
   const router = useRouter()
+  // Use new wallet authentication state
+  const { isConnected, address: walletAddress, connect, disconnect, isConnecting } = useWalletAuth()
+  
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const [title, setTitle] = useState("")
   const [tags, setTags] = useState("")
-  const [allowRemixing, setAllowRemixing] = useState(true) // Default to true as per spec
+  const [allowRemixing, setAllowRemixing] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [mintResult, setMintResult] = useState<MintResult | null>(null)
+  const [processingId, setProcessingId] = useState<string | null>(null)
   const [processingSteps, setProcessingSteps] = useState<ProcessingStep[]>([
     { id: "validation", name: "File Validation", status: "pending", progress: 0 },
     { id: "transcoding", name: "Transcoding to HLS", status: "pending", progress: 0 },
@@ -45,6 +71,67 @@ export default function UploadPage() {
     { id: "duplicate", name: "Duplicate Check", status: "pending", progress: 0 },
     { id: "minting", name: "Minting IpNFT", status: "pending", progress: 0 },
   ])
+
+  // Polling for processing status
+  useEffect(() => {
+    if (!processingId || !isProcessing) return
+
+    const pollInterval = setInterval(async () => {
+      try {
+        // Use wallet address for authentication instead of authToken
+        const response = await fetch(`/api/processing/${processingId}/status`, {
+          headers: {
+            'X-Wallet-Address': walletAddress || ''
+          }
+        })
+
+        if (response.ok) {
+          const status: ProcessingStatus = await response.json()
+          updateProcessingStepsFromStatus(status)
+
+          if (status.status === 'completed' && status.result) {
+            // Processing completed successfully
+            const result: MintResult = {
+              tokenId: status.result.tokenId,
+              ipfsHash: status.result.ipfsHash,
+              transactionHash: `0x${Math.random().toString(16).substring(2, 66)}`, // Mock for now
+              blockscoutUrl: `https://basecamp.cloud.blockscout.com/tx/0x${Math.random().toString(16).substring(2, 66)}`
+            }
+            setMintResult(result)
+            setIsProcessing(false)
+            clearInterval(pollInterval)
+          } else if (status.status === 'failed') {
+            // Processing failed
+            setIsProcessing(false)
+            clearInterval(pollInterval)
+            alert(`Processing failed: ${status.errorMessage || 'Unknown error'}`)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check processing status:', error)
+      }
+    }, 2000) // Poll every 2 seconds
+
+    return () => clearInterval(pollInterval)
+  }, [processingId, isProcessing, walletAddress])
+
+  const updateProcessingStepsFromStatus = (status: ProcessingStatus) => {
+    setProcessingSteps(prev => prev.map(step => {
+      const statusStep = status.steps.find(s => s.id === step.id)
+      if (statusStep) {
+        return {
+          ...step,
+          status: statusStep.status as "pending" | "processing" | "completed" | "error",
+          progress: statusStep.progress
+        }
+      }
+      return step
+    }))
+  }
+
+  const handleCancel = () => {
+    router.push('/')
+  }
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -56,161 +143,95 @@ export default function UploadPage() {
     setIsDragOver(false)
   }, [])
 
-  const validateFile = (file: File): string | null => {
-    const maxSize = 150 * 1024 * 1024 // 150MB
-    const allowedTypes = ["video/mp4", "video/quicktime"]
-
-    if (!allowedTypes.includes(file.type)) {
-      return "Please upload MP4 or MOV files only"
-    }
-
-    if (file.size > maxSize) {
-      return "File size must be under 150MB"
-    }
-
-    return null
-  }
-
-  const handleFileSelect = (file: File) => {
-    const error = validateFile(file)
-    if (error) {
-      alert(error)
-      return
-    }
-
-    const preview = URL.createObjectURL(file)
-    setUploadedFile({ file, preview })
-  }
-
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragOver(false)
 
-    const files = Array.from(e.dataTransfer.files)
+    const files = e.dataTransfer.files
     if (files.length > 0) {
-      handleFileSelect(files[0])
+      const file = files[0]
+      if (file.type.startsWith('video/')) {
+        const preview = URL.createObjectURL(file)
+        setUploadedFile({ file, preview })
+      } else {
+        alert('Please upload a video file')
+      }
     }
   }, [])
 
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (files && files.length > 0) {
-      handleFileSelect(files[0])
+      const file = files[0]
+      if (file.type.startsWith('video/')) {
+        const preview = URL.createObjectURL(file)
+        setUploadedFile({ file, preview })
+      } else {
+        alert('Please upload a video file')
+      }
     }
-  }
-
-  const updateProcessingStep = (stepId: string, updates: Partial<ProcessingStep>) => {
-    setProcessingSteps((prev) => prev.map((step) => (step.id === stepId ? { ...step, ...updates } : step)))
-  }
-
-  const simulateProcessingStep = async (stepId: string, duration = 2000) => {
-    updateProcessingStep(stepId, { status: "processing", progress: 0 })
-
-    // Simulate progress
-    const progressInterval = setInterval(() => {
-      setProcessingSteps((prev) =>
-        prev.map((step) => {
-          if (step.id === stepId && step.status === "processing") {
-            const newProgress = Math.min(step.progress + Math.random() * 20, 95)
-            return { ...step, progress: newProgress }
-          }
-          return step
-        }),
-      )
-    }, 200)
-
-    await new Promise((resolve) => setTimeout(resolve, duration))
-    clearInterval(progressInterval)
-    updateProcessingStep(stepId, { status: "completed", progress: 100 })
-  }
+  }, [])
 
   const handleUpload = async () => {
     if (!uploadedFile || !title.trim()) {
-      alert("Please provide a file and title")
+      alert('Please upload a video and enter a title')
+      return
+    }
+
+    if (!isConnected || !walletAddress) {
+      alert('Please connect your wallet first')
       return
     }
 
     setIsProcessing(true)
 
     try {
-      // Step 1: File Validation
-      await simulateProcessingStep("validation", 500)
+      const formData = new FormData()
+      formData.append('video', uploadedFile.file)
+      formData.append('metadata', JSON.stringify({
+        title: title.trim(),
+        description: '',
+        tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag),
+        allowRemixing,
+        parentTokenId: null
+      }))
 
-      // Step 2: Transcoding to HLS
-      updateProcessingStep("transcoding", {
-        status: "processing",
-        message: "Converting to HLS format for optimal streaming...",
+      const response = await fetch('/api/videos/upload', {
+        method: 'POST',
+        headers: {
+          'X-Wallet-Address': walletAddress
+        },
+        body: formData
       })
-      await simulateProcessingStep("transcoding", 3000)
 
-      // Step 3: IPFS Upload
-      updateProcessingStep("ipfs", {
-        status: "processing",
-        message: "Uploading to decentralized storage...",
-      })
-      await simulateProcessingStep("ipfs", 2500)
-
-      // Step 4: Perceptual Hashing
-      updateProcessingStep("hashing", {
-        status: "processing",
-        message: "Generating content fingerprint...",
-      })
-      await simulateProcessingStep("hashing", 1500)
-
-      // Step 5: Duplicate Check
-      updateProcessingStep("duplicate", {
-        status: "processing",
-        message: "Checking for existing content...",
-      })
-      await simulateProcessingStep("duplicate", 1000)
-
-      // Simulate potential duplicate found (10% chance)
-      if (Math.random() < 0.1) {
-        updateProcessingStep("duplicate", {
-          status: "error",
-          message: "Similar content found. Please review before proceeding.",
-        })
-        setIsProcessing(false)
-        return
+      if (response.ok) {
+        const result = await response.json()
+        setProcessingId(result.processingId)
+        
+        // Update first step to processing
+        setProcessingSteps(prev => prev.map(step => 
+          step.id === 'validation' ? { ...step, status: 'processing', progress: 0 } : step
+        ))
+      } else {
+        const error = await response.json()
+        alert(`Upload failed: ${error.error}`)
       }
-
-      // Step 6: Minting
-      updateProcessingStep("minting", {
-        status: "processing",
-        message: "Minting your IpNFT on BaseCAMP...",
-      })
-      await simulateProcessingStep("minting", 2000)
-
-      // Success - generate mock result
-      const mockResult: MintResult = {
-        tokenId: `${Date.now()}`,
-        ipfsHash: `Qm${Math.random().toString(36).substring(2, 15)}`,
-        transactionHash: `0x${Math.random().toString(16).substring(2, 66)}`,
-        blockscoutUrl: `https://explorer.basecamp.network/tx/0x${Math.random().toString(16).substring(2, 66)}`,
-      }
-
-      setMintResult(mockResult)
     } catch (error) {
-      console.error("Upload failed:", error)
-      // Mark current processing step as error
-      const currentStep = processingSteps.find((step) => step.status === "processing")
-      if (currentStep) {
-        updateProcessingStep(currentStep.id, {
-          status: "error",
-          message: "Processing failed. Please try again.",
-        })
+      console.error('Upload error:', error)
+      alert('Upload failed. Please try again.')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  // Cleanup preview URL on unmount
+  useEffect(() => {
+    return () => {
+      if (uploadedFile?.preview) {
+        URL.revokeObjectURL(uploadedFile.preview)
       }
     }
-
-    setIsProcessing(false)
-  }
-
-  const handleCancel = () => {
-    if (uploadedFile) {
-      URL.revokeObjectURL(uploadedFile.preview)
-    }
-    router.push("/")
-  }
+  }, [uploadedFile])
 
   const handleViewAsset = () => {
     if (mintResult) {
@@ -296,6 +317,9 @@ export default function UploadPage() {
             <div className="text-center space-y-4">
               <h1 className="font-headline text-4xl font-bold text-provn-text">Processing Upload</h1>
               <p className="text-provn-muted text-lg">Please wait while we prepare your content for the blockchain</p>
+              {processingId && (
+                <p className="text-provn-accent text-sm font-mono">ID: {processingId}</p>
+              )}
             </div>
 
             {/* Processing Steps */}
@@ -392,6 +416,41 @@ export default function UploadPage() {
           <div className="text-center space-y-4">
             <h1 className="font-headline text-4xl font-bold text-provn-text">Upload & Mint</h1>
             <p className="text-provn-muted text-lg">Register your short video on Camp with on‑chain provenance.</p>
+            
+            {/* Connect Wallet Section */}
+            {!isConnected ? (
+              <div className="bg-provn-surface border border-provn-border rounded-xl p-6">
+                <h3 className="text-lg font-medium text-provn-text mb-4">Connect Your Wallet</h3>
+                <p className="text-provn-muted text-sm mb-4">
+                  Connect your wallet to start minting IP-NFTs on BaseCAMP Network
+                </p>
+                <ProvnButton
+                  onClick={connect}
+                  disabled={isConnecting}
+                  className="inline-flex items-center justify-center rounded-[10px] font-headline font-semibold transition-all duration-[120ms] ease-out disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-provn-bg bg-provn-accent text-provn-bg hover:bg-provn-accent-press focus:ring-provn-accent active:scale-95 px-6 py-3 text-base"
+                >
+                  {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                </ProvnButton>
+                {isConnecting && (
+                  <p className="text-provn-muted text-sm mt-2">Connecting to your wallet...</p>
+                )}
+              </div>
+            ) : (
+              <div className="bg-provn-success/20 border border-provn-success/30 rounded-xl p-4">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-provn-success">✅</span>
+                  <span className="text-provn-success font-medium">
+                    Wallet Connected: {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
+                  </span>
+                  <button
+                    onClick={disconnect}
+                    className="text-provn-success/70 hover:text-provn-success text-sm underline"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Upload Zone */}
@@ -500,7 +559,7 @@ export default function UploadPage() {
                     id="allow-remixing"
                     checked={allowRemixing}
                     onChange={(e) => setAllowRemixing(e.target.checked)}
-                    className="w-4 h-4 text-provn-accent bg-provn-surface-2 border-provn-border rounded focus:ring-provn-accent focus:ring-2"
+                    className="w-4 h-4 text-provn-accent bg-provn-surface-2 border border-provn-border rounded focus:ring-provn-accent focus:ring-2"
                   />
                   <label htmlFor="allow-remixing" className="text-provn-text font-medium">
                     Allow Remixing
@@ -530,8 +589,8 @@ export default function UploadPage() {
             <ProvnButton variant="secondary" onClick={handleCancel}>
               Cancel
             </ProvnButton>
-            <ProvnButton onClick={handleUpload} disabled={!uploadedFile || !title.trim()} className="min-w-[160px]">
-              Upload & Continue
+            <ProvnButton onClick={handleUpload} disabled={!uploadedFile || !title.trim() || !isConnected} className="min-w-[160px]">
+              {isConnected ? 'Upload & Mint IP-NFT' : 'Connect Wallet First'}
             </ProvnButton>
           </div>
         </div>
