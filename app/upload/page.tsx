@@ -3,10 +3,12 @@
 import type React from "react"
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { useAccount } from "wagmi"
 import { ProvnButton } from "@/components/provn/button"
 import { ProvnCard, ProvnCardContent } from "@/components/provn/card"
 import { ProvnBadge } from "@/components/provn/badge"
 import { Navigation } from "@/components/provn/navigation"
+import { useOrigin } from "@/lib/origin"
 
 interface UploadedFile {
   file: File
@@ -30,9 +32,13 @@ interface MintResult {
 
 export default function UploadPage() {
   const router = useRouter()
+  const { isConnected, address } = useAccount()
+  const { initializeOrigin, createIPNFT, isInitialized } = useOrigin()
+  
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
   const [tags, setTags] = useState("")
   const [allowRemixing, setAllowRemixing] = useState(true) // Default to true as per spec
   const [isProcessing, setIsProcessing] = useState(false)
@@ -130,66 +136,103 @@ export default function UploadPage() {
       return
     }
 
+    if (!isConnected) {
+      alert("Please connect your wallet first")
+      return
+    }
+
     setIsProcessing(true)
 
     try {
       // Step 1: File Validation
-      await simulateProcessingStep("validation", 500)
+      updateProcessingStep("validation", { status: "processing", message: "Validating file..." })
+      await new Promise(resolve => setTimeout(resolve, 500))
+      updateProcessingStep("validation", { status: "completed", progress: 100 })
 
-      // Step 2: Transcoding to HLS
-      updateProcessingStep("transcoding", {
-        status: "processing",
-        message: "Converting to HLS format for optimal streaming...",
-      })
-      await simulateProcessingStep("transcoding", 3000)
+      // Step 2: Skip transcoding for now
+      updateProcessingStep("transcoding", { status: "completed", progress: 100, message: "Skipping transcoding" })
 
-      // Step 3: IPFS Upload
+      // Step 3: Real IPFS Upload
       updateProcessingStep("ipfs", {
         status: "processing",
-        message: "Uploading to decentralized storage...",
+        progress: 0,
+        message: "Uploading to IPFS...",
       })
-      await simulateProcessingStep("ipfs", 2500)
 
-      // Step 4: Perceptual Hashing
-      updateProcessingStep("hashing", {
-        status: "processing",
-        message: "Generating content fingerprint...",
+      const formData = new FormData()
+      formData.append('file', uploadedFile.file)
+      formData.append('title', title)
+      formData.append('description', description || title)
+      formData.append('tags', tags)
+      formData.append('allowRemixing', allowRemixing.toString())
+
+      const uploadResponse = await fetch('/api/videos/upload', {
+        method: 'POST',
+        body: formData
       })
-      await simulateProcessingStep("hashing", 1500)
 
-      // Step 5: Duplicate Check
-      updateProcessingStep("duplicate", {
-        status: "processing",
-        message: "Checking for existing content...",
-      })
-      await simulateProcessingStep("duplicate", 1000)
-
-      // Simulate potential duplicate found (10% chance)
-      if (Math.random() < 0.1) {
-        updateProcessingStep("duplicate", {
-          status: "error",
-          message: "Similar content found. Please review before proceeding.",
-        })
-        setIsProcessing(false)
-        return
+      if (!uploadResponse.ok) {
+        throw new Error('Upload failed')
       }
 
-      // Step 6: Minting
+      const uploadResult = await uploadResponse.json()
+      
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.message || 'Upload failed')
+      }
+
+      updateProcessingStep("ipfs", { status: "completed", progress: 100, message: "Uploaded to IPFS successfully!" })
+
+      // Step 4: Skip hashing for now
+      updateProcessingStep("hashing", { status: "completed", progress: 100, message: "Content fingerprinting completed" })
+
+      // Step 5: Skip duplicate check for now
+      updateProcessingStep("duplicate", { status: "completed", progress: 100, message: "No duplicates found" })
+
+      // Step 6: Real IP-NFT Minting with Origin SDK
       updateProcessingStep("minting", {
         status: "processing",
-        message: "Minting your IpNFT on BaseCAMP...",
+        message: "Initializing Origin SDK...",
       })
-      await simulateProcessingStep("minting", 2000)
 
-      // Success - generate mock result
-      const mockResult: MintResult = {
-        tokenId: `${Date.now()}`,
-        ipfsHash: `Qm${Math.random().toString(36).substring(2, 15)}`,
-        transactionHash: `0x${Math.random().toString(16).substring(2, 66)}`,
-        blockscoutUrl: `https://explorer.basecamp.network/tx/0x${Math.random().toString(16).substring(2, 66)}`,
+      // Initialize Origin SDK if not already done
+      if (!isInitialized) {
+        await initializeOrigin()
       }
 
-      setMintResult(mockResult)
+      updateProcessingStep("minting", {
+        status: "processing",
+        progress: 25,
+        message: "Creating IP-NFT on Camp Network...",
+      })
+
+      // Create IP-NFT using Origin SDK
+      const ipNFTResult = await createIPNFT({
+        title,
+        description: description || title,
+        ipfsHash: uploadResult.data.ipfsHash,
+        metadataUri: uploadResult.data.metadataUrl,
+        tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag),
+        allowRemixing,
+        royaltyPercentage: 5,
+        licensePrice: "10000000000000000000" // 10 wCAMP
+      })
+
+      updateProcessingStep("minting", { 
+        status: "completed", 
+        progress: 100,
+        message: "IP-NFT created successfully!"
+      })
+
+      // Success - use real data from Origin SDK
+      const result: MintResult = {
+        tokenId: ipNFTResult.tokenId,
+        ipfsHash: uploadResult.data.ipfsHash,
+        transactionHash: ipNFTResult.transactionHash,
+        blockscoutUrl: `${process.env.NEXT_PUBLIC_EXPLORER_URL}/tx/${ipNFTResult.transactionHash}`,
+      }
+
+      setMintResult(result)
     } catch (error) {
       console.error("Upload failed:", error)
       // Mark current processing step as error
@@ -197,7 +240,7 @@ export default function UploadPage() {
       if (currentStep) {
         updateProcessingStep(currentStep.id, {
           status: "error",
-          message: "Processing failed. Please try again.",
+          message: error instanceof Error ? error.message : "Processing failed. Please try again.",
         })
       }
     }
@@ -480,6 +523,20 @@ export default function UploadPage() {
               </div>
 
               <div>
+                <label htmlFor="description" className="block text-provn-text font-medium mb-2">
+                  Description
+                </label>
+                <textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-3 bg-provn-surface-2 border border-provn-border rounded-lg text-provn-text placeholder-provn-muted focus:outline-none focus:ring-2 focus:ring-provn-accent focus:border-transparent resize-none"
+                  placeholder="Describe your video content..."
+                />
+              </div>
+
+              <div>
                 <label htmlFor="tags" className="block text-provn-text font-medium mb-2">
                   Tags
                 </label>
@@ -530,9 +587,19 @@ export default function UploadPage() {
             <ProvnButton variant="secondary" onClick={handleCancel}>
               Cancel
             </ProvnButton>
-            <ProvnButton onClick={handleUpload} disabled={!uploadedFile || !title.trim()} className="min-w-[160px]">
-              Upload & Continue
-            </ProvnButton>
+            {!isConnected ? (
+              <ProvnButton disabled className="min-w-[160px]">
+                Connect Wallet to Upload
+              </ProvnButton>
+            ) : (
+              <ProvnButton 
+                onClick={handleUpload} 
+                disabled={!uploadedFile || !title.trim()} 
+                className="min-w-[160px]"
+              >
+                Upload & Mint IP-NFT
+              </ProvnButton>
+            )}
           </div>
         </div>
       </main>

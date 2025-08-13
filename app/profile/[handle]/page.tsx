@@ -35,66 +35,6 @@ interface VideoData {
   parentId?: string
 }
 
-// Mock profile data - in real app would fetch based on handle/address
-const mockProfile: ProfileData = {
-  address: "0x1234567890abcdef1234567890abcdef12345678",
-  handle: "creativedancer",
-  avatar: "/diverse-profile-avatars.png",
-  bio: "Digital creator exploring the intersection of movement and technology. Passionate about on-chain provenance and creative ownership.",
-  joinedDate: "2024-01-01",
-  isVerified: true,
-  totalEarnings: 167.5,
-  totalViews: 4240,
-  totalVideos: 4,
-  totalTips: 85,
-  totalLicenses: 9,
-  followers: 1250,
-  following: 340,
-}
-
-const mockVideos: VideoData[] = [
-  {
-    id: "1",
-    title: "Creative Dance Routine",
-    thumbnail: "/short-form-video.png?height=200&width=112&query=dance routine",
-    views: 1250,
-    tips: 25,
-    licenses: 3,
-    createdAt: "2024-01-15",
-    isDerivative: false,
-  },
-  {
-    id: "2",
-    title: "Urban Art Tutorial",
-    thumbnail: "/short-form-video.png?height=200&width=112&query=art tutorial",
-    views: 890,
-    tips: 18,
-    licenses: 1,
-    createdAt: "2024-01-12",
-    isDerivative: false,
-  },
-  {
-    id: "3",
-    title: "Cooking Experiment",
-    thumbnail: "/short-form-video.png?height=200&width=112&query=cooking video",
-    views: 2100,
-    tips: 42,
-    licenses: 5,
-    createdAt: "2024-01-10",
-    isDerivative: false,
-  },
-  {
-    id: "5",
-    title: "Dance Remix - Electronic Vibes",
-    thumbnail: "/short-form-video.png?height=200&width=112&query=electronic dance",
-    views: 650,
-    tips: 15,
-    licenses: 2,
-    createdAt: "2024-01-08",
-    isDerivative: true,
-    parentId: "1",
-  },
-]
 
 export default function ProfilePage() {
   const params = useParams()
@@ -108,13 +48,75 @@ export default function ProfilePage() {
   const handle = params.handle as string
 
   useEffect(() => {
-    // Mock data loading - in real app would fetch based on handle/address
-    setProfile(mockProfile)
-    setVideos(mockVideos)
+    const fetchProfileData = async () => {
+      try {
+        // First try to fetch by handle, then by address if handle fails
+        let profileResponse
+        try {
+          profileResponse = await fetch(`/api/users/${handle}/profile`)
+        } catch (error) {
+          // If handle doesn't work, try as address
+          profileResponse = await fetch(`/api/users/${handle}/profile`)
+        }
 
-    // Check if this is the current user's profile
-    const currentUserAddress = "0x1234567890abcdef1234567890abcdef12345678" // Mock current user
-    setIsOwnProfile(mockProfile.address.toLowerCase() === currentUserAddress.toLowerCase())
+        if (!profileResponse.ok) {
+          setProfile(null)
+          return
+        }
+
+        const profileData = await profileResponse.json()
+        
+        // Convert API response to ProfileData interface
+        const transformedProfile: ProfileData = {
+          address: profileData.address,
+          handle: profileData.handle,
+          avatar: profileData.avatar,
+          bio: profileData.bio,
+          joinedDate: profileData.joinedDate,
+          isVerified: profileData.isVerified,
+          totalEarnings: profileData.stats.totalEarnings,
+          totalViews: profileData.stats.totalViews,
+          totalVideos: profileData.stats.totalVideos,
+          totalTips: profileData.stats.totalTips,
+          totalLicenses: profileData.stats.totalLicenses,
+          followers: profileData.stats.followers,
+          following: profileData.stats.following,
+        }
+
+        setProfile(transformedProfile)
+
+        // Fetch user's videos
+        const videosResponse = await fetch(`/api/videos?creator=${handle}&includeDerivatives=true&limit=50`)
+        if (videosResponse.ok) {
+          const videosData = await videosResponse.json()
+          
+          // Transform video data to match our VideoData interface
+          const transformedVideos: VideoData[] = videosData.videos.map((video: any) => ({
+            id: video.id,
+            title: video.title,
+            thumbnail: video.thumbnailUrl,
+            views: video.stats.views,
+            tips: video.stats.tips,
+            licenses: video.licensing.available ? 1 : 0, // Simplified for now
+            createdAt: video.createdAt,
+            isDerivative: !video.ipnft.isOriginal,
+            parentId: video.ipnft.parentId,
+          }))
+
+          setVideos(transformedVideos)
+        }
+
+        // Check if this is the current user's profile
+        // In real app, would get this from wallet connection context
+        const currentUserAddress = "0x1234567890abcdef1234567890abcdef12345678" // Mock current user
+        setIsOwnProfile(profileData.address.toLowerCase() === currentUserAddress.toLowerCase())
+      } catch (error) {
+        console.error("Failed to fetch profile data:", error)
+        setProfile(null)
+      }
+    }
+
+    fetchProfileData()
   }, [handle])
 
   const formatAddress = (address: string) => {

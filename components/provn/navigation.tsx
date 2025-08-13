@@ -1,147 +1,29 @@
 "use client"
 
 import { useState } from "react"
+import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { useAccount, useBalance } from 'wagmi'
 import { ProvnButton } from "./button"
 
 interface NavigationProps {
   currentPage?: "home" | "upload" | "dashboard" | "video" | "provs"
 }
 
-interface WalletState {
-  isConnected: boolean
-  address: string | null
-  balance: number | null
-  isCorrectChain: boolean
-  isLoading: boolean
-}
-
 export function Navigation({ currentPage = "home" }: NavigationProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [onboardingStep, setOnboardingStep] = useState(1)
-  const [wallet, setWallet] = useState<WalletState>({
-    isConnected: false,
-    address: null,
-    balance: null,
-    isCorrectChain: false,
-    isLoading: false,
+  
+  const { address, isConnected } = useAccount()
+  const { data: balance } = useBalance({
+    address,
   })
 
-  const connectWallet = async () => {
-    setWallet((prev) => ({ ...prev, isLoading: true }))
-
-    try {
-      if (typeof window === "undefined") {
-        throw new Error("Not in browser environment")
-      }
-
-      if (!window.ethereum) {
-        showToast("Please install MetaMask or another Web3 wallet", "error")
-        setWallet((prev) => ({ ...prev, isLoading: false }))
-        return
-      }
-
-      // Check if wallet is accessible
-      try {
-        const accounts = await window.ethereum.request({
-          method: "eth_requestAccounts",
-        })
-
-        if (!accounts || accounts.length === 0) {
-          throw new Error("No accounts found")
-        }
-
-        const chainId = await window.ethereum.request({
-          method: "eth_chainId",
-        })
-
-        // BaseCAMP chain ID (example: 0x2105 for Base)
-        const baseCampChainId = "0x2105"
-        const isCorrectChain = chainId === baseCampChainId
-
-        if (!isCorrectChain) {
-          try {
-            await switchToBaseCAMP()
-          } catch (switchError) {
-            console.warn("Failed to switch network:", switchError)
-            // Continue anyway, user can switch manually
-          }
-        }
-
-        // Mock balance check - in real app would call contract
-        const mockBalance = Math.random() * 100
-
-        setWallet({
-          isConnected: true,
-          address: accounts[0],
-          balance: mockBalance,
-          isCorrectChain: true,
-          isLoading: false,
-        })
-
-        // Show onboarding for first-time users
-        const isFirstTime = !localStorage.getItem("provn_onboarded")
-        if (isFirstTime) {
-          setShowOnboarding(true)
-        } else if (mockBalance < 10) {
-          // Show faucet notification if insufficient balance
-          showToast("Low CAMP balance. Get free tokens from the faucet!", "warning")
-        }
-      } catch (requestError: any) {
-        console.error("Wallet request failed:", requestError)
-
-        if (requestError.code === 4001) {
-          showToast("Wallet connection rejected by user", "warning")
-        } else if (requestError.code === -32002) {
-          showToast("Wallet connection request already pending", "warning")
-        } else {
-          showToast("Failed to connect wallet. Please try again.", "error")
-        }
-      }
-    } catch (error: any) {
-      console.error("Wallet connection failed:", error)
-      showToast("Wallet connection failed. Please check your wallet extension.", "error")
-    }
-
-    setWallet((prev) => ({ ...prev, isLoading: false }))
-  }
-
-  const switchToBaseCAMP = async () => {
-    try {
-      if (!window.ethereum) {
-        throw new Error("No wallet found")
-      }
-
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x2105" }],
-      })
-    } catch (switchError: any) {
-      if (switchError.code === 4902) {
-        // Chain not added, add it
-        try {
-          await window.ethereum.request({
-            method: "wallet_addEthereumChain",
-            params: [
-              {
-                chainId: "0x2105",
-                chainName: "BaseCAMP",
-                nativeCurrency: { name: "CAMP", symbol: "CAMP", decimals: 18 },
-                rpcUrls: ["https://rpc.basecamp.network"],
-                blockExplorerUrls: ["https://explorer.basecamp.network"],
-              },
-            ],
-          })
-        } catch (addError) {
-          console.error("Failed to add network:", addError)
-          throw addError
-        }
-      } else if (switchError.code === 4001) {
-        // User rejected the request
-        console.warn("User rejected network switch")
-      } else {
-        throw switchError
-      }
+  // Show onboarding for first-time users when wallet connects
+  const handleWalletConnect = () => {
+    const isFirstTime = !localStorage.getItem("provn_onboarded")
+    if (isFirstTime && isConnected) {
+      setShowOnboarding(true)
     }
   }
 
@@ -176,9 +58,6 @@ export function Navigation({ currentPage = "home" }: NavigationProps) {
     showToast("Uploads are registered on‑chain as IpNFTs. Remix license = 10 wCAMP. Tips go 100% to creator", "success")
   }
 
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`
-  }
 
   return (
     <>
@@ -198,7 +77,7 @@ export function Navigation({ currentPage = "home" }: NavigationProps) {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-4">
-              {wallet.isConnected && (
+              {isConnected && (
                 <>
                   <a
                     href="/provs"
@@ -228,28 +107,7 @@ export function Navigation({ currentPage = "home" }: NavigationProps) {
                 </>
               )}
 
-              {wallet.isConnected ? (
-                <div className="flex items-center gap-2">
-                  <div className="text-sm text-provn-muted">
-                    {wallet.balance !== null && `${wallet.balance.toFixed(1)} CAMP`}
-                  </div>
-                  <ProvnButton variant="secondary">{formatAddress(wallet.address!)}</ProvnButton>
-                  {wallet.balance !== null && wallet.balance < 10 && (
-                    <a
-                      href="https://faucet.basecamp.network"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-provn-accent hover:underline"
-                    >
-                      Get CAMP
-                    </a>
-                  )}
-                </div>
-              ) : (
-                <ProvnButton onClick={connectWallet} disabled={wallet.isLoading}>
-                  {wallet.isLoading ? "Connecting..." : "Connect Wallet"}
-                </ProvnButton>
-              )}
+              <ConnectButton />
             </div>
 
             {/* Mobile menu button */}
@@ -277,7 +135,7 @@ export function Navigation({ currentPage = "home" }: NavigationProps) {
           {isMenuOpen && (
             <div className="md:hidden py-4 border-t border-provn-border" id="mobile-menu">
               <div className="space-y-2">
-                {wallet.isConnected && (
+                {isConnected && (
                   <>
                     <a
                       href="/provs"
@@ -313,30 +171,7 @@ export function Navigation({ currentPage = "home" }: NavigationProps) {
                   </>
                 )}
                 <div className="px-3 py-2">
-                  {wallet.isConnected ? (
-                    <div className="space-y-2">
-                      <div className="text-sm text-provn-muted text-center">
-                        {wallet.balance !== null && `${wallet.balance.toFixed(1)} CAMP`}
-                      </div>
-                      <ProvnButton variant="secondary" className="w-full">
-                        {formatAddress(wallet.address!)}
-                      </ProvnButton>
-                      {wallet.balance !== null && wallet.balance < 10 && (
-                        <a
-                          href="https://faucet.basecamp.network"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block text-center text-sm text-provn-accent hover:underline"
-                        >
-                          Get CAMP Tokens
-                        </a>
-                      )}
-                    </div>
-                  ) : (
-                    <ProvnButton className="w-full" onClick={connectWallet} disabled={wallet.isLoading}>
-                      {wallet.isLoading ? "Connecting..." : "Connect Wallet"}
-                    </ProvnButton>
-                  )}
+                  <ConnectButton />
                 </div>
               </div>
             </div>

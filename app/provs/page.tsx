@@ -70,93 +70,14 @@ interface ViewTracker {
   }
 }
 
-// Mock data for the feed
-const mockProvs: ProvVideo[] = [
-  {
-    id: "1",
-    title: "Creative Dance Routine",
-    creator: {
-      handle: "@dancemaster",
-      address: "0x1234...5678",
-      avatar: "/dance-creator-avatar.png",
-      verified: true,
-      followers: 12500,
-      joinedDate: "2024-01-15",
-    },
-    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-    description:
-      "Original choreography inspired by street dance culture. Protected on-chain for IP rights. This routine combines elements from various dance styles including breakdancing, popping, and locking.",
-    tags: ["dance", "original", "street", "choreography", "breakdancing"],
-    stats: { views: 12500, likes: 890, tips: 45 },
-    ipnft: {
-      id: "ipnft_001",
-      verified: true,
-      isOriginal: true,
-      mintDate: "2024-02-01",
-      blockscoutUrl: "https://explorer.basecamp.network/token/0x123.../instance/1",
-    },
-    licensing: { available: true, price: 10, currency: "wCAMP" },
-    isPromoted: true,
-  },
-  {
-    id: "2",
-    title: "Digital Art Process",
-    creator: {
-      handle: "@artcreator",
-      address: "0x9876...4321",
-      avatar: "/digital-artist-avatar.png",
-      verified: true,
-      followers: 8200,
-      joinedDate: "2023-11-20",
-    },
-    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-    description:
-      "Time-lapse of creating digital artwork. Each frame is an NFT. Watch as I build this piece layer by layer using digital painting techniques.",
-    tags: ["art", "digital", "process", "timelapse", "nft"],
-    stats: { views: 8200, likes: 654, tips: 23 },
-    ipnft: {
-      id: "ipnft_002",
-      verified: true,
-      isOriginal: true,
-      mintDate: "2024-01-20",
-      blockscoutUrl: "https://explorer.basecamp.network/token/0x456.../instance/2",
-    },
-    licensing: { available: true, price: 10, currency: "wCAMP" },
-  },
-  {
-    id: "3",
-    title: "Music Production Behind the Scenes",
-    creator: {
-      handle: "@beatmaker",
-      address: "0x5555...7777",
-      avatar: "/music-producer-avatar.png",
-      verified: false,
-      followers: 15600,
-      joinedDate: "2024-03-10",
-    },
-    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-    description:
-      "Creating beats in my home studio. Original composition protected on BaseCAMP. This is a derivative work based on the dance routine above.",
-    tags: ["music", "production", "beats", "derivative", "studio"],
-    stats: { views: 15600, likes: 1200, tips: 67 },
-    ipnft: {
-      id: "ipnft_003",
-      verified: true,
-      isOriginal: false,
-      parentId: "ipnft_001",
-      mintDate: "2024-03-15",
-      blockscoutUrl: "https://explorer.basecamp.network/token/0x789.../instance/3",
-    },
-    licensing: { available: true, price: 10, currency: "wCAMP" },
-  },
-]
 
 export default function ProvsPage() {
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [provs] = useState<ProvVideo[]>(mockProvs)
+  const [provs, setProvs] = useState<ProvVideo[]>([])
   const [likedProvs, setLikedProvs] = useState<Set<string>>(new Set())
   const [showDetailSheet, setShowDetailSheet] = useState(false)
   const [selectedProv, setSelectedProv] = useState<ProvVideo | null>(null)
+  const [loading, setLoading] = useState(true)
 
   // Added performance optimization state
   const [videoCache, setVideoCache] = useState<VideoCache>({})
@@ -167,6 +88,63 @@ export default function ProvsPage() {
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({})
   const intersectionObserverRef = useRef<IntersectionObserver | null>(null)
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Fetch videos on component mount
+  useEffect(() => {
+    const fetchProvs = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch('/api/videos?limit=20&includeDerivatives=true')
+        if (response.ok) {
+          const data = await response.json()
+          
+          // Transform API data to ProvVideo format
+          const transformedProvs: ProvVideo[] = data.videos.map((video: any) => ({
+            id: video.id,
+            title: video.title,
+            creator: {
+              handle: `@${video.creator.handle}`,
+              address: video.creator.address,
+              avatar: video.creator.avatar,
+              verified: video.creator.verified,
+              followers: video.creator.followers,
+              joinedDate: video.creator.joinedDate,
+            },
+            videoUrl: video.videoUrl,
+            description: video.description,
+            tags: video.tags,
+            stats: {
+              views: video.stats.views,
+              likes: video.stats.likes,
+              tips: video.stats.tips,
+            },
+            ipnft: {
+              id: video.ipnft.id,
+              verified: video.ipnft.verified,
+              isOriginal: video.ipnft.isOriginal,
+              parentId: video.ipnft.parentId,
+              mintDate: video.ipnft.mintDate,
+              blockscoutUrl: video.ipnft.blockscoutUrl,
+            },
+            licensing: {
+              available: video.licensing.available,
+              price: video.licensing.price,
+              currency: video.licensing.currency,
+            },
+            isPromoted: video.isPromoted,
+          }))
+          
+          setProvs(transformedProvs)
+        }
+      } catch (error) {
+        console.error('Failed to fetch provs:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProvs()
+  }, [])
 
   // Optimized scroll handler with debouncing
   const handleScroll = useCallback(() => {
@@ -442,6 +420,31 @@ export default function ProvsPage() {
       month: "short",
       day: "numeric",
     })
+  }
+
+  if (loading) {
+    return (
+      <>
+        <Navigation currentPage="provs" />
+        <div className="h-screen bg-black flex items-center justify-center">
+          <div className="text-white">Loading Provs...</div>
+        </div>
+      </>
+    )
+  }
+
+  if (provs.length === 0) {
+    return (
+      <>
+        <Navigation currentPage="provs" />
+        <div className="h-screen bg-black flex items-center justify-center">
+          <div className="text-white text-center">
+            <div className="text-xl mb-2">No Provs Available</div>
+            <div className="text-white/60">Check back later for new content!</div>
+          </div>
+        </div>
+      </>
+    )
   }
 
   return (

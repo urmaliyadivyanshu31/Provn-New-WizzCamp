@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Navigation } from "@/components/provn/navigation"
 import { ProvnButton } from "@/components/provn/button"
 import { ProvnCard, ProvnCardContent } from "@/components/provn/card"
@@ -134,11 +134,60 @@ export default function DashboardPage() {
   const [selectedVideo, setSelectedVideo] = useState<string>("")
   const [campaignBudget, setCampaignBudget] = useState<number>(50)
   const [campaignDuration, setCampaignDuration] = useState<number>(7)
+  const [analyticsData, setAnalyticsData] = useState<any>(null)
+  const [userVideos, setUserVideos] = useState<VideoStats[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const totalEarnings = mockVideos.reduce((sum, video) => sum + video.earnings, 0)
-  const totalViews = mockVideos.reduce((sum, video) => sum + video.views, 0)
-  const totalTips = mockVideos.reduce((sum, video) => sum + video.tips, 0)
-  const totalLicenses = mockVideos.reduce((sum, video) => sum + video.licenses, 0)
+  // Fetch dashboard data on component mount
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true)
+        // In real app, get current user address from wallet context
+        const currentUserAddress = "0x1234567890abcdef1234567890abcdef12345678"
+        
+        // Fetch analytics data
+        const analyticsResponse = await fetch(`/api/analytics/dashboard?address=${currentUserAddress}`)
+        if (analyticsResponse.ok) {
+          const data = await analyticsResponse.json()
+          setAnalyticsData(data)
+        }
+
+        // Fetch user's videos
+        const videosResponse = await fetch(`/api/videos?creator=${currentUserAddress}&includeDerivatives=true&limit=50`)
+        if (videosResponse.ok) {
+          const videosData = await videosResponse.json()
+          
+          // Transform to VideoStats format
+          const transformedVideos: VideoStats[] = videosData.videos.map((video: any) => ({
+            id: video.id,
+            title: video.title,
+            thumbnail: video.thumbnailUrl,
+            views: video.stats.views,
+            tips: video.stats.tips,
+            licenses: video.licensing.available ? 1 : 0, // Simplified
+            earnings: video.stats.tips * 2.5 + (video.licensing.available ? 10 : 0), // Rough calculation
+            createdAt: video.createdAt,
+            status: video.status as "minted" | "processing" | "failed",
+          }))
+
+          setUserVideos(transformedVideos)
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [])
+
+  // Calculate totals from analytics data or fallback to user videos
+  const totalEarnings = analyticsData?.overview?.totalEarnings || userVideos.reduce((sum, video) => sum + video.earnings, 0)
+  const totalViews = analyticsData?.overview?.totalViews || userVideos.reduce((sum, video) => sum + video.views, 0)
+  const totalTips = analyticsData?.overview?.totalTips || userVideos.reduce((sum, video) => sum + video.tips, 0)
+  const totalLicenses = analyticsData?.overview?.totalLicenses || userVideos.reduce((sum, video) => sum + video.licenses, 0)
 
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
@@ -160,6 +209,19 @@ export default function DashboardPage() {
       month: "short",
       day: "numeric",
     })
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-provn-bg">
+        <Navigation currentPage="dashboard" />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center py-16">
+            <div className="text-provn-muted">Loading dashboard...</div>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (
@@ -255,12 +317,12 @@ export default function DashboardPage() {
                 <div>
                   <h2 className="font-headline text-xl font-semibold text-provn-text mb-4">Recent Activity</h2>
                   <div className="space-y-3">
-                    {[
+                    {(analyticsData?.recentActivity || [
                       { type: "tip", amount: "5 wCAMP", video: "Creative Dance Routine", time: "2 hours ago" },
                       { type: "license", amount: "10 wCAMP", video: "Urban Art Tutorial", time: "1 day ago" },
                       { type: "mint", amount: "0 wCAMP", video: "Music Production Tips", time: "1 day ago" },
                       { type: "tip", amount: "2 wCAMP", video: "Cooking Experiment", time: "3 days ago" },
-                    ].map((activity, index) => (
+                    ]).map((activity: any, index: number) => (
                       <ProvnCard key={index}>
                         <ProvnCardContent className="p-4">
                           <div className="flex justify-between items-center">
@@ -292,7 +354,7 @@ export default function DashboardPage() {
                 <div>
                   <h2 className="font-headline text-xl font-semibold text-provn-text mb-4">Top Performing</h2>
                   <div className="grid md:grid-cols-3 gap-6">
-                    {mockVideos
+                    {userVideos
                       .filter((video) => video.status === "minted")
                       .sort((a, b) => b.views - a.views)
                       .slice(0, 3)
@@ -329,13 +391,13 @@ export default function DashboardPage() {
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
                   <h2 className="font-headline text-xl font-semibold text-provn-text">
-                    All Videos ({mockVideos.length})
+                    All Videos ({userVideos.length})
                   </h2>
                   <ProvnButton onClick={() => (window.location.href = "/upload")}>Upload New</ProvnButton>
                 </div>
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {mockVideos.map((video) => (
+                  {userVideos.map((video) => (
                     <ProvnCard key={video.id}>
                       <div className="aspect-[9/16] bg-provn-surface-2 relative">
                         <img
@@ -482,7 +544,7 @@ export default function DashboardPage() {
                                         ? "default"
                                         : campaign.status === "paused"
                                           ? "warning"
-                                          : "secondary"
+                                          : "default"
                                   }
                                   className="text-xs"
                                 >
@@ -782,7 +844,7 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 <label className="block font-headline font-semibold text-provn-text">Select Video to Promote</label>
                 <div className="grid md:grid-cols-2 gap-3">
-                  {mockVideos
+                  {userVideos
                     .filter((video) => video.status === "minted")
                     .map((video) => (
                       <div
@@ -872,7 +934,7 @@ export default function DashboardPage() {
                     <div className="flex items-start space-x-3">
                       <div className="relative">
                         <img
-                          src={mockVideos.find((v) => v.id === selectedVideo)?.thumbnail || "/placeholder.svg"}
+                          src={userVideos.find((v) => v.id === selectedVideo)?.thumbnail || "/placeholder.svg"}
                           alt="Preview"
                           className="w-16 h-16 rounded object-cover"
                         />
@@ -882,7 +944,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex-1">
                         <div className="font-medium text-provn-text">
-                          {mockVideos.find((v) => v.id === selectedVideo)?.title}
+                          {userVideos.find((v) => v.id === selectedVideo)?.title}
                         </div>
                         <div className="text-sm text-provn-muted">
                           This is how your promoted Prov will appear in the feed
