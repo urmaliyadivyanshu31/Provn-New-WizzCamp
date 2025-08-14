@@ -19,5 +19,26 @@ export const initializeOriginSDK = (config: any): void => {
   }
 };
 
+// Mock origin service for API routes (server-side)
+// Since Origin SDK is client-side only, this is a placeholder
+export const originService = {
+  initialized: false,
+  
+  async initialize() {
+    console.log('🔧 Origin service initialize called (server-side mock)');
+    this.initialized = true;
+  },
+  
+  async createIPNFT(params: any) {
+    console.log('🔧 Origin service createIPNFT called (server-side mock)', params);
+    throw new Error('Origin SDK createIPNFT should be called from client-side only');
+  },
+  
+  async createPost(params: any) {
+    console.log('🔧 Origin service createPost called (server-side mock)', params);
+    throw new Error('Origin SDK createPost should be called from client-side only');
+  }
+};
+
 // Export default for backward compatibility
-export default { getOriginSDK, initializeOriginSDK };
+export default { getOriginSDK, initializeOriginSDK, originService };

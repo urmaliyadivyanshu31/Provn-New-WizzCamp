@@ -10,33 +10,36 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   const [isConfigReady, setIsConfigReady] = useState(false);
 
   useEffect(() => {
+    // Handle ethereum object conflicts from multiple wallet extensions
+    const handleEthereumConflict = () => {
+      if (typeof window !== 'undefined') {
+        const originalDefineProperty = Object.defineProperty;
+        Object.defineProperty = function<T>(obj: T, prop: PropertyKey, descriptor: PropertyDescriptor & ThisType<any>): T {
+          if (prop === 'ethereum' && obj === window && window.ethereum) {
+            console.warn('ethereum object already exists, skipping redefinition');
+            return obj;
+          }
+          return originalDefineProperty.call(this, obj, prop, descriptor) as T;
+        };
+        
+        // Restore after extensions load
+        setTimeout(() => {
+          Object.defineProperty = originalDefineProperty;
+        }, 5000);
+      }
+    };
+
     // Set up Origin SDK configuration for BaseCAMP network
     if (typeof window !== 'undefined') {
+      // Handle ethereum conflicts first
+      handleEthereumConflict();
+      
       // Clear any existing config first
       delete (window as any).__ORIGIN_CONFIG__;
       
-      // Set new config using environment variables
-      (window as any).__ORIGIN_CONFIG__ = {
-        apiUrl: process.env.NEXT_PUBLIC_ORIGIN_API || 'https://api.origin.campnetwork.xyz',
-        clientId: process.env.NEXT_PUBLIC_CAMP_NETWORK_CLIENT_ID || '9123887d-94f0-4427-a2f7-cd04d16c1fc3',
-        environment: process.env.NEXT_PUBLIC_CAMP_NETWORK_ENVIRONMENT || 'testnet',
-        network: {
-          chainId: process.env.NEXT_PUBLIC_CHAIN_ID || '123420001114',
-          chainIdHex: '0x1cbc67c35a',
-          name: 'BaseCAMP',
-          rpcUrl: process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc.basecamp.t.raas.gelato.cloud',
-          explorerUrl: process.env.NEXT_PUBLIC_EXPLORER_URL || 'https://basecamp.cloud.blockscout.com',
-          currency: 'CAMP'
-        }
-      }
-      
-      console.log('🔧 Origin SDK configuration set:', (window as any).__ORIGIN_CONFIG__);
-      
-      // Wait a bit to ensure config is set
-      setTimeout(() => {
-        setIsConfigReady(true);
-        console.log('🔧 Origin SDK configuration ready, rendering CampProvider');
-      }, 1000);
+      // Let CampProvider handle configuration automatically
+      setIsConfigReady(true);
+      console.log('🔧 Ready to initialize CampProvider');
     }
   }, []);
 
@@ -44,10 +47,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   if (!isConfigReady) {
     return (
       <QueryClientProvider client={queryClient}>
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-screen bg-provn-bg">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Initializing Origin SDK...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-provn-accent mx-auto mb-4"></div>
+            <p className="text-provn-muted">Initializing Origin SDK...</p>
           </div>
         </div>
       </QueryClientProvider>
@@ -56,7 +59,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-        <CampProvider clientId={process.env.NEXT_PUBLIC_CAMP_NETWORK_CLIENT_ID || '9123887d-94f0-4427-a2f7-cd04d16c1fc3'}>
+        <CampProvider 
+          clientId={process.env.NEXT_PUBLIC_CAMP_NETWORK_CLIENT_ID || '9123887d-94f0-4427-a2f7-cd04d16c1fc3'}
+          redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
+          allowAnalytics={false}
+        >
             {children}
             <Toaster position="top-right" richColors />
         </CampProvider>

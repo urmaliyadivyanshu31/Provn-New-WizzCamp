@@ -43,7 +43,7 @@ export default function RootLayout({
           }
         `}</style>
       </head>
-      <body className="bg-provn-bg text-provn-text antialiased">
+      <body className="bg-provn-bg text-provn-text antialiased" suppressHydrationWarning={true}>
         <Providers>
           {children}
         </Providers>

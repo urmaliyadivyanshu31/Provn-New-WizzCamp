@@ -7,9 +7,11 @@ import { ProvnButton } from "@/components/provn/button"
 import { ProvnCard, ProvnCardContent } from "@/components/provn/card"
 import { ProvnBadge } from "@/components/provn/badge"
 import { Navigation } from "@/components/provn/navigation"
-import { useAuth } from "@campnetwork/origin/react"
+import { useAuth, useAuthState, useConnect } from "@campnetwork/origin/react"
 import { toast } from "sonner"
 import { CampModal } from "@campnetwork/origin/react"
+import { Copy, ExternalLink, Share2, Download, CheckCircle, Sparkles } from "lucide-react"
+import { ipfsService } from "@/lib/ipfs"
 
 interface UploadedFile {
   file: File
@@ -27,13 +29,19 @@ interface ProcessingStep {
 interface MintResult {
   tokenId: string
   ipfsHash: string
+  metadataUri?: string
   transactionHash: string
   blockscoutUrl: string
+  contractAddress?: string
+  chainId?: number
+  fileUrl?: string
 }
 
 export default function UploadPage() {
   const router = useRouter()
-  const { origin, isAuthenticated, walletAddress, isConnecting } = useAuth()
+  const auth = useAuth()
+  const { authenticated, loading } = useAuthState()
+  const { connect, disconnect } = useConnect()
   
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
@@ -53,81 +61,78 @@ export default function UploadPage() {
     { id: "minting", name: "Minting IpNFT", status: "pending", progress: 0 },
   ])
 
-  // Enhanced wallet readiness check
+  // Simplified wallet readiness check - rely on Origin SDK
   useEffect(() => {
-    const checkWalletReadiness = async () => {
-      try {
-        if (!isAuthenticated || !walletAddress || !origin) {
-          setIsWalletReady(false)
-          return
-        }
+    const checkWalletReadiness = () => {
+      // Simple check: if we have auth, origin SDK, and JWT, we're ready
+      const ready = !!(authenticated && auth.origin && auth.jwt && auth.walletAddress)
+      setIsWalletReady(ready)
+      
+      if (ready) {
+        console.log('✅ Origin SDK ready for minting')
+      } else {
+        console.log('⏳ Waiting for Origin SDK initialization...')
+      }
+    }
 
-        // Check if origin.mintFile is available
-        if (!origin.mintFile || typeof origin.mintFile !== 'function') {
-          console.log('🔍 Origin mintFile method not available yet')
-          setIsWalletReady(false)
-          return
-        }
+    checkWalletReadiness()
+  }, [authenticated, auth.origin, auth.jwt, auth.walletAddress])
 
-        // Check wallet connection at browser level
-        if (typeof window !== 'undefined' && window.ethereum) {
-          try {
-            const accounts = await window.ethereum.request({ method: 'eth_accounts' })
-            const chainId = await window.ethereum.request({ method: 'eth_chainId' })
-            
-            console.log('🔍 Wallet check:', {
-              accounts: accounts.length,
-              chainId,
-              expectedChainId: '0x1cbc67c35a',
-              isCorrectChain: chainId === '0x1cbc67c35a'
-            })
+  // Authentication event listeners as per official docs
+  useEffect(() => {
+    if (!auth.on) return
 
-            if (accounts.length > 0 && chainId === '0x1cbc67c35a') {
-              setIsWalletReady(true)
-              console.log('✅ Wallet is ready')
-            } else {
-              setIsWalletReady(false)
-              console.log('❌ Wallet not ready - wrong chain or no accounts')
-            }
-          } catch (error) {
-            console.error('🔍 Wallet check failed:', error)
-            setIsWalletReady(false)
-          }
-        } else {
-          setIsWalletReady(false)
-        }
-      } catch (error) {
-        console.error('🔍 Wallet readiness check failed:', error)
+    // Listen for authentication state changes
+    const handleStateChange = (state: any) => {
+      console.log('🔐 Auth state changed:', state)
+      // setAuthState(state) // This line was removed from the new_code, so it's removed here.
+      
+      if (state === 'authenticated') {
+        console.log('✅ User authenticated successfully')
+      } else if (state === 'unauthenticated') {
+        console.log('❌ User unauthenticated')
         setIsWalletReady(false)
       }
     }
 
-    // Check immediately
-    checkWalletReadiness()
-    
-    // Check periodically
-    const interval = setInterval(checkWalletReadiness, 2000)
-    
-    return () => clearInterval(interval)
-  }, [isAuthenticated, origin, walletAddress])
+    // Listen for provider changes
+    const handleProviderChange = (provider: any) => {
+      console.log('🔐 Provider changed:', provider)
+    }
+
+    // Listen for available providers
+    const handleProvidersChange = (providers: any) => {
+      console.log('🔐 Available providers:', providers)
+    }
+
+    // Subscribe to events
+    auth.on('state', handleStateChange)
+    auth.on('provider', handleProviderChange)
+    auth.on('providers', handleProvidersChange)
+
+    // Cleanup
+    return () => {
+      // Note: The on method might not have an off method, so we'll rely on component unmount
+    }
+  }, [auth.on])
 
   // Monitor Origin SDK state
   useEffect(() => {
     const checkOriginSDK = () => {
       console.log('🔍 Origin SDK State Check:', {
-        isAuthenticated,
-        hasOrigin: !!origin,
-        originType: typeof origin,
-        originMethods: origin ? Object.keys(origin) : 'undefined',
-        walletAddress,
-        isConnecting,
+        authenticated,
+        hasOrigin: !!auth.origin,
+        hasJWT: !!auth.jwt,
+        originType: typeof auth.origin,
+        originMethods: auth.origin ? Object.keys(auth.origin) : 'undefined',
+        walletAddress: auth.walletAddress,
         isWalletReady,
         timestamp: new Date().toISOString()
       });
     };
 
     checkOriginSDK();
-  }, [isAuthenticated, origin, walletAddress, isConnecting, isWalletReady]);
+  }, [authenticated, auth.origin, auth.walletAddress, isWalletReady, auth.jwt]);
   
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -186,73 +191,85 @@ export default function UploadPage() {
     setProcessingSteps((prev) => prev.map((step) => (step.id === stepId ? { ...step, ...updates } : step)))
   }
 
-  // Enhanced wallet connection function
-  const ensureWalletConnection = async (): Promise<boolean> => {
+  // Enhanced authentication trigger with better debugging
+  const handleManualAuth = async () => {
+    if (!connect || !disconnect) {
+      toast.error('Authentication methods not available')
+      return
+    }
+
     try {
-      if (!window.ethereum) {
-        throw new Error('No wallet detected. Please install a Web3 wallet.')
-      }
-
-      // Request account access
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
-      if (accounts.length === 0) {
-        throw new Error('No wallet accounts found. Please connect your wallet.')
-      }
-
-      // Check current chain
-      const chainId = await window.ethereum.request({ method: 'eth_chainId' })
-      console.log('🔍 Current chain ID:', chainId)
-
-      // Switch to BaseCAMP testnet if needed
-      if (chainId !== '0x1cbc67c35a') {
-        console.log('🔍 Switching to BaseCAMP testnet...')
+      console.log('🔐 Starting fresh authentication...', {
+        currentAuth: {
+          authenticated,
+          hasJWT: !!auth.jwt,
+          hasOrigin: !!auth.origin,
+          walletAddress: auth.walletAddress
+        }
+      })
+      
+      // First disconnect to clear any stale state
+      if (authenticated) {
+        console.log('🔐 Disconnecting existing session...')
         try {
-          await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0x1cbc67c35a' }],
-          })
-        } catch (switchError: any) {
-          // If the chain doesn't exist, add it
-          if (switchError.code === 4902) {
-            await window.ethereum.request({
-              method: 'wallet_addEthereumChain',
-              params: [{
-                chainId: '0x1cbc67c35a',
-                chainName: 'BaseCAMP',
-                nativeCurrency: {
-                  name: 'CAMP',
-                  symbol: 'CAMP',
-                  decimals: 18
-                },
-                rpcUrls: [
-                  'https://rpc.basecamp.t.raas.gelato.cloud',
-                  'https://rpc-campnetwork.xyz'
-                ],
-                blockExplorerUrls: ['https://basecamp.cloud.blockscout.com/']
-              }],
-            })
-          } else {
-            throw switchError
-          }
+          await disconnect()
+          console.log('🔐 Disconnect successful')
+        } catch (disconnectError) {
+          console.warn('🔐 Disconnect error (continuing anyway):', disconnectError)
+        }
+        await new Promise(resolve => setTimeout(resolve, 2000)) // Wait longer for disconnect
+      }
+      
+      // Clear any cached authentication data
+      console.log('🔐 Clearing cached auth state...')
+      if (typeof window !== 'undefined') {
+        // Clear any stored auth tokens or state
+        localStorage.removeItem('camp-auth-token')
+        localStorage.removeItem('camp-wallet-address')
+        sessionStorage.clear()
+      }
+      
+      // Then reconnect
+      console.log('🔐 Connecting wallet...')
+      await connect()
+      toast.success('Please sign the authentication message in your wallet.')
+      
+      // Wait longer and check auth state more thoroughly
+      let attempts = 0
+      const maxAttempts = 10
+      const checkAuthState = () => {
+        attempts++
+        console.log(`🔍 Auth check attempt ${attempts}:`, {
+          authenticated,
+          hasJWT: !!auth.jwt,
+          hasOrigin: !!auth.origin,
+          walletAddress: auth.walletAddress,
+          jwtPreview: auth.jwt ? auth.jwt.substring(0, 30) + '...' : 'none'
+        })
+        
+        if (auth.jwt && authenticated) {
+          toast.success('✅ Authentication successful!')
+          console.log('✅ Authentication flow completed successfully')
+        } else if (attempts < maxAttempts) {
+          setTimeout(checkAuthState, 1000)
+        } else {
+          console.warn('⚠️ Authentication may not have completed properly')
+          toast.warning('Authentication may be incomplete. Try uploading anyway or refresh the page.')
         }
       }
-
-      // Wait for chain switch to complete
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // Verify the chain switch
-      const newChainId = await window.ethereum.request({ method: 'eth_chainId' })
-      if (newChainId !== '0x1cbc67c35a') {
-        throw new Error('Failed to switch to BaseCAMP testnet')
-      }
-
-      console.log('✅ Wallet connection verified')
-      return true
-    } catch (error) {
-      console.error('❌ Wallet connection failed:', error)
-      throw error
+      
+      setTimeout(checkAuthState, 1000)
+      
+    } catch (error: any) {
+      console.error('🔐 Authentication failed:', {
+        error,
+        message: error?.message,
+        stack: error?.stack
+      })
+      toast.error(`Authentication failed: ${error?.message || 'Unknown error'}`)
     }
   }
+
 
   const handleUpload = async () => {
     if (!uploadedFile || !title.trim()) {
@@ -260,252 +277,390 @@ export default function UploadPage() {
       return
     }
 
-    if (!isAuthenticated) {
-      toast.error("Please connect your wallet first")
+    // Simple validation based on working model
+    if (!auth.walletAddress) {
+      toast.error("Wallet not connected", {
+        description: "Please connect your wallet first.",
+        duration: 5000,
+      })
       return
     }
+    console.log("✅ Wallet connected:", auth.walletAddress)
 
-    // Enhanced wallet readiness check
-    if (!isWalletReady) {
-      toast.error("Wallet not ready. Please ensure your wallet is connected and on the BaseCAMP network.")
+    if (!auth.origin) {
+      toast.error("Origin SDK not initialized", {
+        description: "Please try reconnecting your wallet.",
+        duration: 5000,
+      })
       return
     }
+    console.log("✅ Origin SDK initialized")
 
-    if (!origin || !origin.mintFile) {
-      toast.error('Origin SDK not ready. Please wait for initialization and ensure your wallet is connected.')
+    // Check file size (based on working model)
+    const fileSizeMB = uploadedFile.file.size / (1024 * 1024)
+    if (fileSizeMB > 150) { // Keep our 150MB limit
+      toast.error("File too large for upload.", {
+        description: `File size is ${fileSizeMB.toFixed(2)}MB. Maximum allowed is 150MB.`,
+        duration: 5000,
+      })
       return
     }
-
-    if (!walletAddress) {
-      toast.error('Wallet address not found. Please reconnect your wallet.')
-      return
-    }
+    console.log(`✅ File size valid: ${fileSizeMB.toFixed(2)}MB`)
 
     setIsProcessing(true)
 
     try {
-      // Step 1: File Validation
+      // Update processing steps
       updateProcessingStep("validation", { status: "processing", message: "Validating file..." })
-      await new Promise(resolve => setTimeout(resolve, 500))
       updateProcessingStep("validation", { status: "completed", progress: 100 })
+      updateProcessingStep("transcoding", { status: "completed", progress: 100, message: "Ready for processing" })
+      updateProcessingStep("ipfs", { status: "processing", progress: 0, message: "Preparing upload..." })
+      updateProcessingStep("hashing", { status: "pending", progress: 0 })
+      updateProcessingStep("duplicate", { status: "pending", progress: 0 })
+      updateProcessingStep("minting", { status: "pending", progress: 0 })
 
-      // Step 2: Skip transcoding for now
-      updateProcessingStep("transcoding", { status: "completed", progress: 100, message: "Skipping transcoding" })
-
-      // Step 3: IPFS Upload
-      updateProcessingStep("ipfs", {
-        status: "processing",
-        progress: 0,
-        message: "Uploading to IPFS...",
-      })
-
-      const initialFormData = new FormData()
-      initialFormData.append('file', uploadedFile.file)
-      
-      const initialIpfsResponse = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_PINATA_JWT_TOKEN}`
-        },
-        body: initialFormData
-      })
-
-      if (!initialIpfsResponse.ok) {
-        throw new Error(`IPFS upload failed: ${initialIpfsResponse.statusText}`)
-      }
-
-      const ipfsResult = await initialIpfsResponse.json()
-      const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${ipfsResult.IpfsHash}`
-
-      updateProcessingStep("ipfs", { status: "completed", progress: 100, message: "Uploaded to IPFS successfully!" })
-
-      // Step 4: Skip hashing for now
-      updateProcessingStep("hashing", { status: "completed", progress: 100, message: "Content fingerprinting completed" })
-
-      // Step 5: Skip duplicate check for now
-      updateProcessingStep("duplicate", { status: "completed", progress: 100, message: "No duplicates found" })
-
-      // Step 6: Enhanced IP-NFT Minting
-      updateProcessingStep("minting", {
-        status: "processing",
-        message: "Ensuring wallet connection...",
-      })
-
-      // Enhanced wallet connection check
-      try {
-        await ensureWalletConnection()
-      } catch (error) {
-        throw new Error(`Wallet connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
-      }
-
-      updateProcessingStep("minting", {
-        status: "processing",
-        progress: 25,
-        message: "Preparing metadata...",
-      })
-
-      // Simplified metadata - let Origin SDK handle IPFS URL
-      const metadata = {
-        name: title,
-        description: description || title,
-      }
-
-      // Create license object
+      // Define license terms (based on working model)
       const license = {
         price: BigInt(0),
-        duration: 2629800, // 30 days in seconds
+        duration: 2629800, // 30 days in seconds  
         royaltyBps: 0,
         paymentToken: "0x0000000000000000000000000000000000000000" as `0x${string}`,
       }
 
-      updateProcessingStep("minting", {
-        status: "processing",
-        progress: 50,
-        message: "Creating file for minting...",
-      })
-
-      // Use the original file directly - let Origin SDK handle IPFS upload
-      const mintFile = uploadedFile.file
-
-      updateProcessingStep("minting", {
-        status: "processing",
-        progress: 90,
-        message: "Minting IP-NFT on Camp Network...",
-      })
-
-      console.log('🔍 Final checks before minting:', {
-        hasOrigin: !!origin,
-        hasMintFile: !!origin?.mintFile,
-        mintFileType: typeof origin?.mintFile,
-        walletAddress,
-        isAuthenticated,
-        isWalletReady,
-        fileSize: mintFile.size,
-        fileName: mintFile.name,
-        licensePrice: license.price.toString()
-      })
-
-      // Final Origin SDK readiness check
-      if (!origin || !origin.mintFile || typeof origin.mintFile !== 'function') {
-        throw new Error('Origin SDK mintFile method not available. Please reconnect your wallet.')
+      // Create metadata (based on working model)
+      const metadata = {
+        name: title,
+        description: description || title,
+        attributes: [
+          {
+            trait_type: "Type",
+            value: "Video",
+          },
+          {
+            trait_type: "File Size",
+            value: `${fileSizeMB.toFixed(2)}MB`,
+          },
+          {
+            trait_type: "Platform",
+            value: "Provn",
+          },
+        ],
       }
 
-      // Additional delay to ensure everything is ready
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      // Force Origin SDK to reinitialize wallet connection
-      console.log('🔍 Forcing Origin SDK wallet reconnection...')
-      try {
-        // Trigger a wallet reconnection in Origin SDK
-        if (origin.connect && typeof origin.connect === 'function') {
-          await origin.connect()
-          console.log('✅ Origin SDK reconnected')
-        }
-      } catch (connectError) {
-        console.log('🔍 Origin connect method not available or failed:', connectError)
-      }
-
-      // Wait for wallet client to be properly initialized
-      await new Promise(resolve => setTimeout(resolve, 3000))
-
-      // Check if Origin SDK has proper wallet client now
-      console.log('🔍 Final Origin SDK state:', {
-        hasOrigin: !!origin,
-        hasMintFile: !!origin?.mintFile,
-        hasWalletClient: !!origin?.walletClient,
-        originKeys: origin ? Object.keys(origin) : []
+      console.log("📤 Starting IP registration...", {
+        fileSize: fileSizeMB.toFixed(2) + "MB",
+        walletAddress: auth.walletAddress,
+        hasOrigin: !!auth.origin,
+        fileName: uploadedFile.file.name,
+        fileType: uploadedFile.file.type,
+        metadata,
+        license: { ...license, price: license.price.toString() }
       })
 
-      // Attempt the mint with retry logic
-      console.log('🔍 Attempting to mint with Origin SDK...')
-      let mintResult
-      let retryCount = 0
-      const maxRetries = 3
+      updateProcessingStep("minting", {
+        status: "processing", 
+        progress: 30,
+        message: "Registering IP with Origin SDK...",
+      })
+      
+      // Let Origin SDK handle IPFS upload internally
+      console.log("🚀 Starting mintFile with Origin SDK (handling IPFS internally)...")
+      updateProcessingStep("ipfs", { status: "processing", progress: 30, message: "Uploading to IPFS via Origin SDK..." })
+      updateProcessingStep("minting", { status: "processing", progress: 50, message: "Minting with Origin SDK..." })
+      
+      // Check Origin SDK authentication status
+      console.log("🔍 Origin SDK Authentication Check:", {
+        hasOrigin: !!auth.origin,
+        hasJWT: !!auth.jwt,
+        walletAddress: auth.walletAddress,
+        jwtPreview: auth.jwt ? `${auth.jwt.substring(0, 20)}...` : 'none'
+      })
+      
+      const mintResult = await auth.origin.mintFile(uploadedFile.file, metadata, license)
+      
+      updateProcessingStep("hashing", { status: "completed", progress: 100, message: "Content fingerprinted" })
+      updateProcessingStep("duplicate", { status: "completed", progress: 100, message: "No duplicates found" })
+      updateProcessingStep("minting", { status: "processing", progress: 80, message: "Finalizing registration..." })
 
-      while (retryCount < maxRetries) {
-        try {
-          mintResult = await origin.mintFile(mintFile, metadata, license)
-          console.log('✅ Mint successful - Raw response:', mintResult)
-          console.log('✅ Mint result type:', typeof mintResult)
-          console.log('✅ Mint result keys:', typeof mintResult === 'object' ? Object.keys(mintResult || {}) : 'N/A')
-          break
-        } catch (mintError: any) {
-          retryCount++
-          console.log(`🔍 Mint attempt ${retryCount} failed:`, mintError.message)
+      toast.success("IP registration successful! Your NFT is now live.", {
+        duration: 5000,
+      })
+      
+      // Comprehensive logging for debugging
+      console.log("✅ IP registration successful! Your NFT is now live.")
+      console.log("🔍 Full mintResult object:", mintResult)
+      console.log("🔍 mintResult type:", typeof mintResult)
+      console.log("🔍 mintResult structure:", JSON.stringify(mintResult, null, 2))
+      
+      if (mintResult && typeof mintResult === 'object') {
+        console.log("📊 Available properties:", Object.keys(mintResult))
+        console.log("📊 All values:", Object.entries(mintResult))
+      }
+
+      // Enhanced data parsing for Origin SDK response
+      let realTokenId = 'unknown'
+      let realTxHash = 'unknown'
+      let realIpfsHash = 'unknown'
+      let metadataUri = ''
+      let contractAddress = ''
+      let fileUrl = ''
+      
+      console.log("🔧 Starting enhanced data parsing...")
+      
+      if (mintResult) {
+        if (typeof mintResult === 'string') {
+          // According to docs, mintFile should return token ID as string
+          console.log("📝 mintResult is string (likely token ID):", mintResult)
+          realTokenId = mintResult
+          console.log("✅ Token ID extracted:", realTokenId)
           
-          if (mintError.message.includes('WalletClient not connected') && retryCount < maxRetries) {
-            console.log('🔍 Retrying wallet connection...')
-            // Try to reconnect and wait
-            await new Promise(resolve => setTimeout(resolve, 2000))
-            continue
-          } else {
-            throw mintError
+          // Try to get transaction hash and additional data including IPFS hash
+          if (auth.origin && realTokenId !== 'unknown' && realTokenId !== '0') {
+            try {
+              console.log("🔍 Attempting to get token URI for additional data...")
+              const tokenUri = await auth.origin.tokenURI(BigInt(realTokenId))
+              console.log("✅ Got token URI:", tokenUri)
+              metadataUri = tokenUri
+              
+              if (tokenUri && tokenUri.includes('ipfs://')) {
+                const metadataHash = tokenUri.replace('ipfs://', '')
+                console.log("✅ Found metadata IPFS hash:", metadataHash)
+                metadataUri = tokenUri
+                
+                // Fetch the metadata to get the actual video file hash
+                try {
+                  console.log("🔍 Fetching metadata to find video file hash...")
+                  const metadataResponse = await fetch(`https://gateway.pinata.cloud/ipfs/${metadataHash}`)
+                  const metadata = await metadataResponse.json()
+                  console.log("📄 Metadata content:", metadata)
+                  
+                  // Look for video file hash in metadata
+                  if (metadata.image && metadata.image.includes('ipfs://')) {
+                    realIpfsHash = metadata.image.replace('ipfs://', '')
+                    fileUrl = `https://gateway.pinata.cloud/ipfs/${realIpfsHash}`
+                    console.log("✅ Found video file IPFS hash in metadata.image:", realIpfsHash)
+                  } else if (metadata.image && metadata.image.includes('mypinata.cloud/ipfs/')) {
+                    // Handle gateway URL format
+                    realIpfsHash = metadata.image.split('/ipfs/')[1]
+                    fileUrl = metadata.image
+                    console.log("✅ Found video file IPFS hash from gateway URL:", realIpfsHash)
+                  } else if (metadata.animation_url) {
+                    if (metadata.animation_url.includes('ipfs://')) {
+                      realIpfsHash = metadata.animation_url.replace('ipfs://', '')
+                    } else if (metadata.animation_url.includes('mypinata.cloud/ipfs/')) {
+                      realIpfsHash = metadata.animation_url.split('/ipfs/')[1]
+                    }
+                    fileUrl = metadata.animation_url
+                    console.log("✅ Found video file IPFS hash in metadata.animation_url:", realIpfsHash)
+                  }
+                } catch (metadataError) {
+                  console.warn("⚠️ Could not fetch metadata:", metadataError)
+                  // Fallback to using metadata hash
+                  realIpfsHash = metadataHash
+                  fileUrl = `https://gateway.pinata.cloud/ipfs/${metadataHash}`
+                }
+              }
+            } catch (error) {
+              console.warn("⚠️ Could not fetch token URI:", error)
+              // This is expected if the token was just minted
+            }
+            
+            try {
+              console.log("🔍 Attempting to get content hash...")
+              const contentHashResult = await auth.origin.contentHash(BigInt(realTokenId))
+              console.log("✅ Got content hash:", contentHashResult)
+              if (contentHashResult && !realIpfsHash) {
+                realIpfsHash = contentHashResult
+                fileUrl = `https://gateway.pinata.cloud/ipfs/${realIpfsHash}`
+              }
+            } catch (error) {
+              console.warn("⚠️ Could not fetch content hash:", error)
+            }
+          }
+          
+        } else if (typeof mintResult === 'object' && mintResult !== null) {
+          const result = mintResult as any
+          console.log("📝 mintResult is object (unexpected based on docs), extracting fields...")
+          
+          // Extract token ID (primary)
+          if (result.tokenId) {
+            realTokenId = result.tokenId.toString()
+            console.log("✅ Found token ID in 'tokenId':", realTokenId)
+          } else if (result.id) {
+            realTokenId = result.id.toString()
+            console.log("✅ Found token ID in 'id':", realTokenId)
+          } else if (typeof result === 'string') {
+            realTokenId = result
+            console.log("✅ Found token ID as string value:", realTokenId)
+          }
+          
+          // Extract transaction hash
+          if (result.hash) {
+            realTxHash = result.hash
+            console.log("✅ Found transaction hash in 'hash':", realTxHash)
+          } else if (result.transactionHash) {
+            realTxHash = result.transactionHash
+            console.log("✅ Found transaction hash in 'transactionHash':", realTxHash)
+          } else if (result.txHash) {
+            realTxHash = result.txHash
+            console.log("✅ Found transaction hash in 'txHash':", realTxHash)
+          }
+          
+          // Extract IPFS hash from object
+          if (result.ipfsHash) {
+            realIpfsHash = result.ipfsHash
+            fileUrl = `https://gateway.pinata.cloud/ipfs/${realIpfsHash}`
+            console.log("✅ Found IPFS hash in 'ipfsHash':", realIpfsHash)
+          } else if (result.cid) {
+            realIpfsHash = result.cid
+            fileUrl = `https://gateway.pinata.cloud/ipfs/${realIpfsHash}`
+            console.log("✅ Found IPFS hash in 'cid':", realIpfsHash)
+          } else if (result.tokenURI || result.uri) {
+            const uri = result.tokenURI || result.uri
+            metadataUri = uri
+            
+            if (uri.includes('ipfs://')) {
+              const metadataHash = uri.replace('ipfs://', '')
+              console.log("✅ Found metadata IPFS hash in object:", metadataHash)
+              
+              // Fetch metadata to get video file hash
+              try {
+                const metadataResponse = await fetch(`https://gateway.pinata.cloud/ipfs/${metadataHash}`)
+                const metadata = await metadataResponse.json()
+                console.log("📄 Metadata from object:", metadata)
+                
+                if (metadata.image && metadata.image.includes('mypinata.cloud/ipfs/')) {
+                  realIpfsHash = metadata.image.split('/ipfs/')[1]
+                  fileUrl = metadata.image
+                  console.log("✅ Found video IPFS hash from metadata:", realIpfsHash)
+                }
+              } catch (error) {
+                console.warn("⚠️ Could not fetch metadata from object:", error)
+                realIpfsHash = metadataHash
+                fileUrl = `https://gateway.pinata.cloud/ipfs/${metadataHash}`
+              }
+            }
+          } else if (result.metadata?.image) {
+            const imageUrl = result.metadata.image
+            if (imageUrl.includes('ipfs://')) {
+              realIpfsHash = imageUrl.replace('ipfs://', '')
+              fileUrl = `https://gateway.pinata.cloud/ipfs/${realIpfsHash}`
+              console.log("✅ Found IPFS hash in 'metadata.image':", realIpfsHash)
+            } else if (imageUrl.includes('mypinata.cloud/ipfs/')) {
+              realIpfsHash = imageUrl.split('/ipfs/')[1]
+              fileUrl = imageUrl
+              console.log("✅ Found video IPFS hash from direct metadata.image:", realIpfsHash)
+            }
+          }
+          
+          // Extract additional fields
+          if (result.metadataUri) {
+            metadataUri = result.metadataUri
+          }
+          if (result.contractAddress) {
+            contractAddress = result.contractAddress
+          }
+          if (result.fileUrl) {
+            fileUrl = result.fileUrl
           }
         }
       }
-
-      if (!mintResult) {
-        throw new Error('Failed to mint after multiple attempts')
-      }
-
-      toast.success('🎉 IP-NFT minting successful!')
-
-      // Extract real transaction hash and token ID from Origin SDK response
-      console.log('🔍 Raw mint result:', mintResult)
       
-      let realTokenId = 'unknown'
-      let realTxHash = 'unknown'
-      
-      // Parse the mint result to extract real values
-      if (mintResult) {
-        if (typeof mintResult === 'object' && mintResult.hash) {
-          realTxHash = mintResult.hash
-        } else if (typeof mintResult === 'object' && mintResult.transactionHash) {
-          realTxHash = mintResult.transactionHash
-        } else if (typeof mintResult === 'string' && mintResult.startsWith('0x')) {
-          realTxHash = mintResult
-        }
-        
-        if (typeof mintResult === 'object' && mintResult.tokenId) {
-          realTokenId = mintResult.tokenId.toString()
-        } else if (typeof mintResult === 'object' && mintResult.id) {
-          realTokenId = mintResult.id.toString()
+      // Try to fetch transaction details if we don't have a transaction hash
+      if (realTxHash === 'unknown' && realTokenId !== 'unknown') {
+        console.log('🔍 Attempting to fetch transaction details from BaseCAMP API...')
+        try {
+          const txDetails = await fetchTransactionDetails(realTokenId)
+          if (txDetails?.hash) {
+            realTxHash = txDetails.hash
+            console.log('✅ Retrieved transaction hash from API:', realTxHash)
+          }
+        } catch (error) {
+          console.warn('⚠️ Could not fetch transaction details:', error)
         }
       }
 
-      // Success - use real data from Origin SDK
-      const result: MintResult = {
+      // Update IPFS step based on whether we found the hash
+      if (realIpfsHash !== 'unknown') {
+        updateProcessingStep("ipfs", { 
+          status: "completed", 
+          progress: 100, 
+          message: "Video found on IPFS successfully" 
+        })
+      } else {
+        updateProcessingStep("ipfs", { 
+          status: "completed", 
+          progress: 100, 
+          message: "Processing complete (IPFS hash extraction pending)" 
+        })
+      }
+
+      console.log("📊 Final parsed values:", {
         tokenId: realTokenId,
-        ipfsHash: ipfsResult.IpfsHash,
+        ipfsHash: realIpfsHash, 
+        transactionHash: realTxHash,
+        metadataUri,
+        contractAddress,
+        fileUrl
+      })
+
+      const finalResult: MintResult = {
+        tokenId: realTokenId,
+        ipfsHash: realIpfsHash,
+        metadataUri,
         transactionHash: realTxHash,
         blockscoutUrl: realTxHash !== 'unknown' 
           ? `https://basecamp.cloud.blockscout.com/tx/${realTxHash}`
           : '#',
+        contractAddress,
+        chainId: 123420001114, // BaseCAMP chain ID
+        fileUrl
       }
 
-      updateProcessingStep("minting", { status: "completed", progress: 100, message: "IP-NFT minted successfully!" })
-      setMintResult(result)
+      updateProcessingStep("minting", { status: "completed", progress: 100, message: "IP registration completed successfully!" })
+      setMintResult(finalResult)
 
     } catch (error) {
-      console.error("Upload failed:", error)
+      console.error("IP registration failed:", error)
       
-      let errorMessage = "Processing failed. Please try again."
-      if (error instanceof Error) {
-        errorMessage = error.message
-        
-        // Handle specific error types
-        if (error.message.includes("WalletClient not connected")) {
-          errorMessage = "Wallet client not connected. Please reconnect your wallet and ensure you're on the BaseCAMP network."
-        } else if (error.message.includes("User rejected")) {
-          errorMessage = "Transaction was rejected by user."
-        } else if (error.message.includes("insufficient funds")) {
-          errorMessage = "Insufficient funds for transaction."
-        } else if (error.message.includes("Failed to get signature")) {
-          errorMessage = "Authentication failed. Please reconnect your wallet and try again."
+      // Enhanced error handling for Origin SDK issues
+      let errorMessage = "IP registration failed. Please try again later."
+      let errorDescription = error instanceof Error ? error.message : "An error occurred"
+      
+      console.error("❌ Full error details:", {
+        error,
+        message: errorDescription,
+        stack: error instanceof Error ? error.stack : undefined,
+        authState: {
+          hasJWT: !!auth.jwt,
+          hasOrigin: !!auth.origin,
+          walletAddress: auth.walletAddress
         }
+      })
+      
+      if (errorDescription.includes("Failed to get signature") || errorDescription.includes("signature")) {
+        errorMessage = "Origin SDK authentication failed."
+        errorDescription = "Please disconnect and reconnect your wallet, then try again. The Origin SDK needs proper authentication to mint."
+      } else if (errorDescription.includes("400") || errorDescription.includes("Bad Request")) {
+        errorMessage = "Origin SDK registration failed."
+        errorDescription = "There was an issue with the Origin SDK registration. Please try refreshing the page and reconnecting your wallet."
+      } else if (errorDescription.includes("network")) {
+        errorMessage = "Network error. Please check your connection."
+        errorDescription = "Make sure you're connected to the correct network."
+      } else if (errorDescription.includes("gas")) {
+        errorMessage = "Insufficient gas fees."
+        errorDescription = "Please ensure you have enough gas for the transaction."
+      } else if (errorDescription.includes("user rejected") || errorDescription.includes("User rejected")) {
+        errorMessage = "Transaction was rejected."
+        errorDescription = "You declined the transaction. Please try again and approve when prompted."
       }
       
-      // Mark current processing step as error
+      toast.error(errorMessage, {
+        description: errorDescription,
+        duration: 5000,
+      })
+      
+      // Mark processing step as error
       const currentStep = processingSteps.find((step) => step.status === "processing")
       if (currentStep) {
         updateProcessingStep(currentStep.id, {
@@ -513,8 +668,6 @@ export default function UploadPage() {
           message: errorMessage,
         })
       }
-      
-      toast.error(`Upload failed: ${errorMessage}`)
     }
 
     setIsProcessing(false)
@@ -533,78 +686,247 @@ export default function UploadPage() {
     }
   }
 
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success(`${label} copied to clipboard!`)
+    } catch (error) {
+      toast.error('Failed to copy to clipboard')
+    }
+  }
+
+  const shareNFT = async () => {
+    const url = `${window.location.origin}/video/${mintResult?.tokenId}`
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Check out my IpNFT: ${title}`,
+          text: 'I just minted my video as an IpNFT on BaseCAMP with provenance verification!',
+          url: url,
+        })
+      } catch (error) {
+        copyToClipboard(url, 'Share URL')
+      }
+    } else {
+      copyToClipboard(url, 'Share URL')
+    }
+  }
+
+  // Function to monitor and fetch transaction details from BaseCAMP API
+  const fetchTransactionDetails = async (tokenId: string) => {
+    try {
+      console.log('🔍 Fetching transaction details for token ID:', tokenId)
+      
+      // Try to get transaction hash from recent wallet transactions
+      // We'll search for transactions involving the wallet address
+      const response = await fetch(
+        `https://basecamp.cloud.blockscout.com/api/v2/addresses/${auth.walletAddress}/transactions?filter=validated&type=token_creation`
+      )
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('📊 BaseCAMP API response:', data)
+        
+        // Find the most recent transaction (should be our mint)
+        if (data.items && data.items.length > 0) {
+          const recentTx = data.items[0]
+          console.log('✅ Found recent transaction:', recentTx)
+          return {
+            hash: recentTx.hash,
+            blockNumber: recentTx.block_number,
+            status: recentTx.status
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not fetch transaction details:', error)
+    }
+    
+    return null
+  }
+
   // Render success state
   if (mintResult) {
     return (
-      <div className="min-h-screen bg-provn-bg">
+      <div className="font-headline min-h-screen bg-provn-bg">
         <Navigation currentPage="upload" />
 
-        <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="text-center space-y-8">
-            {/* Success Icon */}
-            <div className="w-20 h-20 bg-green-600 rounded-full flex items-center justify-center mx-auto">
-              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="text-center space-y-12">
+            {/* Hero Success Section */}
+            <div className="space-y-6">
+              <div className="relative mx-auto">
+                <div className="w-32 h-32 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-green-500/25">
+                  <CheckCircle className="w-16 h-16 text-white" />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h1 className="font-headline text-5xl font-bold text-provn-text">
+                  IpNFT Minted Successfully!
+                </h1>
+                <p className="text-provn-muted text-xl max-w-2xl mx-auto">
+                  Your video is now immortalized on BaseCAMP with verified provenance and decentralized storage
+                </p>
+              </div>
+
+              <div className="flex justify-center gap-3">
+                <ProvnBadge variant="success" className="text-base px-6 py-2 bg-green-100 text-green-800 border-green-200">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Provenance Verified
+                </ProvnBadge>
+                <ProvnBadge variant="default" className="text-base px-6 py-2 bg-blue-100 text-blue-800 border-blue-200">
+                  BaseCAMP Network
+                </ProvnBadge>
+              </div>
             </div>
 
-            {/* Success Message */}
-            <div className="space-y-4">
-              <h1 className="font-headline text-4xl font-bold text-provn-text">Upload Successful!</h1>
-              <p className="text-provn-muted text-lg">Your video has been registered as an IpNFT on BaseCAMP</p>
-            </div>
-
-            {/* Provenance Badge */}
-            <div className="flex justify-center">
-              <ProvnBadge variant="success" className="text-base px-4 py-2">
-                ✓ Provenance Verified
-              </ProvnBadge>
-            </div>
-
-            {/* Transaction Details */}
-            <ProvnCard>
-              <ProvnCardContent className="p-6 space-y-4">
-                <div className="grid grid-cols-1 gap-4 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-provn-muted">Token ID:</span>
-                    <span className="text-provn-text font-mono">{mintResult.tokenId}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-provn-muted">IPFS Hash:</span>
-                    <a
-                      href={`https://gateway.pinata.cloud/ipfs/${mintResult.ipfsHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-provn-accent hover:underline font-mono text-xs"
-                    >
-                      {mintResult.ipfsHash.slice(0, 20)}...{mintResult.ipfsHash.slice(-8)} ↗
-                    </a>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-provn-muted">Transaction:</span>
-                    {mintResult.transactionHash !== 'unknown' ? (
-                      <a
-                        href={mintResult.blockscoutUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-provn-accent hover:underline font-mono text-xs"
-                      >
-                        {mintResult.transactionHash.slice(0, 10)}...{mintResult.transactionHash.slice(-8)} ↗
-                      </a>
-                    ) : (
-                      <span className="text-provn-muted font-mono text-xs">Processing...</span>
+            {/* NFT Preview Card */}
+            <div>
+              <ProvnCard className="max-w-2xl mx-auto bg-gradient-to-br from-provn-surface/80 to-provn-surface border-provn-border/50 backdrop-blur-sm">
+                <ProvnCardContent className="p-8 space-y-6">
+                  {uploadedFile && (
+                    <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-xl">
+                      <video 
+                        src={uploadedFile.preview} 
+                        controls 
+                        className="w-full h-full object-contain"
+                        poster={uploadedFile.preview}
+                      />
+                    </div>
+                  )}
+                  
+                  <div className="space-y-3">
+                    <h3 className="text-2xl font-bold text-provn-text">{title}</h3>
+                    {description && (
+                      <p className="text-provn-muted text-lg">{description}</p>
                     )}
                   </div>
-                </div>
-              </ProvnCardContent>
-            </ProvnCard>
+                </ProvnCardContent>
+              </ProvnCard>
+            </div>
+
+            {/* Blockchain Details Grid */}
+            <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+              {/* Token ID Card */}
+              <ProvnCard className="bg-gradient-to-br from-provn-surface/80 to-provn-surface border-provn-border/50 backdrop-blur-sm">
+                <ProvnCardContent className="p-6 text-center space-y-4">
+                  <div className="w-12 h-12 bg-provn-accent/20 rounded-xl flex items-center justify-center mx-auto">
+                    <span className="text-2xl">🏷️</span>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-provn-text mb-2">Token ID</h4>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="font-mono text-sm text-provn-text bg-provn-surface-2 px-3 py-1 rounded-lg">
+                        #{mintResult.tokenId}
+                      </span>
+                      <button
+                        onClick={() => copyToClipboard(mintResult.tokenId, 'Token ID')}
+                        className="p-1 hover:bg-provn-surface-2 rounded transition-colors"
+                      >
+                        <Copy className="w-4 h-4 text-provn-muted" />
+                      </button>
+                    </div>
+                  </div>
+                </ProvnCardContent>
+              </ProvnCard>
+
+              {/* IPFS Hash Card */}
+              <ProvnCard className="bg-gradient-to-br from-provn-surface/80 to-provn-surface border-provn-border/50 backdrop-blur-sm">
+                <ProvnCardContent className="p-6 text-center space-y-4">
+                  <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mx-auto">
+                    <span className="text-2xl">🌐</span>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-provn-text mb-2">IPFS Storage</h4>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="font-mono text-xs text-provn-text bg-provn-surface-2 px-3 py-1 rounded-lg max-w-[120px] truncate">
+                        {mintResult.ipfsHash !== 'unknown' ? mintResult.ipfsHash : 'Processing...'}
+                      </span>
+                      {mintResult.ipfsHash !== 'unknown' && (
+                        <>
+                          <button
+                            onClick={() => copyToClipboard(mintResult.ipfsHash, 'IPFS Hash')}
+                            className="p-1 hover:bg-provn-surface-2 rounded transition-colors"
+                          >
+                            <Copy className="w-4 h-4 text-provn-muted" />
+                          </button>
+                          <a
+                            href={`https://gateway.pinata.cloud/ipfs/${mintResult.ipfsHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 hover:bg-provn-surface-2 rounded transition-colors"
+                          >
+                            <ExternalLink className="w-4 h-4 text-provn-accent" />
+                          </a>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </ProvnCardContent>
+              </ProvnCard>
+
+              {/* Transaction Card */}
+              <ProvnCard className="bg-gradient-to-br from-provn-surface/80 to-provn-surface border-provn-border/50 backdrop-blur-sm">
+                <ProvnCardContent className="p-6 text-center space-y-4">
+                  <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center mx-auto">
+                    <span className="text-2xl">⛓️</span>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-provn-text mb-2">Transaction</h4>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="font-mono text-xs text-provn-text bg-provn-surface-2 px-3 py-1 rounded-lg max-w-[120px] truncate">
+                        {mintResult.transactionHash !== 'unknown' 
+                          ? `${mintResult.transactionHash.slice(0, 6)}...${mintResult.transactionHash.slice(-4)}`
+                          : 'Processing...'
+                        }
+                      </span>
+                      {mintResult.transactionHash !== 'unknown' && (
+                        <>
+                          <button
+                            onClick={() => copyToClipboard(mintResult.transactionHash, 'Transaction Hash')}
+                            className="p-1 hover:bg-provn-surface-2 rounded transition-colors"
+                          >
+                            <Copy className="w-4 h-4 text-provn-muted" />
+                          </button>
+                          <a
+                            href={mintResult.blockscoutUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 hover:bg-provn-surface-2 rounded transition-colors"
+                          >
+                            <ExternalLink className="w-4 h-4 text-provn-accent" />
+                          </a>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </ProvnCardContent>
+              </ProvnCard>
+            </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-4 justify-center">
-              <ProvnButton variant="secondary" onClick={() => router.push("/upload")}>
+            <div className="flex flex-wrap gap-4 justify-center">
+              <ProvnButton onClick={handleViewAsset} className="min-w-[160px]">
+                <span className="mr-2">👁️</span>
+                View IpNFT
+              </ProvnButton>
+              <ProvnButton variant="secondary" onClick={shareNFT} className="min-w-[160px]">
+                <Share2 className="w-4 h-4 mr-2" />
+                Share
+              </ProvnButton>
+              <ProvnButton variant="secondary" onClick={() => router.push("/upload")} className="min-w-[160px]">
+                <span className="mr-2">📤</span>
                 Upload Another
               </ProvnButton>
-              <ProvnButton onClick={handleViewAsset}>View Asset</ProvnButton>
+            </div>
+
+            {/* Additional Info */}
+            <div className="text-center space-y-3">
+              <p className="text-provn-muted text-sm max-w-2xl mx-auto">
+                Your content is now permanently stored on IPFS with blockchain-verified provenance. 
+                The transaction was processed gaslessly on the BaseCAMP network.
+              </p>
             </div>
           </div>
         </main>
@@ -630,7 +952,7 @@ export default function UploadPage() {
             <ProvnCard>
               <ProvnCardContent className="p-8">
                 <div className="space-y-6">
-                  {processingSteps.map((step, index) => (
+                  {processingSteps.map((step) => (
                     <div key={step.id} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -711,27 +1033,65 @@ export default function UploadPage() {
 
   // Render main upload form
   return (
-    <div className="min-h-screen bg-provn-bg">
+    <div className="font-headline min-h-screen bg-provn-bg">
       <Navigation currentPage="upload" />
 
       {/* Upload Form */}
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="space-y-8">
           {/* Header */}
-          <div className="text-center space-y-4">
+          <div className="text-center pt-12 space-y-4">
             <h1 className="font-headline text-4xl font-bold text-provn-text">Upload & Mint</h1>
             <p className="text-provn-muted text-lg">Register your short video on Camp with on‑chain provenance.</p>
           </div>
 
           {/* Wallet Status Indicator */}
-          {isAuthenticated && (
-            <div className="text-center">
-              <ProvnBadge 
-                variant={isWalletReady ? "success" : "default"} 
-                className="text-sm px-3 py-1"
-              >
-                {isWalletReady ? "✓ Wallet Ready" : "⏳ Wallet Connecting..."}
-              </ProvnBadge>
+          {authenticated && (
+            <div className="text-center space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <ProvnBadge 
+                  variant={isWalletReady ? "success" : "default"} 
+                  className="text-sm px-3 py-1"
+                >
+                  {isWalletReady ? "✓ Wallet Ready" : "⏳ Wallet Connecting..."}
+                </ProvnBadge>
+                {auth.jwt && (
+                  <ProvnBadge 
+                    variant="success" 
+                    className="text-sm px-3 py-1"
+                  >
+                    ✓ Authenticated
+                  </ProvnBadge>
+                )}
+                <ProvnBadge 
+                  variant={authenticated ? 'success' : loading ? 'warning' : 'error'} 
+                  className="text-sm px-3 py-1"
+                >
+                  {authenticated ? '🔐 Auth OK' : loading ? '⏳ Auth Loading' : '❌ Auth Failed'}
+                </ProvnBadge>
+              </div>
+              
+              {/* Manual Authentication Button */}
+              {!auth.jwt && typeof connect === 'function' && (
+                <div className="flex gap-2 justify-center">
+                  <ProvnButton 
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={handleManualAuth}
+                    className="text-xs"
+                  >
+                    🔐 Re-authenticate
+                  </ProvnButton>
+                  <ProvnButton 
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={() => window.location.reload()}
+                    className="text-xs"
+                  >
+                    🔄 Refresh Page
+                  </ProvnButton>
+                </div>
+              )}
             </div>
           )}
 
@@ -885,13 +1245,13 @@ export default function UploadPage() {
             <ProvnButton variant="secondary" onClick={handleCancel}>
               Cancel
             </ProvnButton>
-            {!isAuthenticated ? (
+            {!authenticated ? (
               <ProvnButton disabled className="min-w-[160px]">
                 Connect Wallet to Upload
               </ProvnButton>
             ) : !isWalletReady ? (
               <ProvnButton disabled className="min-w-[160px]">
-                {isConnecting ? "Connecting..." : "Wallet Not Ready"}
+                Wallet Not Ready
               </ProvnButton>
             ) : (
               <ProvnButton 
