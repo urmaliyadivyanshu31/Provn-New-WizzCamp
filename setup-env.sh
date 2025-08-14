@@ -13,6 +13,8 @@ if [ ! -f .env.local ]; then
 NEXT_PUBLIC_CAMP_NETWORK_API_KEY=4f1a2c9c-008e-4a2e-8712-055fa04f9ffa
 NEXT_PUBLIC_CAMP_NETWORK_CLIENT_ID=fce77d7a-8085-47ca-adff-306a933e76aa
 NEXT_PUBLIC_CAMP_NETWORK_ENVIRONMENT=testnet
+NEXT_PUBLIC_ORIGIN_API=https://api.origin.campnetwork.xyz
+NEXT_PUBLIC_SUBGRAPH_URL=https://api.origin.campnetwork.xyz/graphql
 
 # Para API Configuration (Wallet Connection) - Test Credentials
 NEXT_PUBLIC_PARA_API_KEY=4f1a2c9c-008e-4a2e-8712-055fa04f9ffa
@@ -56,3 +58,4 @@ echo "🔑 Test credentials have been configured:"
 echo "   - Camp Network API Key: 4f1a2c9c-008e-4a2e-8712-055fa04f9ffa"
 echo "   - Camp Network Client ID: fce77d7a-8085-47ca-adff-306a933e76aa"
 echo "   - Para API Key: 4f1a2c9c-008e-4a2e-8712-055fa04f9ffa"
+echo "   - Origin API URL: https://api.origin.campnetwork.xyz"

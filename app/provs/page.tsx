@@ -1,23 +1,13 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
-import {
-  Heart,
-  Share,
-  Eye,
-  Coins,
-  Info,
-  X,
-  ExternalLink,
-  Flag,
-  ShoppingCart,
-  Users,
-  Calendar,
-  Hash,
-} from "lucide-react"
+import { useAuth } from "@campnetwork/origin/react"
+import { toast } from "sonner"
+// Icons replaced with emojis for compatibility
 import { Button } from "@/components/provn/button"
 import { Badge } from "@/components/provn/badge"
 import { Navigation } from "@/components/provn/navigation"
+import { TipModal } from "@/components/provn/tip-modal"
 
 interface ProvVideo {
   id: string
@@ -72,11 +62,14 @@ interface ViewTracker {
 
 
 export default function ProvsPage() {
+  const { walletAddress, isAuthenticated } = useAuth()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [provs, setProvs] = useState<ProvVideo[]>([])
   const [likedProvs, setLikedProvs] = useState<Set<string>>(new Set())
   const [showDetailSheet, setShowDetailSheet] = useState(false)
   const [selectedProv, setSelectedProv] = useState<ProvVideo | null>(null)
+  const [showTipModal, setShowTipModal] = useState(false)
+  const [selectedTipProv, setSelectedTipProv] = useState<ProvVideo | null>(null)
   const [loading, setLoading] = useState(true)
 
   // Added performance optimization state
@@ -94,50 +87,22 @@ export default function ProvsPage() {
     const fetchProvs = async () => {
       try {
         setLoading(true)
-        const response = await fetch('/api/videos?limit=20&includeDerivatives=true')
+        const response = await fetch('/api/minted-content?limit=20')
         if (response.ok) {
           const data = await response.json()
           
-          // Transform API data to ProvVideo format
-          const transformedProvs: ProvVideo[] = data.videos.map((video: any) => ({
-            id: video.id,
-            title: video.title,
-            creator: {
-              handle: `@${video.creator.handle}`,
-              address: video.creator.address,
-              avatar: video.creator.avatar,
-              verified: video.creator.verified,
-              followers: video.creator.followers,
-              joinedDate: video.creator.joinedDate,
-            },
-            videoUrl: video.videoUrl,
-            description: video.description,
-            tags: video.tags,
-            stats: {
-              views: video.stats.views,
-              likes: video.stats.likes,
-              tips: video.stats.tips,
-            },
-            ipnft: {
-              id: video.ipnft.id,
-              verified: video.ipnft.verified,
-              isOriginal: video.ipnft.isOriginal,
-              parentId: video.ipnft.parentId,
-              mintDate: video.ipnft.mintDate,
-              blockscoutUrl: video.ipnft.blockscoutUrl,
-            },
-            licensing: {
-              available: video.licensing.available,
-              price: video.licensing.price,
-              currency: video.licensing.currency,
-            },
-            isPromoted: video.isPromoted,
-          }))
-          
-          setProvs(transformedProvs)
+          if (data.success && data.content) {
+            setProvs(data.content)
+          }
+        } else {
+          // Fallback to mock data if API fails
+          console.warn('API failed, using fallback data')
+          setProvs([])
         }
       } catch (error) {
         console.error('Failed to fetch provs:', error)
+        // Use empty array as fallback
+        setProvs([])
       } finally {
         setLoading(false)
       }
@@ -145,6 +110,31 @@ export default function ProvsPage() {
 
     fetchProvs()
   }, [])
+
+  // Load user's like status when provs are loaded
+  useEffect(() => {
+    if (!isAuthenticated || !walletAddress || provs.length === 0) return
+
+    const loadLikeStatus = async () => {
+      try {
+        const likePromises = provs.map(async (prov) => {
+          const response = await fetch(
+            `/api/social/likes?wallet=${walletAddress}&contentId=${prov.id}`
+          )
+          const data = await response.json()
+          return data.success && data.isLiked ? prov.id : null
+        })
+
+        const likedIds = await Promise.all(likePromises)
+        const validLikedIds = likedIds.filter(id => id !== null) as string[]
+        setLikedProvs(new Set(validLikedIds))
+      } catch (error) {
+        console.error('Failed to load like status:', error)
+      }
+    }
+
+    loadLikeStatus()
+  }, [provs, isAuthenticated, walletAddress])
 
   // Optimized scroll handler with debouncing
   const handleScroll = useCallback(() => {
@@ -364,21 +354,64 @@ export default function ProvsPage() {
     }))
   }, [currentIndex, provs])
 
-  const handleLike = (provId: string) => {
-    setLikedProvs((prev) => {
-      const newSet = new Set(prev)
-      if (newSet.has(provId)) {
-        newSet.delete(provId)
+  const handleLike = async (provId: string) => {
+    if (!isAuthenticated) {
+      toast.error('Please connect your wallet to like content')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/social/likes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          walletAddress,
+          contentId: provId,
+        }),
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        // Update local state
+        setLikedProvs((prev) => {
+          const newSet = new Set(prev)
+          if (data.action === 'liked') {
+            newSet.add(provId)
+          } else {
+            newSet.delete(provId)
+          }
+          return newSet
+        })
+
+        // Update the prov's like count
+        setProvs(prev => prev.map(prov => 
+          prov.id === provId 
+            ? { ...prov, stats: { ...prov.stats, likes: data.likeCount } }
+            : prov
+        ))
+
+        toast.success(data.action === 'liked' ? 'Liked!' : 'Unliked!')
       } else {
-        newSet.add(provId)
+        toast.error('Failed to like content')
       }
-      return newSet
-    })
+    } catch (error) {
+      console.error('Failed to like:', error)
+      toast.error('Failed to like content')
+    }
   }
 
   const handleTip = (provId: string) => {
-    // TODO: Implement tipping modal
-    console.log("Tip prov:", provId)
+    if (!isAuthenticated) {
+      toast.error('Please connect your wallet to send tips')
+      return
+    }
+
+    const prov = provs.find(p => p.id === provId)
+    if (prov) {
+      setSelectedTipProv(prov)
+      setShowTipModal(true)
+    }
   }
 
   const handleShare = (provId: string) => {
@@ -586,7 +619,7 @@ export default function ProvsPage() {
                           }`}
                           onClick={() => handleLike(prov.id)}
                         >
-                          <Heart className={`w-6 h-6 ${likedProvs.has(prov.id) ? "fill-current" : ""}`} />
+                          {likedProvs.has(prov.id) ? "❤️" : "🤍"}
                         </Button>
                         <span className="text-white text-xs font-medium">
                           {formatNumber(prov.stats.likes + (likedProvs.has(prov.id) ? 1 : 0))}
@@ -601,7 +634,7 @@ export default function ProvsPage() {
                           className="w-12 h-12 rounded-full bg-orange-500/20 text-orange-400 hover:bg-orange-500/30"
                           onClick={() => handleTip(prov.id)}
                         >
-                          <Coins className="w-6 h-6" />
+                          💰
                         </Button>
                         <span className="text-white text-xs font-medium">{formatNumber(prov.stats.tips)}</span>
                       </div>
@@ -609,7 +642,7 @@ export default function ProvsPage() {
                       {/* View Count */}
                       <div className="flex flex-col items-center space-y-1">
                         <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
-                          <Eye className="w-6 h-6 text-white" />
+                          👁️
                         </div>
                         <span className="text-white text-xs font-medium">{formatNumber(prov.stats.views)}</span>
                       </div>
@@ -621,7 +654,7 @@ export default function ProvsPage() {
                           className="w-12 h-12 rounded-full bg-white/10 text-white hover:bg-white/20"
                           onClick={() => handleShowDetails(prov)}
                         >
-                          <Info className="w-6 h-6" />
+                          ℹ️
                         </Button>
                         <span className="text-white text-xs font-medium">Details</span>
                       </div>
@@ -634,7 +667,7 @@ export default function ProvsPage() {
                           className="w-12 h-12 rounded-full bg-white/10 text-white hover:bg-white/20"
                           onClick={() => handleShare(prov.id)}
                         >
-                          <Share className="w-6 h-6" />
+                          📤
                         </Button>
                         <span className="text-white text-xs font-medium">Share</span>
                       </div>
@@ -686,7 +719,7 @@ export default function ProvsPage() {
                   onClick={() => setShowDetailSheet(false)}
                   className="w-8 h-8 p-0 text-provn-muted hover:text-provn-text"
                 >
-                  <X className="w-5 h-5" />
+                  ❌
                 </Button>
               </div>
 
@@ -716,11 +749,11 @@ export default function ProvsPage() {
                         <div className="text-provn-muted text-sm">{selectedProv.creator.address}</div>
                         <div className="flex items-center space-x-4 mt-2 text-sm text-provn-muted">
                           <div className="flex items-center space-x-1">
-                            <Users className="w-4 h-4" />
+                            👥
                             <span>{formatNumber(selectedProv.creator.followers)} followers</span>
                           </div>
                           <div className="flex items-center space-x-1">
-                            <Calendar className="w-4 h-4" />
+                            📅
                             <span>Joined {formatDate(selectedProv.creator.joinedDate)}</span>
                           </div>
                         </div>
@@ -744,7 +777,7 @@ export default function ProvsPage() {
                           variant="secondary"
                           className="bg-provn-surface-2 text-provn-muted border-provn-border"
                         >
-                          <Hash className="w-3 h-3 mr-1" />
+                          #
                           {tag}
                         </Badge>
                       ))}
@@ -816,7 +849,7 @@ export default function ProvsPage() {
                           onClick={() => handleGetLicense(selectedProv.id)}
                           className="w-full bg-orange-500 hover:bg-orange-600 text-white"
                         >
-                          <ShoppingCart className="w-4 h-4 mr-2" />
+                          🛒
                           Get License ({selectedProv.licensing.price} {selectedProv.licensing.currency})
                         </Button>
                       </div>
@@ -832,7 +865,7 @@ export default function ProvsPage() {
                         onClick={() => window.open(selectedProv.ipnft.blockscoutUrl, "_blank")}
                         className="flex items-center justify-center space-x-2"
                       >
-                        <ExternalLink className="w-4 h-4" />
+                        🔗
                         <span>View on Blockscout</span>
                       </Button>
                       <Button
@@ -840,7 +873,7 @@ export default function ProvsPage() {
                         onClick={() => handleReport(selectedProv.id)}
                         className="flex items-center justify-center space-x-2 text-red-400 hover:text-red-300 border-red-500/30 hover:border-red-500/50"
                       >
-                        <Flag className="w-4 h-4" />
+                        🚩
                         <span>Report</span>
                       </Button>
                     </div>
@@ -849,6 +882,22 @@ export default function ProvsPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Tip Modal */}
+        {selectedTipProv && (
+          <TipModal
+            isOpen={showTipModal}
+            onClose={() => {
+              setShowTipModal(false)
+              setSelectedTipProv(null)
+            }}
+            contentId={selectedTipProv.id}
+            contentTitle={selectedTipProv.title}
+            creatorHandle={selectedTipProv.creator.handle}
+            creatorAddress={selectedTipProv.creator.address}
+            walletAddress={walletAddress}
+          />
         )}
       </div>
     </>

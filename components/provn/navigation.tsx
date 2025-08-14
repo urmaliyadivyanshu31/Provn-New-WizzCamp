@@ -1,63 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { useAccount, useBalance } from 'wagmi'
+import { CampModal, useAuth } from '@campnetwork/origin/react'
 import { ProvnButton } from "./button"
 
 interface NavigationProps {
-  currentPage?: "home" | "upload" | "dashboard" | "video" | "provs"
+  currentPage?: "home" | "upload" | "dashboard" | "video" | "provs" | "profile"
 }
 
 export function Navigation({ currentPage = "home" }: NavigationProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [showOnboarding, setShowOnboarding] = useState(false)
-  const [onboardingStep, setOnboardingStep] = useState(1)
-  
-  const { address, isConnected } = useAccount()
-  const { data: balance } = useBalance({
-    address,
-  })
-
-  // Show onboarding for first-time users when wallet connects
-  const handleWalletConnect = () => {
-    const isFirstTime = !localStorage.getItem("provn_onboarded")
-    if (isFirstTime && isConnected) {
-      setShowOnboarding(true)
-    }
-  }
-
-  const showToast = (message: string, type: "success" | "warning" | "error") => {
-    try {
-      const toast = document.createElement("div")
-      toast.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 transition-opacity ${
-        type === "success" ? "bg-green-600" : type === "warning" ? "bg-yellow-600" : "bg-red-600"
-      }`
-      toast.textContent = message
-      document.body.appendChild(toast)
-
-      const cleanup = () => {
-        try {
-          if (document.body.contains(toast)) {
-            document.body.removeChild(toast)
-          }
-        } catch (e) {
-          console.warn("Toast cleanup failed:", e)
-        }
-      }
-
-      setTimeout(cleanup, 5000)
-    } catch (error) {
-      console.error("Toast display failed:", error)
-    }
-  }
-
-  const completeOnboarding = () => {
-    localStorage.setItem("provn_onboarded", "true")
-    setShowOnboarding(false)
-    showToast("Uploads are registered on‑chain as IpNFTs. Remix license = 10 wCAMP. Tips go 100% to creator", "success")
-  }
-
+  const { walletAddress, isAuthenticated } = useAuth()
 
   return (
     <>
@@ -77,37 +30,66 @@ export function Navigation({ currentPage = "home" }: NavigationProps) {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-4">
-              {isConnected && (
-                <>
-                  <a
-                    href="/provs"
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-provn-accent focus:ring-offset-2 focus:ring-offset-provn-bg ${
-                      currentPage === "provs"
-                        ? "text-provn-accent bg-provn-accent-subtle"
-                        : "text-provn-muted hover:text-provn-text hover:bg-provn-surface-2"
-                    }`}
-                    aria-current={currentPage === "provs" ? "page" : undefined}
+              <a
+                href="/upload"
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-provn-accent focus:ring-offset-2 focus:ring-offset-provn-bg ${
+                  currentPage === "upload"
+                    ? "text-provn-accent bg-provn-accent-subtle"
+                    : "text-provn-muted hover:text-provn-text hover:bg-provn-surface-2"
+                }`}
+                aria-current={currentPage === "upload" ? "page" : undefined}
+              >
+                Upload
+              </a>
+              <a
+                href="/provs"
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-provn-accent focus:ring-offset-2 focus:ring-offset-provn-bg ${
+                  currentPage === "provs"
+                    ? "text-provn-accent bg-provn-accent-subtle"
+                    : "text-provn-muted hover:text-provn-text hover:bg-provn-surface-2"
+                }`}
+                aria-current={currentPage === "provs" ? "page" : undefined}
+              >
+                Provs
+              </a>
+              <a
+                href="/dashboard"
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-provn-accent focus:ring-offset-2 focus:ring-offset-provn-bg ${
+                  currentPage === "dashboard"
+                    ? "text-provn-accent bg-provn-accent-subtle"
+                    : "text-provn-muted hover:text-provn-text hover:bg-provn-surface-2"
+                }`}
+                aria-current={currentPage === "dashboard" ? "page" : undefined}
+              >
+                Dashboard
+              </a>
+              <ProvnButton onClick={() => (window.location.href = "/simple-mint")}>
+                Mint
+              </ProvnButton>
+              
+              {/* Wallet Connection Section */}
+              <div className="flex items-center gap-2 ml-4 pl-4 border-l border-provn-border">
+                {isAuthenticated ? (
+                  <a 
+                    href={`/profile/${walletAddress}`}
+                    className="flex items-center gap-2 hover:bg-provn-surface-2 px-2 py-1 rounded-lg transition-colors"
                   >
-                    Provs
+                    <div className="w-8 h-8 bg-provn-accent rounded-full flex items-center justify-center">
+                      <span className="text-xs font-bold text-provn-bg">
+                        {walletAddress ? walletAddress.slice(2, 4).toUpperCase() : 'OR'}
+                      </span>
+                    </div>
+                    <span className="text-sm text-provn-muted">
+                      {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connected'}
+                    </span>
                   </a>
-                  <a
-                    href="/dashboard"
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-provn-accent focus:ring-offset-2 focus:ring-offset-provn-bg ${
-                      currentPage === "dashboard"
-                        ? "text-provn-accent bg-provn-accent-subtle"
-                        : "text-provn-muted hover:text-provn-text hover:bg-provn-surface-2"
-                    }`}
-                    aria-current={currentPage === "dashboard" ? "page" : undefined}
-                  >
-                    Dashboard
-                  </a>
-                  <ProvnButton variant="secondary" onClick={() => (window.location.href = "/upload")}>
-                    Upload
+                ) : (
+                  <ProvnButton variant="secondary" size="sm">
+                    <span className="w-4 h-4 mr-1">🔗</span>
+                    Connect
                   </ProvnButton>
-                </>
-              )}
-
-              <ConnectButton />
+                )}
+              </div>
             </div>
 
             {/* Mobile menu button */}
@@ -135,105 +117,78 @@ export function Navigation({ currentPage = "home" }: NavigationProps) {
           {isMenuOpen && (
             <div className="md:hidden py-4 border-t border-provn-border" id="mobile-menu">
               <div className="space-y-2">
-                {isConnected && (
-                  <>
-                    <a
-                      href="/provs"
-                      className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-provn-accent focus:ring-offset-2 focus:ring-offset-provn-bg ${
-                        currentPage === "provs"
-                          ? "text-provn-accent bg-provn-accent-subtle"
-                          : "text-provn-muted hover:text-provn-text hover:bg-provn-surface-2"
-                      }`}
-                      aria-current={currentPage === "provs" ? "page" : undefined}
-                    >
-                      Provs
-                    </a>
-                    <a
-                      href="/dashboard"
-                      className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-provn-accent focus:ring-offset-2 focus:ring-offset-provn-bg ${
-                        currentPage === "dashboard"
-                          ? "text-provn-accent bg-provn-accent-subtle"
-                          : "text-provn-muted hover:text-provn-text hover:bg-provn-surface-2"
-                      }`}
-                      aria-current={currentPage === "dashboard" ? "page" : undefined}
-                    >
-                      Dashboard
-                    </a>
-                    <div className="px-3 py-2">
-                      <ProvnButton
-                        variant="secondary"
-                        className="w-full"
-                        onClick={() => (window.location.href = "/upload")}
-                      >
-                        Upload
-                      </ProvnButton>
-                    </div>
-                  </>
-                )}
+                <a
+                  href="/upload"
+                  className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-provn-accent focus:ring-offset-2 focus:ring-offset-provn-bg ${
+                    currentPage === "upload"
+                      ? "text-provn-accent bg-provn-accent-subtle"
+                      : "text-provn-muted hover:text-provn-text hover:bg-provn-surface-2"
+                  }`}
+                  aria-current={currentPage === "upload" ? "page" : undefined}
+                >
+                  Upload
+                </a>
+                <a
+                  href="/provs"
+                  className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-provn-accent focus:ring-offset-2 focus:ring-offset-provn-bg ${
+                    currentPage === "provs"
+                      ? "text-provn-accent bg-provn-accent-subtle"
+                      : "text-provn-muted hover:text-provn-text hover:bg-provn-surface-2"
+                  }`}
+                  aria-current={currentPage === "provs" ? "page" : undefined}
+                >
+                  Provs
+                </a>
+                <a
+                  href="/dashboard"
+                  className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-provn-accent focus:ring-offset-2 focus:ring-offset-provn-bg ${
+                    currentPage === "dashboard"
+                      ? "text-provn-accent bg-provn-accent-subtle"
+                      : "text-provn-muted hover:text-provn-text hover:bg-provn-surface-2"
+                  }`}
+                  aria-current={currentPage === "dashboard" ? "page" : undefined}
+                >
+                  Dashboard
+                </a>
                 <div className="px-3 py-2">
-                  <ConnectButton />
+                  <ProvnButton
+                    className="w-full mb-4"
+                    onClick={() => (window.location.href = "/simple-mint")}
+                  >
+                    Mint
+                  </ProvnButton>
+                  
+                  {/* Mobile Wallet Connection */}
+                  <div className="pt-4 border-t border-provn-border">
+                    {isAuthenticated ? (
+                      <a 
+                        href={`/profile/${walletAddress}`}
+                        className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-lg hover:bg-provn-surface-2 transition-colors"
+                      >
+                        <div className="w-8 h-8 bg-provn-accent rounded-full flex items-center justify-center">
+                          <span className="text-xs font-bold text-provn-bg">
+                            {walletAddress ? walletAddress.slice(2, 4).toUpperCase() : 'OR'}
+                          </span>
+                        </div>
+                        <span className="text-sm text-provn-muted">
+                          {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connected'}
+                        </span>
+                      </a>
+                    ) : (
+                      <ProvnButton variant="secondary" className="w-full">
+                        <span className="w-4 h-4 mr-2">🔗</span>
+                        Connect Wallet
+                      </ProvnButton>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           )}
         </div>
       </nav>
-
-      {showOnboarding && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-provn-surface max-w-md w-full rounded-xl p-6 border border-provn-border">
-            <div className="text-center">
-              <h2 className="font-headline text-xl font-bold text-provn-text mb-4">Welcome to Provn!</h2>
-
-              {onboardingStep === 1 && (
-                <div className="space-y-4">
-                  <p className="text-provn-muted">
-                    Create and protect your short-form video content on the blockchain.
-                  </p>
-                  <div className="space-y-2 text-sm text-provn-muted text-left">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-provn-accent rounded-full"></div>
-                      <span>Uploads are registered as IpNFTs</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-provn-accent rounded-full"></div>
-                      <span>Remix licenses cost 10 wCAMP</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-provn-accent rounded-full"></div>
-                      <span>Tips go 100% to creators</span>
-                    </div>
-                  </div>
-                  <ProvnButton onClick={() => setOnboardingStep(2)} className="w-full">
-                    Continue
-                  </ProvnButton>
-                </div>
-              )}
-
-              {onboardingStep === 2 && (
-                <div className="space-y-4">
-                  <p className="text-provn-muted">
-                    By using Provn, you agree to our content guidelines and terms of service.
-                  </p>
-                  <div className="text-xs text-provn-muted text-left space-y-1">
-                    <p>• No copyrighted content without permission</p>
-                    <p>• No harmful or offensive material</p>
-                    <p>• Respect intellectual property rights</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <ProvnButton variant="secondary" onClick={() => setOnboardingStep(1)} className="flex-1">
-                      Back
-                    </ProvnButton>
-                    <ProvnButton onClick={completeOnboarding} className="flex-1">
-                      I Agree
-                    </ProvnButton>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      
+      <CampModal />
     </>
   )
 }

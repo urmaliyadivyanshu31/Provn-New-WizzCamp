@@ -5,7 +5,7 @@ import { Navigation } from "@/components/provn/navigation"
 import { ProvnButton } from "@/components/provn/button"
 import { ProvnCard, ProvnCardContent } from "@/components/provn/card"
 import { ProvnBadge } from "@/components/provn/badge"
-import { Calendar, Megaphone, Target, Play, Pause, Edit, Trash2, X } from "lucide-react"
+// Icons replaced with emojis for compatibility
 
 interface VideoStats {
   id: string
@@ -472,7 +472,7 @@ export default function DashboardPage() {
                     <p className="text-provn-muted text-sm mt-1">Promote your Provs to reach more viewers</p>
                   </div>
                   <ProvnButton onClick={() => setShowCampaignModal(true)} className="flex items-center gap-2">
-                    <Megaphone className="w-4 h-4" />
+                    📢
                     Promote Your Prov
                   </ProvnButton>
                 </div>
@@ -531,7 +531,7 @@ export default function DashboardPage() {
                               </h3>
                               <div className="flex items-center space-x-4 text-sm text-provn-muted mb-2">
                                 <div className="flex items-center space-x-1">
-                                  <Calendar className="w-4 h-4" />
+                                  📅
                                   <span>
                                     {formatDate(campaign.startDate)} - {formatDate(campaign.endDate)}
                                   </span>
@@ -584,7 +584,7 @@ export default function DashboardPage() {
                                 size="sm"
                                 onClick={() => handleCampaignAction(campaign.id, "pause")}
                               >
-                                <Pause className="w-4 h-4" />
+                                ⏸️
                               </ProvnButton>
                             )}
                             {campaign.status === "paused" && (
@@ -593,7 +593,7 @@ export default function DashboardPage() {
                                 size="sm"
                                 onClick={() => handleCampaignAction(campaign.id, "resume")}
                               >
-                                <Play className="w-4 h-4" />
+                                ▶️
                               </ProvnButton>
                             )}
                             <ProvnButton
@@ -601,7 +601,7 @@ export default function DashboardPage() {
                               size="sm"
                               onClick={() => handleCampaignAction(campaign.id, "edit")}
                             >
-                              <Edit className="w-4 h-4" />
+                              ✏️
                             </ProvnButton>
                             <ProvnButton
                               variant="secondary"
@@ -609,7 +609,7 @@ export default function DashboardPage() {
                               onClick={() => handleCampaignAction(campaign.id, "delete")}
                               className="text-red-400 hover:text-red-300"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              🗑️
                             </ProvnButton>
                           </div>
                         </div>
@@ -834,7 +834,7 @@ export default function DashboardPage() {
                 onClick={() => setShowCampaignModal(false)}
                 className="text-provn-muted hover:text-provn-text transition-colors"
               >
-                <X className="w-6 h-6" />
+                ❌
               </button>
             </div>
 
@@ -920,7 +920,7 @@ export default function DashboardPage() {
                 <label className="block font-headline font-semibold text-provn-text">Target Audience</label>
                 <div className="p-4 bg-provn-surface-2 rounded-lg">
                   <div className="flex items-center space-x-2 text-provn-muted">
-                    <Target className="w-5 h-5" />
+                    🎯
                     <span>All Provn users (MVP - advanced targeting coming soon)</span>
                   </div>
                 </div>

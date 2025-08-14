@@ -1,14 +1,15 @@
 "use client"
 
 import type React from "react"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAccount } from "wagmi"
 import { ProvnButton } from "@/components/provn/button"
 import { ProvnCard, ProvnCardContent } from "@/components/provn/card"
 import { ProvnBadge } from "@/components/provn/badge"
 import { Navigation } from "@/components/provn/navigation"
-import { useOrigin } from "@/lib/origin"
+import { useAuth } from "@campnetwork/origin/react"
+import { toast } from "sonner"
+import { CampModal } from "@campnetwork/origin/react"
 
 interface UploadedFile {
   file: File
@@ -32,17 +33,17 @@ interface MintResult {
 
 export default function UploadPage() {
   const router = useRouter()
-  const { isConnected, address } = useAccount()
-  const { initializeOrigin, createIPNFT, isInitialized } = useOrigin()
+  const { origin, isAuthenticated, walletAddress, isConnecting } = useAuth()
   
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [tags, setTags] = useState("")
-  const [allowRemixing, setAllowRemixing] = useState(true) // Default to true as per spec
+  const [allowRemixing, setAllowRemixing] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [mintResult, setMintResult] = useState<MintResult | null>(null)
+  const [isWalletReady, setIsWalletReady] = useState(false)
   const [processingSteps, setProcessingSteps] = useState<ProcessingStep[]>([
     { id: "validation", name: "File Validation", status: "pending", progress: 0 },
     { id: "transcoding", name: "Transcoding to HLS", status: "pending", progress: 0 },
@@ -52,6 +53,82 @@ export default function UploadPage() {
     { id: "minting", name: "Minting IpNFT", status: "pending", progress: 0 },
   ])
 
+  // Enhanced wallet readiness check
+  useEffect(() => {
+    const checkWalletReadiness = async () => {
+      try {
+        if (!isAuthenticated || !walletAddress || !origin) {
+          setIsWalletReady(false)
+          return
+        }
+
+        // Check if origin.mintFile is available
+        if (!origin.mintFile || typeof origin.mintFile !== 'function') {
+          console.log('🔍 Origin mintFile method not available yet')
+          setIsWalletReady(false)
+          return
+        }
+
+        // Check wallet connection at browser level
+        if (typeof window !== 'undefined' && window.ethereum) {
+          try {
+            const accounts = await window.ethereum.request({ method: 'eth_accounts' })
+            const chainId = await window.ethereum.request({ method: 'eth_chainId' })
+            
+            console.log('🔍 Wallet check:', {
+              accounts: accounts.length,
+              chainId,
+              expectedChainId: '0x1cbc67c35a',
+              isCorrectChain: chainId === '0x1cbc67c35a'
+            })
+
+            if (accounts.length > 0 && chainId === '0x1cbc67c35a') {
+              setIsWalletReady(true)
+              console.log('✅ Wallet is ready')
+            } else {
+              setIsWalletReady(false)
+              console.log('❌ Wallet not ready - wrong chain or no accounts')
+            }
+          } catch (error) {
+            console.error('🔍 Wallet check failed:', error)
+            setIsWalletReady(false)
+          }
+        } else {
+          setIsWalletReady(false)
+        }
+      } catch (error) {
+        console.error('🔍 Wallet readiness check failed:', error)
+        setIsWalletReady(false)
+      }
+    }
+
+    // Check immediately
+    checkWalletReadiness()
+    
+    // Check periodically
+    const interval = setInterval(checkWalletReadiness, 2000)
+    
+    return () => clearInterval(interval)
+  }, [isAuthenticated, origin, walletAddress])
+
+  // Monitor Origin SDK state
+  useEffect(() => {
+    const checkOriginSDK = () => {
+      console.log('🔍 Origin SDK State Check:', {
+        isAuthenticated,
+        hasOrigin: !!origin,
+        originType: typeof origin,
+        originMethods: origin ? Object.keys(origin) : 'undefined',
+        walletAddress,
+        isConnecting,
+        isWalletReady,
+        timestamp: new Date().toISOString()
+      });
+    };
+
+    checkOriginSDK();
+  }, [isAuthenticated, origin, walletAddress, isConnecting, isWalletReady]);
+  
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragOver(true)
@@ -109,35 +186,98 @@ export default function UploadPage() {
     setProcessingSteps((prev) => prev.map((step) => (step.id === stepId ? { ...step, ...updates } : step)))
   }
 
-  const simulateProcessingStep = async (stepId: string, duration = 2000) => {
-    updateProcessingStep(stepId, { status: "processing", progress: 0 })
+  // Enhanced wallet connection function
+  const ensureWalletConnection = async (): Promise<boolean> => {
+    try {
+      if (!window.ethereum) {
+        throw new Error('No wallet detected. Please install a Web3 wallet.')
+      }
 
-    // Simulate progress
-    const progressInterval = setInterval(() => {
-      setProcessingSteps((prev) =>
-        prev.map((step) => {
-          if (step.id === stepId && step.status === "processing") {
-            const newProgress = Math.min(step.progress + Math.random() * 20, 95)
-            return { ...step, progress: newProgress }
+      // Request account access
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
+      if (accounts.length === 0) {
+        throw new Error('No wallet accounts found. Please connect your wallet.')
+      }
+
+      // Check current chain
+      const chainId = await window.ethereum.request({ method: 'eth_chainId' })
+      console.log('🔍 Current chain ID:', chainId)
+
+      // Switch to BaseCAMP testnet if needed
+      if (chainId !== '0x1cbc67c35a') {
+        console.log('🔍 Switching to BaseCAMP testnet...')
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x1cbc67c35a' }],
+          })
+        } catch (switchError: any) {
+          // If the chain doesn't exist, add it
+          if (switchError.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0x1cbc67c35a',
+                chainName: 'BaseCAMP',
+                nativeCurrency: {
+                  name: 'CAMP',
+                  symbol: 'CAMP',
+                  decimals: 18
+                },
+                rpcUrls: [
+                  'https://rpc.basecamp.t.raas.gelato.cloud',
+                  'https://rpc-campnetwork.xyz'
+                ],
+                blockExplorerUrls: ['https://basecamp.cloud.blockscout.com/']
+              }],
+            })
+          } else {
+            throw switchError
           }
-          return step
-        }),
-      )
-    }, 200)
+        }
+      }
 
-    await new Promise((resolve) => setTimeout(resolve, duration))
-    clearInterval(progressInterval)
-    updateProcessingStep(stepId, { status: "completed", progress: 100 })
+      // Wait for chain switch to complete
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // Verify the chain switch
+      const newChainId = await window.ethereum.request({ method: 'eth_chainId' })
+      if (newChainId !== '0x1cbc67c35a') {
+        throw new Error('Failed to switch to BaseCAMP testnet')
+      }
+
+      console.log('✅ Wallet connection verified')
+      return true
+    } catch (error) {
+      console.error('❌ Wallet connection failed:', error)
+      throw error
+    }
   }
 
   const handleUpload = async () => {
     if (!uploadedFile || !title.trim()) {
-      alert("Please provide a file and title")
+      toast.error("Please provide a file and title")
       return
     }
 
-    if (!isConnected) {
-      alert("Please connect your wallet first")
+    if (!isAuthenticated) {
+      toast.error("Please connect your wallet first")
+      return
+    }
+
+    // Enhanced wallet readiness check
+    if (!isWalletReady) {
+      toast.error("Wallet not ready. Please ensure your wallet is connected and on the BaseCAMP network.")
+      return
+    }
+
+    if (!origin || !origin.mintFile) {
+      toast.error('Origin SDK not ready. Please wait for initialization and ensure your wallet is connected.')
+      return
+    }
+
+    if (!walletAddress) {
+      toast.error('Wallet address not found. Please reconnect your wallet.')
       return
     }
 
@@ -152,34 +292,30 @@ export default function UploadPage() {
       // Step 2: Skip transcoding for now
       updateProcessingStep("transcoding", { status: "completed", progress: 100, message: "Skipping transcoding" })
 
-      // Step 3: Real IPFS Upload
+      // Step 3: IPFS Upload
       updateProcessingStep("ipfs", {
         status: "processing",
         progress: 0,
         message: "Uploading to IPFS...",
       })
 
-      const formData = new FormData()
-      formData.append('file', uploadedFile.file)
-      formData.append('title', title)
-      formData.append('description', description || title)
-      formData.append('tags', tags)
-      formData.append('allowRemixing', allowRemixing.toString())
-
-      const uploadResponse = await fetch('/api/videos/upload', {
+      const initialFormData = new FormData()
+      initialFormData.append('file', uploadedFile.file)
+      
+      const initialIpfsResponse = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
         method: 'POST',
-        body: formData
+        headers: {
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_PINATA_JWT_TOKEN}`
+        },
+        body: initialFormData
       })
 
-      if (!uploadResponse.ok) {
-        throw new Error('Upload failed')
+      if (!initialIpfsResponse.ok) {
+        throw new Error(`IPFS upload failed: ${initialIpfsResponse.statusText}`)
       }
 
-      const uploadResult = await uploadResponse.json()
-      
-      if (!uploadResult.success) {
-        throw new Error(uploadResult.message || 'Upload failed')
-      }
+      const ipfsResult = await initialIpfsResponse.json()
+      const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${ipfsResult.IpfsHash}`
 
       updateProcessingStep("ipfs", { status: "completed", progress: 100, message: "Uploaded to IPFS successfully!" })
 
@@ -189,60 +325,196 @@ export default function UploadPage() {
       // Step 5: Skip duplicate check for now
       updateProcessingStep("duplicate", { status: "completed", progress: 100, message: "No duplicates found" })
 
-      // Step 6: Real IP-NFT Minting with Origin SDK
+      // Step 6: Enhanced IP-NFT Minting
       updateProcessingStep("minting", {
         status: "processing",
-        message: "Initializing Origin SDK...",
+        message: "Ensuring wallet connection...",
       })
 
-      // Initialize Origin SDK if not already done
-      if (!isInitialized) {
-        await initializeOrigin()
+      // Enhanced wallet connection check
+      try {
+        await ensureWalletConnection()
+      } catch (error) {
+        throw new Error(`Wallet connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
 
       updateProcessingStep("minting", {
         status: "processing",
         progress: 25,
-        message: "Creating IP-NFT on Camp Network...",
+        message: "Preparing metadata...",
       })
 
-      // Create IP-NFT using Origin SDK
-      const ipNFTResult = await createIPNFT({
-        title,
+      // Simplified metadata - let Origin SDK handle IPFS URL
+      const metadata = {
+        name: title,
         description: description || title,
-        ipfsHash: uploadResult.data.ipfsHash,
-        metadataUri: uploadResult.data.metadataUrl,
-        tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-        allowRemixing,
-        royaltyPercentage: 5,
-        licensePrice: "10000000000000000000" // 10 wCAMP
+      }
+
+      // Create license object
+      const license = {
+        price: BigInt(0),
+        duration: 2629800, // 30 days in seconds
+        royaltyBps: 0,
+        paymentToken: "0x0000000000000000000000000000000000000000" as `0x${string}`,
+      }
+
+      updateProcessingStep("minting", {
+        status: "processing",
+        progress: 50,
+        message: "Creating file for minting...",
       })
 
-      updateProcessingStep("minting", { 
-        status: "completed", 
-        progress: 100,
-        message: "IP-NFT created successfully!"
+      // Use the original file directly - let Origin SDK handle IPFS upload
+      const mintFile = uploadedFile.file
+
+      updateProcessingStep("minting", {
+        status: "processing",
+        progress: 90,
+        message: "Minting IP-NFT on Camp Network...",
       })
+
+      console.log('🔍 Final checks before minting:', {
+        hasOrigin: !!origin,
+        hasMintFile: !!origin?.mintFile,
+        mintFileType: typeof origin?.mintFile,
+        walletAddress,
+        isAuthenticated,
+        isWalletReady,
+        fileSize: mintFile.size,
+        fileName: mintFile.name,
+        licensePrice: license.price.toString()
+      })
+
+      // Final Origin SDK readiness check
+      if (!origin || !origin.mintFile || typeof origin.mintFile !== 'function') {
+        throw new Error('Origin SDK mintFile method not available. Please reconnect your wallet.')
+      }
+
+      // Additional delay to ensure everything is ready
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      // Force Origin SDK to reinitialize wallet connection
+      console.log('🔍 Forcing Origin SDK wallet reconnection...')
+      try {
+        // Trigger a wallet reconnection in Origin SDK
+        if (origin.connect && typeof origin.connect === 'function') {
+          await origin.connect()
+          console.log('✅ Origin SDK reconnected')
+        }
+      } catch (connectError) {
+        console.log('🔍 Origin connect method not available or failed:', connectError)
+      }
+
+      // Wait for wallet client to be properly initialized
+      await new Promise(resolve => setTimeout(resolve, 3000))
+
+      // Check if Origin SDK has proper wallet client now
+      console.log('🔍 Final Origin SDK state:', {
+        hasOrigin: !!origin,
+        hasMintFile: !!origin?.mintFile,
+        hasWalletClient: !!origin?.walletClient,
+        originKeys: origin ? Object.keys(origin) : []
+      })
+
+      // Attempt the mint with retry logic
+      console.log('🔍 Attempting to mint with Origin SDK...')
+      let mintResult
+      let retryCount = 0
+      const maxRetries = 3
+
+      while (retryCount < maxRetries) {
+        try {
+          mintResult = await origin.mintFile(mintFile, metadata, license)
+          console.log('✅ Mint successful - Raw response:', mintResult)
+          console.log('✅ Mint result type:', typeof mintResult)
+          console.log('✅ Mint result keys:', typeof mintResult === 'object' ? Object.keys(mintResult || {}) : 'N/A')
+          break
+        } catch (mintError: any) {
+          retryCount++
+          console.log(`🔍 Mint attempt ${retryCount} failed:`, mintError.message)
+          
+          if (mintError.message.includes('WalletClient not connected') && retryCount < maxRetries) {
+            console.log('🔍 Retrying wallet connection...')
+            // Try to reconnect and wait
+            await new Promise(resolve => setTimeout(resolve, 2000))
+            continue
+          } else {
+            throw mintError
+          }
+        }
+      }
+
+      if (!mintResult) {
+        throw new Error('Failed to mint after multiple attempts')
+      }
+
+      toast.success('🎉 IP-NFT minting successful!')
+
+      // Extract real transaction hash and token ID from Origin SDK response
+      console.log('🔍 Raw mint result:', mintResult)
+      
+      let realTokenId = 'unknown'
+      let realTxHash = 'unknown'
+      
+      // Parse the mint result to extract real values
+      if (mintResult) {
+        if (typeof mintResult === 'object' && mintResult.hash) {
+          realTxHash = mintResult.hash
+        } else if (typeof mintResult === 'object' && mintResult.transactionHash) {
+          realTxHash = mintResult.transactionHash
+        } else if (typeof mintResult === 'string' && mintResult.startsWith('0x')) {
+          realTxHash = mintResult
+        }
+        
+        if (typeof mintResult === 'object' && mintResult.tokenId) {
+          realTokenId = mintResult.tokenId.toString()
+        } else if (typeof mintResult === 'object' && mintResult.id) {
+          realTokenId = mintResult.id.toString()
+        }
+      }
 
       // Success - use real data from Origin SDK
       const result: MintResult = {
-        tokenId: ipNFTResult.tokenId,
-        ipfsHash: uploadResult.data.ipfsHash,
-        transactionHash: ipNFTResult.transactionHash,
-        blockscoutUrl: `${process.env.NEXT_PUBLIC_EXPLORER_URL}/tx/${ipNFTResult.transactionHash}`,
+        tokenId: realTokenId,
+        ipfsHash: ipfsResult.IpfsHash,
+        transactionHash: realTxHash,
+        blockscoutUrl: realTxHash !== 'unknown' 
+          ? `https://basecamp.cloud.blockscout.com/tx/${realTxHash}`
+          : '#',
       }
 
+      updateProcessingStep("minting", { status: "completed", progress: 100, message: "IP-NFT minted successfully!" })
       setMintResult(result)
+
     } catch (error) {
       console.error("Upload failed:", error)
+      
+      let errorMessage = "Processing failed. Please try again."
+      if (error instanceof Error) {
+        errorMessage = error.message
+        
+        // Handle specific error types
+        if (error.message.includes("WalletClient not connected")) {
+          errorMessage = "Wallet client not connected. Please reconnect your wallet and ensure you're on the BaseCAMP network."
+        } else if (error.message.includes("User rejected")) {
+          errorMessage = "Transaction was rejected by user."
+        } else if (error.message.includes("insufficient funds")) {
+          errorMessage = "Insufficient funds for transaction."
+        } else if (error.message.includes("Failed to get signature")) {
+          errorMessage = "Authentication failed. Please reconnect your wallet and try again."
+        }
+      }
+      
       // Mark current processing step as error
       const currentStep = processingSteps.find((step) => step.status === "processing")
       if (currentStep) {
         updateProcessingStep(currentStep.id, {
           status: "error",
-          message: error instanceof Error ? error.message : "Processing failed. Please try again.",
+          message: errorMessage,
         })
       }
+      
+      toast.error(`Upload failed: ${errorMessage}`)
     }
 
     setIsProcessing(false)
@@ -261,6 +533,7 @@ export default function UploadPage() {
     }
   }
 
+  // Render success state
   if (mintResult) {
     return (
       <div className="min-h-screen bg-provn-bg">
@@ -296,20 +569,31 @@ export default function UploadPage() {
                     <span className="text-provn-muted">Token ID:</span>
                     <span className="text-provn-text font-mono">{mintResult.tokenId}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-provn-muted">IPFS Hash:</span>
-                    <span className="text-provn-text font-mono text-xs">{mintResult.ipfsHash}</span>
-                  </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-provn-muted">Transaction:</span>
+                    <span className="text-provn-muted">IPFS Hash:</span>
                     <a
-                      href={mintResult.blockscoutUrl}
+                      href={`https://gateway.pinata.cloud/ipfs/${mintResult.ipfsHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-provn-accent hover:underline font-mono text-xs"
                     >
-                      View on Blockscout ↗
+                      {mintResult.ipfsHash.slice(0, 20)}...{mintResult.ipfsHash.slice(-8)} ↗
                     </a>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-provn-muted">Transaction:</span>
+                    {mintResult.transactionHash !== 'unknown' ? (
+                      <a
+                        href={mintResult.blockscoutUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-provn-accent hover:underline font-mono text-xs"
+                      >
+                        {mintResult.transactionHash.slice(0, 10)}...{mintResult.transactionHash.slice(-8)} ↗
+                      </a>
+                    ) : (
+                      <span className="text-provn-muted font-mono text-xs">Processing...</span>
+                    )}
                   </div>
                 </div>
               </ProvnCardContent>
@@ -328,6 +612,7 @@ export default function UploadPage() {
     )
   }
 
+  // Render processing state
   if (isProcessing) {
     return (
       <div className="min-h-screen bg-provn-bg">
@@ -424,6 +709,7 @@ export default function UploadPage() {
     )
   }
 
+  // Render main upload form
   return (
     <div className="min-h-screen bg-provn-bg">
       <Navigation currentPage="upload" />
@@ -436,6 +722,18 @@ export default function UploadPage() {
             <h1 className="font-headline text-4xl font-bold text-provn-text">Upload & Mint</h1>
             <p className="text-provn-muted text-lg">Register your short video on Camp with on‑chain provenance.</p>
           </div>
+
+          {/* Wallet Status Indicator */}
+          {isAuthenticated && (
+            <div className="text-center">
+              <ProvnBadge 
+                variant={isWalletReady ? "success" : "default"} 
+                className="text-sm px-3 py-1"
+              >
+                {isWalletReady ? "✓ Wallet Ready" : "⏳ Wallet Connecting..."}
+              </ProvnBadge>
+            </div>
+          )}
 
           {/* Upload Zone */}
           <ProvnCard>
@@ -482,7 +780,7 @@ export default function UploadPage() {
                     <div>
                       <p className="text-provn-text font-medium">{uploadedFile.file.name}</p>
                       <p className="text-provn-muted text-sm">
-                        {(uploadedFile.file.size / (1024 * 1024)).toFixed(1)} MB
+                        {(uploadedFile.file.size / (1024 * 1024)).toFixed(2)}MB
                       </p>
                     </div>
                     <ProvnButton
@@ -587,22 +885,29 @@ export default function UploadPage() {
             <ProvnButton variant="secondary" onClick={handleCancel}>
               Cancel
             </ProvnButton>
-            {!isConnected ? (
+            {!isAuthenticated ? (
               <ProvnButton disabled className="min-w-[160px]">
                 Connect Wallet to Upload
+              </ProvnButton>
+            ) : !isWalletReady ? (
+              <ProvnButton disabled className="min-w-[160px]">
+                {isConnecting ? "Connecting..." : "Wallet Not Ready"}
               </ProvnButton>
             ) : (
               <ProvnButton 
                 onClick={handleUpload} 
-                disabled={!uploadedFile || !title.trim()} 
+                disabled={!uploadedFile || !title.trim() || isProcessing} 
                 className="min-w-[160px]"
               >
-                Upload & Mint IP-NFT
+                {isProcessing ? "Processing..." : "Upload & Mint IP-NFT"}
               </ProvnButton>
             )}
           </div>
         </div>
       </main>
+      
+      {/* CampModal for Origin SDK wallet connection */}
+      <CampModal />
     </div>
   )
 }

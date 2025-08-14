@@ -1,30 +1,62 @@
-# Create written content
+# Provn - Simple IP-NFT Minting Platform
 
-*Automatically synced with your [v0.app](https://v0.app) deployments*
+A streamlined platform for minting files as IP-NFTs using Origin SDK on Camp Network.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/oxdivs-projects/v0-create-written-content)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/projects/siCGiY7WriR)
+## Features
 
-## Overview
+- 📁 **File Upload**: Support for images, videos, and audio files (up to 10MB)
+- 🔗 **IPFS Integration**: Automatic upload to IPFS via Pinata
+- 🎯 **Origin SDK Minting**: Direct IP-NFT creation on Camp Network
+- 💼 **Wallet Connection**: Seamless authentication with Origin SDK
+- 📱 **Responsive Design**: Works on desktop and mobile
 
-This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.app](https://v0.app).
+## Quick Start
 
-## Deployment
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-Your project is live at:
+2. **Set up environment**
+   ```bash
+   cp .env.example .env.local
+   # Add your Pinata JWT token to .env.local
+   ```
 
-**[https://vercel.com/oxdivs-projects/v0-create-written-content](https://vercel.com/oxdivs-projects/v0-create-written-content)**
+3. **Run development server**
+   ```bash
+   npm run dev
+   ```
 
-## Build your app
+4. **Visit the app**
+   - Main app: http://localhost:3000
+   - Simple mint: http://localhost:3000/simple-mint
 
-Continue building your app on:
+## Usage
 
-**[https://v0.app/chat/projects/siCGiY7WriR](https://v0.app/chat/projects/siCGiY7WriR)**
+1. Navigate to `/simple-mint`
+2. Upload any image, video, or audio file
+3. Connect wallet through Origin SDK
+4. Fill in IP name and description
+5. Click "Mint IP-NFT"
 
-## How It Works
+## Tech Stack
 
-1. Create and modify your project using [v0.app](https://v0.app)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+- **Framework**: Next.js 15 + React 19
+- **Blockchain**: Camp Network (testnet)
+- **Wallet**: Origin SDK + Wagmi
+- **Storage**: IPFS via Pinata
+- **Styling**: Tailwind CSS
+- **UI**: Custom Provn components
+
+## Environment Variables
+
+Required in `.env.local`:
+```bash
+NEXT_PUBLIC_PINATA_JWT=your_pinata_jwt_token
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
+```
+
+## License
+
+MIT

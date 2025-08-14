@@ -1,31 +1,25 @@
 import { Chain } from 'viem';
 
-export const baseCAMPChain: Chain = {
+export const testnet: Chain = {
   id: 123420001114,
-  name: "BaseCAMP Network",
+  name: 'BaseCAMP',
   nativeCurrency: {
+    name: 'CAMP',
+    symbol: 'CAMP',
     decimals: 18,
-    name: "wCAMP",
-    symbol: "wCAMP",
   },
   rpcUrls: {
     default: {
-      http: [
-        "https://rpc-campnetwork.xyz",
-        "https://rpc.basecamp.t.raas.gelato.cloud",
-      ],
+      http: ['https://rpc.basecamp.t.raas.gelato.cloud'],
     },
     public: {
-      http: [
-        "https://rpc-campnetwork.xyz",
-        "https://rpc.basecamp.t.raas.gelato.cloud",
-      ],
+      http: ['https://rpc.basecamp.t.raas.gelato.cloud'],
     },
   },
   blockExplorers: {
     default: {
-      name: "BaseCAMP Explorer",
-      url: "https://basecamp.cloud.blockscout.com/",
+      name: 'BaseCAMP Explorer',
+      url: 'https://basecamp.cloud.blockscout.com',
     },
   },
   contracts: {
@@ -35,6 +29,3 @@ export const baseCAMPChain: Chain = {
     },
   },
 };
-
-// Legacy export for backward compatibility
-export const testnet = baseCAMPChain;
