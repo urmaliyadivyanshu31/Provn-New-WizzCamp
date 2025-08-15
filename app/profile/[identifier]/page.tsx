@@ -254,7 +254,7 @@ export default function ProfilePage() {
                       variant="secondary"
                       onClick={() => setIsEditing(true)}
                     >
-                      <Settings className="w-4 h-4 mr-2" />
+                      ⚙️ 
                       Edit Profile
                     </Button>
                   ) : (
