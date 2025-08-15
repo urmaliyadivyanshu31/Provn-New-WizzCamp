@@ -1,0 +1,96 @@
+/* Superteam Earn App Styles */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* Additional GSAP optimizations */
+.gsap-will-change {
+  will-change: transform, opacity;
+}
+
+.gsap-transform-3d {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Performance optimizations for animations */
+.hero-headline,
+.hero-subline,
+.hero-cta,
+.hero-avatar {
+  will-change: transform, opacity;
+}
+
+.opportunity-card,
+.stat-card,
+.sidebar-card {
+  will-change: transform;
+}
+
+/* Enhanced backdrop blur for header */
+.header-backdrop {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Gradient text fix for Safari */
+.gradient-text {
+  background: linear-gradient(to right, #a855f7, #3b82f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Loading states */
+.loading-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Focus states for accessibility */
+.btn:focus,
+.superteam-tab:focus,
+.superteam-filter-pill:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .gradient-text {
+    background: none;
+    -webkit-background-clip: unset;
+    -webkit-text-fill-color: unset;
+    background-clip: unset;
+    color: #000;
+  }
+}
+
+/* Print styles */
+@media print {
+  .hero-banner,
+  .floating-elements,
+  .animations {
+    display: none !important;
+  }
+}

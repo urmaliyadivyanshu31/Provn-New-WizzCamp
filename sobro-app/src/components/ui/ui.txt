@@ -1,0 +1,88 @@
+const travelcards: BentoCardProps[] = [
+  {
+    color: "#060010",
+    title: "Barcelona",
+    description: "Gaudí, beaches, tapas",
+    label: "Insights",
+    imageUrl: "https://www.27vakantiedagen.nl/wp-content/themes/dwi27v/img/pics/spanje/barcelona3.jpg",
+  },
+  {
+    color: "#060010",
+    title: "Edinburgh",
+    description: "Castles, dramatic landscapes",
+    label: "Overview",
+    imageUrl: "https://a.cdn-hotels.com/gdcs/production73/d1723/35b8f7e3-14c4-4d53-ae2f-5f7f6adb6aac.jpg",
+  },
+  {
+    color: "#060010",
+    title: "Gold Coast",
+    description: "Beautiful now, perfect later",
+    label: "Teamwork",
+    imageUrl: "https://cdn.suwalls.com/wallpapers/world/gold-coast-16171-2880x1800.jpg"",
+  },
+  {
+    color: "#060010",
+    title: "Tokyo",
+    description: "Neon lights, sushi, culture",
+    label: "Efficiency",
+    imageUrl: "https://www.thetraveler.org/content/images/size/w1200/2025/07/Tokyo.webp",
+  },
+  {
+    color: "#060010",
+    title: "Santorini",
+    description: "White cliffs, blue domes",
+    label: "Connectivity",
+    imageUrl: "https://sothebysrealty.gr/wp-content/uploads/2016/11/Santorini-sunset-at-dawn-Greece-Sothebys-International-Realty.jpg",
+  },
+  {
+    color: "#060010",
+    title: "Bali",
+    description: "Temples, rice terraces",
+    label: "Protection",
+    imageUrl: "https://a.cdn-hotels.com/gdcs/production143/d1112/c4fedab1-4041-4db5-9245-97439472cf2c.jpg",
+  },
+];
+const inspicards: BentoCardProps[] = [
+  {
+    color: "#060010",
+    title: "Mountain Adventures",
+    description: "Hiking trails and scenic views",
+    label: "Insights",
+    imageUrl: "https://tse1.mm.bing.net/th/id/OIP.cB9ojdzioM1PP4rNR8QzMgHaED?rs=1&pid=ImgDetMain&o=7&rm=3",
+  },
+  {
+    color: "#060010",
+    title: "Beach Escapes",
+    description: "Sun, sand, relaxation",
+    label: "Overview",
+    imageUrl: "https://tse4.mm.bing.net/th/id/OIP.xkVu3f_haXFbc2MuMGYmwQHaEo?rs=1&pid=ImgDetMain&o=7&rm=3",
+  },
+  {
+    color: "#060010",
+    title: "City Breaks",
+    description: "Urban exploration",
+    label: "Teamwork",
+    imageUrl: "https://res.cloudinary.com/lastminute-contenthub/image/upload/c_limit,h_999999,w_1920/f_auto/q_auto:eco/v1559905602/DAM/Photos/Destinations/Europe/Hungary/Budapest/shutterstock_113183983.jpg",
+  },
+  {
+    color: "#060010",
+    title: "Cultural Experiences",
+    description: "Museums, history, local traditions",
+    label: "Efficiency",
+    imageUrl: "https://www.zingbus.com/blog/wp-content/uploads/2023/05/Cultural-Immersion-4-2.jpg",
+  },
+  {
+    color: "#060010",
+    title: "Food & Wine",
+    description: "Culinary journeys",
+    label: "Connectivity",
+    imageUrl: "https://tse1.mm.bing.net/th/id/OIP.ITz-k5rmldlsYRFP4LooCwHaFD?rs=1&pid=ImgDetMain&o=7&rm=3",
+  },
+  {
+    color: "#060010",
+    title: "Adventure Sports",
+    description: "Thrills and excitement",
+    label: "Protection",
+    imageUrl: "https://wallpapers.com/images/hd/extreme-adventure-sports-skydiving-y2p37mkbfcyazyrh.jpg",
+  },
+];
