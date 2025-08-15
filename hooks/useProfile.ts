@@ -16,30 +16,42 @@ export function useProfile(identifier?: string): UseProfileReturn {
 
   const fetchProfile = useCallback(async () => {
     if (!identifier) {
+      console.log('🔍 useProfile: No identifier provided')
       setProfile(null)
       setError(null)
       return
     }
 
+    console.log('🔍 useProfile: Fetching profile for identifier:', identifier)
     setLoading(true)
     setError(null)
 
     try {
       const response = await fetch(`/api/profile/${identifier}`)
       const data = await response.json()
+      
+      console.log('🔍 useProfile: API response:', {
+        status: response.status,
+        success: data.success,
+        profile: data.profile,
+        error: data.error
+      })
 
       if (data.success) {
+        console.log('✅ useProfile: Profile found:', data.profile)
         setProfile(data.profile)
       } else {
         if (response.status === 404) {
+          console.log('❌ useProfile: Profile not found (404)')
           setProfile(null)
           setError(null)
         } else {
+          console.log('❌ useProfile: API error:', data.error)
           setError(data.error || 'Failed to fetch profile')
         }
       }
     } catch (err) {
-      console.error('Error fetching profile:', err)
+      console.error('❌ useProfile: Network error:', err)
       setError('Failed to fetch profile')
     } finally {
       setLoading(false)

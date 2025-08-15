@@ -45,7 +45,18 @@ export function Navigation({ currentPage }: NavigationProps) {
   const { scrollY } = useScroll()
   const { isAuthenticated, walletAddress } = useAuth()
   const { openModal } = useModal()
-  const { profile } = useProfile(walletAddress || undefined)
+  const { profile, loading, error } = useProfile(walletAddress || undefined)
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 Navigation: Profile state:', {
+      walletAddress,
+      profile,
+      loading,
+      error,
+      hasProfile: !!profile
+    })
+  }, [walletAddress, profile, loading, error])
 
   // Handle scroll effect
   useEffect(() => {
