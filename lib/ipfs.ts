@@ -31,12 +31,13 @@ export class PinataIPFSService {
   private isInitialized: boolean = false
 
   constructor() {
-    this.pinataJWT = process.env.NEXT_PUBLIC_PINATA_JWT_TOKEN || process.env.PINATA_JWT
+    this.pinataJWT = process.env.NEXT_PUBLIC_PINATA_JWT || process.env.NEXT_PUBLIC_PINATA_JWT_TOKEN || process.env.PINATA_JWT
     this.isInitialized = !!this.pinataJWT
     
     if (!this.pinataJWT) {
       console.error('❌ Pinata JWT not found in environment variables')
-      console.log('Please set NEXT_PUBLIC_PINATA_JWT or PINATA_JWT in your environment')
+      console.log('Please set NEXT_PUBLIC_PINATA_JWT in your .env.local file')
+      console.log('Get your JWT from: https://app.pinata.cloud/keys')
     } else {
       console.log('✅ Pinata IPFS service initialized')
     }

@@ -39,22 +39,38 @@ export function ProfileEditModal({ isOpen, onClose, profile, onSave }: ProfileEd
   };
 
   const uploadToIPFS = async (file: File): Promise<string> => {
+    const pinataJWT = process.env.NEXT_PUBLIC_PINATA_JWT;
+    
+    console.log('🔑 Pinata JWT available:', !!pinataJWT);
+    console.log('📁 File details:', { name: file.name, size: file.size, type: file.type });
+    
+    if (!pinataJWT) {
+      throw new Error('Pinata JWT not configured. Please set NEXT_PUBLIC_PINATA_JWT in your environment variables.');
+    }
+
     const formDataUpload = new FormData();
     formDataUpload.append('file', file);
     
+    console.log('📤 Making request to Pinata API...');
     const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
       method: 'POST',
       body: formDataUpload,
       headers: {
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_PINATA_JWT}`,
+        'Authorization': `Bearer ${pinataJWT}`,
       },
     });
 
+    console.log('📥 Response status:', response.status);
+    console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
+
     if (!response.ok) {
-      throw new Error(`Upload failed: ${response.status}`);
+      const errorText = await response.text();
+      console.error('❌ Upload error:', errorText);
+      throw new Error(`Upload failed: ${response.status} - ${errorText}`);
     }
 
     const result = await response.json();
+    console.log('✅ Upload successful:', result);
     return `https://ipfs.io/ipfs/${result.IpfsHash}`;
   };
 
