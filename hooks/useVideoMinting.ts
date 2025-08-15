@@ -28,29 +28,17 @@ export function useVideoMinting() {
     try {
       // Fetch recent transactions from BaseCAMP API
       const response = await fetch(
-        `https://basecamp.cloud.blockscout.com/api/v2/addresses/${walletAddress}/transactions?filter=validated&type=contract_call&items_count=10`
+        `https://basecamp.cloud.blockscout.com/api/v2/addresses/${walletAddress}/transactions?filter=validated&type=contract_call`
       );
       
       if (response.ok) {
         const data = await response.json();
         console.log('📊 BaseCAMP API response:', data);
         
+        // Get the most recent transaction
         if (data.items && data.items.length > 0) {
-          // Sort transactions by timestamp to get the most recent (newest first)
-          const sortedTransactions = data.items.sort((a: any, b: any) => {
-            const timestampA = new Date(a.timestamp).getTime();
-            const timestampB = new Date(b.timestamp).getTime();
-            return timestampB - timestampA; // Descending order (newest first)
-          });
-          
-          const mostRecentTx = sortedTransactions[0];
-          console.log('🔍 Most recent transaction:', {
-            hash: mostRecentTx.hash,
-            timestamp: mostRecentTx.timestamp,
-            method: mostRecentTx.method
-          });
-          
-          return mostRecentTx.hash;
+          const recentTx = data.items[0];
+          return recentTx.hash;
         }
       }
     } catch (error) {
@@ -132,6 +120,19 @@ export function useVideoMinting() {
       setError('Please connect your wallet first')
       return null
     }
+    
+    // Check if wallet is connected to BaseCAMP network
+    if (!address) {
+      setError('Wallet address not found. Please reconnect your wallet.')
+      return null
+    }
+    
+    // Validate file size (blockchain has limits)
+    const maxFileSize = 100 * 1024 * 1024; // 100MB limit
+    if (file.size > maxFileSize) {
+      setError('File size too large. Maximum size is 100MB.')
+      return null
+    }
     setLoading(true)
     setError(null)
     
@@ -152,25 +153,66 @@ export function useVideoMinting() {
         return null; 
       }
       
+      // Validate metadata to prevent signature errors
+      if (!metadata || typeof metadata !== 'object') {
+        setError('Invalid metadata format. Please check your video details.');
+        return null;
+      }
+      
+      // Ensure required metadata fields exist
+      const validatedMetadata = {
+        name: metadata.name || file.name || 'Untitled Video',
+        description: metadata.description || 'No description provided',
+        ...metadata
+      };
+      
       // Step 2: Prepare for minting
       setSuccess("⛓️ Preparing blockchain transaction...");
       
+      // Validate and fix license parameters to prevent signature errors
+      const price = parseFloat(license.price || '0');
+      const duration = parseInt(license.duration || '2629800');
+      const royalty = parseInt(license.royalty || '0');
+      
+      // Ensure minimum valid values
+      const validPrice = Math.max(price, 0.001); // Minimum 0.001 wCAMP
+      const validDuration = Math.max(duration, 86400); // Minimum 1 day
+      const validRoyalty = Math.min(Math.max(royalty, 0), 50); // 0-50% royalty
+      
       const licenseTerms = {
-        price: BigInt(parseFloat(license.price || '0') * 1e18),
-        duration: parseInt(license.duration || '2629800'),
-        royaltyBps: parseInt(license.royalty || '0') * 100,
+        price: BigInt(Math.floor(validPrice * 1e18)),
+        duration: validDuration,
+        royaltyBps: validRoyalty * 100,
         paymentToken: (license.paymentToken || '0x0000000000000000000000000000000000000000') as Address,
       }
 
       const parentTokenId = parentId === '' ? BigInt(0) : BigInt(parentId)
       
+      // Debug logging before minting
+      console.log('🔍 Debug info before minting:', {
+        origin: !!origin,
+        jwt: !!jwt,
+        address,
+        fileSize: file.size,
+        fileType: file.type,
+        ipfsUrl,
+        licenseTerms: {
+          price: licenseTerms.price.toString(),
+          duration: licenseTerms.duration,
+          royaltyBps: licenseTerms.royaltyBps,
+          paymentToken: licenseTerms.paymentToken
+        },
+        metadata,
+        parentTokenId: parentTokenId.toString()
+      });
+      
       const tokenId = await origin.mintFile(
         file,
         {
-          ...metadata,
+          ...validatedMetadata,
           animation_url: ipfsUrl, // Use animation_url for videos instead of image
           owner: address,
-          price: license.price,
+          price: validPrice.toString(), // Use validated price
           mimeType: file.type,
           size: file.size,
         },
