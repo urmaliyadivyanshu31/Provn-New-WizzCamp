@@ -126,7 +126,7 @@ export function TipModal({
             <h2 className="text-xl font-bold text-provn-text">Send Tip</h2>
           </div>
           <ProvnButton
-            variant="ghost"
+            variant="secondary"
             size="sm"
             onClick={onClose}
             className="w-8 h-8 p-0"
@@ -159,7 +159,7 @@ export function TipModal({
               {TIP_AMOUNTS.map((presetAmount) => (
                 <ProvnButton
                   key={presetAmount}
-                  variant={amount === presetAmount && !customAmount ? "default" : "outline"}
+                  variant={amount === presetAmount && !customAmount ? "primary" : "secondary"}
                   size="sm"
                   onClick={() => selectPresetAmount(presetAmount)}
                   className="h-10"
@@ -217,7 +217,7 @@ export function TipModal({
         
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 p-6 border-t border-provn-border bg-provn-surface-2">
-          <ProvnButton variant="ghost" onClick={onClose} disabled={isLoading}>
+          <ProvnButton variant="secondary" onClick={onClose} disabled={isLoading}>
             Cancel
           </ProvnButton>
           <ProvnButton 

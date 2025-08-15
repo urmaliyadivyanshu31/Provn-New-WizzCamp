@@ -144,7 +144,7 @@ export function ProfileEditModal({ isOpen, onClose, profile, onSave }: ProfileEd
         <div className="flex items-center justify-between p-6 border-b border-provn-border">
           <h2 className="text-xl font-bold text-provn-text">Edit Profile</h2>
           <ProvnButton
-            variant="ghost"
+            variant="secondary"
             size="sm"
             onClick={onClose}
             className="w-8 h-8 p-0"
@@ -215,7 +215,7 @@ export function ProfileEditModal({ isOpen, onClose, profile, onSave }: ProfileEd
                 </div>
                 <div className="space-y-1">
                   <ProvnButton
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     onClick={() => avatarInputRef.current?.click()}
                   >
@@ -283,7 +283,7 @@ export function ProfileEditModal({ isOpen, onClose, profile, onSave }: ProfileEd
         
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 p-6 border-t border-provn-border bg-provn-surface-2">
-          <ProvnButton variant="ghost" onClick={onClose} disabled={isLoading}>
+          <ProvnButton variant="secondary" onClick={onClose} disabled={isLoading}>
             Cancel
           </ProvnButton>
           <ProvnButton onClick={handleSave} disabled={isLoading}>
