@@ -4,10 +4,10 @@ import { ipfsService } from "@/lib/ipfs"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
 
     // Get video information from database
     const videoResult = await db.query(`
@@ -167,7 +167,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // This endpoint would be used for updating video metadata

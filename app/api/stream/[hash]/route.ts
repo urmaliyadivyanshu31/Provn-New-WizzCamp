@@ -6,10 +6,10 @@ import { db } from '@/lib/database'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { hash: string } }
+  { params }: { params: Promise<{ hash: string }> }
 ) {
   try {
-    const { hash } = params
+    const { hash } = await params
     const { searchParams } = new URL(request.url)
     const quality = searchParams.get('quality') || 'auto'
     const fileName = searchParams.get('file') || 'playlist.m3u8'

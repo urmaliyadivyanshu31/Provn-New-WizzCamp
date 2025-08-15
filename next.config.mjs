@@ -1,14 +1,24 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
+  // Validate required environment variables at build time
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },
-  typescript: {
-    ignoreBuildErrors: true,
+  
+  // Ensure environment variables are available
+  serverExternalPackages: [],
+  
+  // Add webpack configuration to handle missing env vars
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Validate environment variables on server side
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        throw new Error('Missing required Supabase environment variables');
+      }
+    }
+    return config;
   },
-  images: {
-    unoptimized: true,
-  },
-}
+};
 
-export default nextConfig
+export default nextConfig;
