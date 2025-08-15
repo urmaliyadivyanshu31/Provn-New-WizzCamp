@@ -258,7 +258,7 @@ export default function ProfilePage() {
                       Edit Profile
                     </Button>
                   ) : (
-                    <Button variant="outline">
+                    <Button variant="secondary">
                       👥
                       Follow
                     </Button>
