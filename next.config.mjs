@@ -7,10 +7,7 @@ const nextConfig = {
   },
   
   // Ensure environment variables are available
-  experimental: {
-    // This will fail the build if env vars are missing
-    serverComponentsExternalPackages: [],
-  },
+  serverExternalPackages: [],
   
   // Add webpack configuration to handle missing env vars
   webpack: (config, { isServer }) => {
