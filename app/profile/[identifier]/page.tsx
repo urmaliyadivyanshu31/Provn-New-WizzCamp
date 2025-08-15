@@ -231,9 +231,9 @@ export default function ProfilePage() {
                       className="w-6 h-6 p-0"
                     >
                       {copiedAddress ? (
-                        ✓
+                        <span>✓</span>
                       ) : (
-                        📋
+                        <span>📋</span>
                       )}
                     </Button>
                     <Button
