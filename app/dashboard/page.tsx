@@ -292,7 +292,6 @@ export default function DashboardPage() {
                 { id: "videos", label: "My Videos" },
                 { id: "campaigns", label: "Campaigns" },
                 { id: "earnings", label: "Earnings" },
-                { id: "profile", label: "Profile Settings" },
               ].map((tab) => (
                 <button
                   key={tab.id}

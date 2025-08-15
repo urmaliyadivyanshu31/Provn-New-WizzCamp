@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth, useAuthState } from '@campnetwork/origin/react'
 import { type Address } from 'viem'
+import { ipfsService } from '@/lib/ipfs'
 
 export function useVideoMinting() {
   const auth = useAuth()
@@ -80,26 +81,21 @@ export function useVideoMinting() {
 
   async function uploadToIPFS(file: File): Promise<string> {
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_PINATA_JWT_TOKEN}`
-        },
-        body: formData
+      // Use the existing IPFS service instead of direct API calls
+      const result = await ipfsService.uploadFile(file, {
+        name: file.name,
+        keyValues: {
+          contentType: 'video',
+          uploadedAt: new Date().toISOString()
+        }
       });
-
-      const result = await response.json();
       
-      if (!result.IpfsHash) {
-        throw new Error("Failed to get IPFS URL after upload");
+      if (!result.hash) {
+        throw new Error("Failed to get IPFS hash after upload");
       }
 
-      const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${result.IpfsHash}`;
-      // Don't set success here, let the main function handle it
-      return ipfsUrl;
+      // Return the gateway URL for the uploaded file
+      return result.gatewayUrl;
     } catch (error) {
       console.error("IPFS upload error:", error);
       setError("Failed to upload video to IPFS");
@@ -139,7 +135,9 @@ export function useVideoMinting() {
         ipfsUrl = rest;
         setSuccess("✅ Video uploaded to IPFS successfully!");
       } catch (error) {
-        return; 
+        console.error('IPFS upload failed:', error);
+        setError('Failed to upload video to IPFS. Please try again.');
+        return null; 
       }
       
       // Step 2: Prepare for minting
