@@ -225,19 +225,19 @@ export default function ProfilePage() {
                       {profile.walletAddress.slice(0, 6)}...{profile.walletAddress.slice(-4)}
                     </span>
                     <Button
-                      variant="ghost"
+                      variant="secondary"
                       size="sm"
                       onClick={handleCopyAddress}
                       className="w-6 h-6 p-0"
                     >
                       {copiedAddress ? (
-                        <Check className="w-4 h-4 text-green-500" />
+                        ✓
                       ) : (
-                        <Copy className="w-4 h-4" />
+                        📋
                       )}
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant="secondary"
                       size="sm"
                       onClick={() => window.open(`https://basecamp.cloud.blockscout.com/address/${profile.walletAddress}`, '_blank')}
                       className="w-6 h-6 p-0"
@@ -329,7 +329,7 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-provn-text">Recent Content</h2>
               {profile.stats.totalContent > profile.recentContent.length && (
-                <Button variant="ghost" size="sm">
+                <Button variant="secondary" size="sm">
                   View All ({profile.stats.totalContent})
                 </Button>
               )}

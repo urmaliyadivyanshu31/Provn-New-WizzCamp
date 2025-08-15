@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         ipfsUrl: ipfsResult.url,
         gatewayUrl: ipfsResult.gatewayUrl,
         metadataHash,
-        metadataUrl: ipfsService.getGatewayUrl(metadataHash),
+        metadataUrl: ipfsService.getIPFSUrl(metadataHash.ipfsHash || metadataHash.hash),
         size: ipfsResult.size,
         tags: videoMetadata.tags,
         allowRemixing,

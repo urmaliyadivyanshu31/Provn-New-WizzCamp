@@ -61,9 +61,12 @@ export async function POST(
       duration: duration || 0 // 0 for perpetual
     }
 
-    const transactionResult = await blockchainService.purchaseLicense(id, licensePrice, "premium", 
-      licenseData,
-      authResult.user.address
+    const transactionResult = await blockchainService.purchaseLicense(
+      id,
+      licenseType as 'commercial' | 'educational' | 'personal',
+      duration || 0,
+      authResult.user!.address,
+      licensePrice.toString()
     )
 
     if (transactionResult.status !== 'success') {
@@ -134,7 +137,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
 
     // Get video license information
     const videoResult = await db.query(`

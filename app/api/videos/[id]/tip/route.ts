@@ -133,7 +133,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
 
     // Get video tip information
     const videoResult = await db.query(`
