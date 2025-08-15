@@ -28,17 +28,29 @@ export function useVideoMinting() {
     try {
       // Fetch recent transactions from BaseCAMP API
       const response = await fetch(
-        `https://basecamp.cloud.blockscout.com/api/v2/addresses/${walletAddress}/transactions?filter=validated&type=contract_call`
+        `https://basecamp.cloud.blockscout.com/api/v2/addresses/${walletAddress}/transactions?filter=validated&type=contract_call&items_count=10`
       );
       
       if (response.ok) {
         const data = await response.json();
         console.log('📊 BaseCAMP API response:', data);
         
-        // Get the most recent transaction
         if (data.items && data.items.length > 0) {
-          const recentTx = data.items[0];
-          return recentTx.hash;
+          // Sort transactions by timestamp to get the most recent (newest first)
+          const sortedTransactions = data.items.sort((a: any, b: any) => {
+            const timestampA = new Date(a.timestamp).getTime();
+            const timestampB = new Date(b.timestamp).getTime();
+            return timestampB - timestampA; // Descending order (newest first)
+          });
+          
+          const mostRecentTx = sortedTransactions[0];
+          console.log('🔍 Most recent transaction:', {
+            hash: mostRecentTx.hash,
+            timestamp: mostRecentTx.timestamp,
+            method: mostRecentTx.method
+          });
+          
+          return mostRecentTx.hash;
         }
       }
     } catch (error) {
