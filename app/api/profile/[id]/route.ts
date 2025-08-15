@@ -16,6 +16,13 @@ export async function GET(
       )
     }
 
+    // Debug logging
+    console.log('🔍 Profile API: Fetching profile for ID:', id)
+    console.log('🔍 Profile API: Environment variables:', {
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅' : '❌',
+      serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? '✅' : '❌'
+    })
+
     const supabase = createAdminClient()
     
     let query = supabase
@@ -30,17 +37,20 @@ export async function GET(
       query = query.eq('handle', id.toLowerCase())
     }
 
+    console.log('🔍 Profile API: Executing query...')
     const { data: profile, error } = await query.single()
+    console.log('🔍 Profile API: Query result:', { profile: !!profile, error: error?.message })
 
     if (error) {
       if (error.code === 'PGRST116') { // No rows returned
+        console.log('🔍 Profile API: Profile not found (404)')
         return NextResponse.json(
           { success: false, error: 'Profile not found' },
           { status: 404 }
         )
       }
       
-      console.error('Error fetching profile:', error)
+      console.error('❌ Profile API: Error fetching profile:', error)
       return NextResponse.json(
         { success: false, error: 'Failed to fetch profile' },
         { status: 500 }
