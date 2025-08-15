@@ -29,12 +29,12 @@ export const originService = {
     this.initialized = true;
   },
   
-  async createIPNFT(params: any) {
+  async createIPNFT(params: any): Promise<{ tokenId: string; contractAddress?: string; transactionHash?: string; blockNumber?: number }> {
     console.log('🔧 Origin service createIPNFT called (server-side mock)', params);
     throw new Error('Origin SDK createIPNFT should be called from client-side only');
   },
   
-  async createPost(params: any) {
+  async createPost(params: any): Promise<{ postId: string; id?: string; transactionHash?: string }> {
     console.log('🔧 Origin service createPost called (server-side mock)', params);
     throw new Error('Origin SDK createPost should be called from client-side only');
   }

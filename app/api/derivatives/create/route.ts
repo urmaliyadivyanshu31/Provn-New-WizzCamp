@@ -119,6 +119,12 @@ async function processDerivativeAsync(
     // Update job status to processing
     await videoProcessingService.updateJobStatus(processingId, 'processing', 'validate', 10)
 
+    // Get job status
+    const jobStatus = await videoProcessingService.getJobStatus(processingId)
+    if (!jobStatus) {
+      throw new Error('Processing job not found')
+    }
+
     // Process the derivative video
     const result = await videoProcessingService.processVideo(
       {
@@ -127,7 +133,7 @@ async function processDerivativeAsync(
         mimetype: 'video/mp4',
         size: 0 // Will be updated by processing service
       },
-      await videoProcessingService.getJobStatus(processingId)!
+      jobStatus
     )
 
     // Check for duplicates

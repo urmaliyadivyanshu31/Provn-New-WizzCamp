@@ -452,6 +452,11 @@ This request will not trigger a blockchain transaction or cost any gas fees.`
     }
   }
 
+  // Validate Ethereum address format
+  isValidAddress(address: string): boolean {
+    return blockchainUtils.isValidAddress(address)
+  }
+
   // Health check for auth service
   async healthCheck(): Promise<{ status: string; database: boolean; jwt: boolean }> {
     try {
