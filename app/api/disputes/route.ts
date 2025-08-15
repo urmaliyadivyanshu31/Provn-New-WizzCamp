@@ -173,7 +173,7 @@ export async function GET(request: NextRequest) {
     const disputesResult = await db.query(query, queryParams)
 
     // Get total count for pagination
-    const countQuery = `
+    let countQuery = `
       SELECT COUNT(*) as total
       FROM disputes d
       JOIN videos v ON d.target_token_id = v.token_id

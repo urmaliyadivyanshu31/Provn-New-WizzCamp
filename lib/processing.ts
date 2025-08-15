@@ -454,7 +454,7 @@ class VideoProcessingService {
   }
 
   // Update job status in database
-  private async updateJobStatus(
+  async updateJobStatus(
     processingId: string,
     status: ProcessingJob['status'],
     currentStep: string,
