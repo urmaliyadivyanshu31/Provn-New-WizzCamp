@@ -8,6 +8,7 @@ import { ProvnBadge } from "@/components/provn/badge"
 import { useAuth } from "@campnetwork/origin/react"
 import { useProfile } from "@/hooks/useProfile"
 import { useFollow } from "@/hooks/useFollow"
+import { useAnalytics } from "@/hooks/useAnalytics"
 import { toast } from "sonner"
 import { Profile } from "@/lib/supabase"
 import { Copy, ExternalLink } from "lucide-react"
@@ -24,6 +25,7 @@ export default function ProfilePage() {
 
   const { profile, loading, error } = useProfile(handle)
   const { followers, following, isFollowing, loading: followLoading, followUser, unfollowUser } = useFollow(handle)
+  const { data: analytics, loading: analyticsLoading, error: analyticsError } = useAnalytics(handle)
   const [activeTab, setActiveTab] = useState<'videos' | 'about' | 'analytics'>('videos')
   const [copiedAddress, setCopiedAddress] = useState(false)
   const [copiedHandle, setCopiedHandle] = useState(false)
@@ -405,101 +407,146 @@ export default function ProfilePage() {
 
                       {activeTab === 'analytics' && (
                         <div className="space-y-6">
-                          {/* Stats Overview */}
-                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                            <div className="bg-provn-surface rounded-lg p-4 text-center">
-                              <div className="text-2xl font-bold text-provn-text font-headline">4</div>
-                              <div className="text-sm text-provn-muted font-headline">Videos</div>
+                          {analyticsLoading ? (
+                            <div className="text-center py-12">
+                              <div className="text-provn-muted font-headline">Loading analytics...</div>
                             </div>
-                            <div className="bg-provn-surface rounded-lg p-4 text-center">
-                              <div className="text-2xl font-bold text-provn-text font-headline">4,240</div>
-                              <div className="text-sm text-provn-muted font-headline">Views</div>
+                          ) : analyticsError ? (
+                            <div className="text-center py-12">
+                              <div className="text-red-500 font-headline">Failed to load analytics</div>
+                              <button 
+                                onClick={() => window.location.reload()} 
+                                className="mt-2 text-provn-accent hover:underline font-headline"
+                              >
+                                Try again
+                              </button>
                             </div>
-                            <div className="bg-provn-surface rounded-lg p-4 text-center">
-                              <div className="text-2xl font-bold text-provn-text font-headline">167.5</div>
-                              <div className="text-sm text-provn-muted font-headline">wCAMP</div>
-                            </div>
-                            <div className="bg-provn-surface rounded-lg p-4 text-center">
-                              <div className="text-2xl font-bold text-provn-text font-headline">9</div>
-                              <div className="text-sm text-provn-muted font-headline">Licenses</div>
-                            </div>
-                          </div>
-
-                          {/* Content Performance & Revenue */}
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div className="bg-provn-surface rounded-lg p-6">
-                              <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Content Performance</h3>
-                              <div className="space-y-3">
-                                <div className="flex justify-between">
-                                  <span className="text-provn-muted font-headline">Average Views per Video</span>
-                                  <span className="text-provn-text font-headline font-semibold">1,060</span>
+                          ) : analytics ? (
+                            <>
+                              {/* Stats Overview */}
+                              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                <div className="bg-provn-surface rounded-lg p-4 text-center">
+                                  <div className="text-2xl font-bold text-provn-text font-headline">
+                                    {analytics.videos.toLocaleString()}
+                                  </div>
+                                  <div className="text-sm text-provn-muted font-headline">Videos</div>
                                 </div>
-                                <div className="flex justify-between">
-                                  <span className="text-provn-muted font-headline">Tips per Video</span>
-                                  <span className="text-provn-text font-headline font-semibold">21</span>
+                                <div className="bg-provn-surface rounded-lg p-4 text-center">
+                                  <div className="text-2xl font-bold text-provn-text font-headline">
+                                    {analytics.views.toLocaleString()}
+                                  </div>
+                                  <div className="text-sm text-provn-muted font-headline">Views</div>
                                 </div>
-                                <div className="flex justify-between">
-                                  <span className="text-provn-muted font-headline">License Conversion Rate</span>
-                                  <span className="text-provn-text font-headline font-semibold">0.21%</span>
+                                <div className="bg-provn-surface rounded-lg p-4 text-center">
+                                  <div className="text-2xl font-bold text-provn-text font-headline">
+                                    {analytics.wCAMP.toLocaleString()}
+                                  </div>
+                                  <div className="text-sm text-provn-muted font-headline">wCAMP</div>
                                 </div>
-                                <div className="flex justify-between">
-                                  <span className="text-provn-muted font-headline">Earnings per Video</span>
-                                  <span className="text-provn-text font-headline font-semibold">41.9 wCAMP</span>
+                                <div className="bg-provn-surface rounded-lg p-4 text-center">
+                                  <div className="text-2xl font-bold text-provn-text font-headline">
+                                    {analytics.licenses.toLocaleString()}
+                                  </div>
+                                  <div className="text-sm text-provn-muted font-headline">Licenses</div>
                                 </div>
                               </div>
-                            </div>
 
-                            <div className="bg-provn-surface rounded-lg p-6">
-                              <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Revenue Breakdown</h3>
-                              <div className="space-y-3">
-                                <div className="flex justify-between">
-                                  <span className="text-provn-muted font-headline">Tips Revenue</span>
-                                  <span className="text-green-500 font-headline font-semibold">212.5 wCAMP</span>
+                              {/* Content Performance & Revenue */}
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div className="bg-provn-surface rounded-lg p-6">
+                                  <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Content Performance</h3>
+                                  <div className="space-y-3">
+                                    <div className="flex justify-between">
+                                      <span className="text-provn-muted font-headline">Average Views per Video</span>
+                                      <span className="text-provn-text font-headline font-semibold">
+                                        {analytics.avgViewsPerVideo.toLocaleString()}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-provn-muted font-headline">Tips per Video</span>
+                                      <span className="text-provn-text font-headline font-semibold">
+                                        {analytics.avgTipsPerVideo}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-provn-muted font-headline">License Conversion Rate</span>
+                                      <span className="text-provn-text font-headline font-semibold">
+                                        {analytics.licenseConversionRate}%
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-provn-muted font-headline">Earnings per Video</span>
+                                      <span className="text-provn-text font-headline font-semibold">
+                                        {analytics.avgEarningsPerVideo} wCAMP
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="flex justify-between">
-                                  <span className="text-provn-muted font-headline">License Revenue (70%)</span>
-                                  <span className="text-orange-500 font-headline font-semibold">63.0 wCAMP</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-provn-muted font-headline">Derivative Royalties (30%)</span>
-                                  <span className="text-purple-500 font-headline font-semibold">-108.0 wCAMP</span>
-                                </div>
-                                <div className="flex justify-between pt-2 border-t border-provn-border/30">
-                                  <span className="text-provn-text font-headline font-semibold">Total Earnings</span>
-                                  <span className="text-provn-accent font-headline font-semibold">167.5 wCAMP</span>
+
+                                <div className="bg-provn-surface rounded-lg p-6">
+                                  <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Revenue Breakdown</h3>
+                                  <div className="space-y-3">
+                                    <div className="flex justify-between">
+                                      <span className="text-provn-muted font-headline">Tips Revenue</span>
+                                      <span className="text-green-500 font-headline font-semibold">
+                                        {analytics.tipsRevenue} wCAMP
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-provn-muted font-headline">License Revenue (70%)</span>
+                                      <span className="text-orange-500 font-headline font-semibold">
+                                        {analytics.licenseRevenue} wCAMP
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-provn-muted font-headline">Derivative Royalties (30%)</span>
+                                      <span className="text-purple-500 font-headline font-semibold">
+                                        {analytics.derivativeRoyalties} wCAMP
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between pt-2 border-t border-provn-border/30">
+                                      <span className="text-provn-text font-headline font-semibold">Total Earnings</span>
+                                      <span className="text-provn-accent font-headline font-semibold">
+                                        {analytics.totalEarnings} wCAMP
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </div>
 
-                          {/* Top Performing Videos */}
-                          <div className="bg-provn-surface rounded-lg p-6">
-                            <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Top Performing Videos</h3>
-                            <div className="space-y-3">
-                              {[
-                                { rank: 1, title: "Cooking Experiment", type: "Original", date: "1/10/2024", views: "2,100", tips: "42", licenses: "5" },
-                                { rank: 2, title: "Creative Dance Routine", type: "Original", date: "1/15/2024", views: "1,250", tips: "25", licenses: "3" },
-                                { rank: 3, title: "Urban Art Tutorial", type: "Original", date: "1/12/2024", views: "890", tips: "18", licenses: "1" },
-                                { rank: 4, title: "Dance Remix - Electronic Vibes", type: "Derivative", date: "1/8/2024", views: "650", tips: "15", licenses: "2" }
-                              ].map((video, index) => (
-                                <div key={index} className="flex items-center gap-4 p-3 bg-provn-bg rounded-lg">
-                                  <div className="w-8 h-8 bg-provn-accent rounded-full flex items-center justify-center text-provn-bg font-bold font-headline text-sm">
-                                    {video.rank}
-                                  </div>
-                                  <div className="flex-1">
-                                    <div className="font-medium text-provn-text font-headline">{video.title}</div>
-                                    <div className="text-sm text-provn-muted font-headline">{video.type} • {video.date}</div>
-                                  </div>
-                                  <div className="text-right space-y-1">
-                                    <div className="text-sm text-provn-text font-headline">{video.views} views</div>
-                                    <div className="text-xs text-provn-muted font-headline">{video.tips} tips • {video.licenses} licenses</div>
-                                  </div>
+                              {/* Top Performing Videos */}
+                              <div className="bg-provn-surface rounded-lg p-6">
+                                <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Top Performing Videos</h3>
+                                <div className="space-y-3">
+                                  {analytics.topVideos.length > 0 ? (
+                                    analytics.topVideos.map((video, index) => (
+                                      <div key={index} className="flex items-center gap-4 p-3 bg-provn-bg rounded-lg">
+                                        <div className="w-8 h-8 bg-provn-accent rounded-full flex items-center justify-center text-provn-bg font-bold font-headline text-sm">
+                                          {video.rank}
+                                        </div>
+                                        <div className="flex-1">
+                                          <div className="font-medium text-provn-text font-headline">{video.title}</div>
+                                          <div className="text-sm text-provn-muted font-headline">{video.type} • {video.date}</div>
+                                        </div>
+                                        <div className="text-right space-y-1">
+                                          <div className="text-sm text-provn-text font-headline">{video.views} views</div>
+                                          <div className="text-xs text-provn-muted font-headline">{video.tips} tips • {video.licenses} licenses</div>
+                                        </div>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="text-center py-8 text-provn-muted font-headline">
+                                      No videos yet
+                                    </div>
+                                  )}
                                 </div>
-                              ))}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-center py-12">
+                              <div className="text-provn-muted font-headline">No analytics data available</div>
                             </div>
-                          </div>
-
-
+                          )}
                         </div>
                       )}
         </div>
