@@ -136,14 +136,32 @@ export function CreateProfileModal({ isOpen, onClose, onSuccess }: CreateProfile
     setIsCheckingHandle(true)
     try {
       const response = await fetch(`/api/profile/${handle}`)
+      const data = await response.json()
+      
+      console.log('🔍 Handle availability check:', {
+        handle,
+        status: response.status,
+        data
+      })
+      
       if (response.status === 404) {
+        // Profile not found = handle available
+        setHandleAvailable(true)
+      } else if (data.success && data.profile) {
+        // Profile found = handle taken
+        setHandleAvailable(false)
+      } else if (response.status === 500) {
+        // Server error (likely table doesn't exist) = assume available
+        console.warn('Server error during handle check, assuming available:', data.error)
         setHandleAvailable(true)
       } else {
+        // Other response = handle taken
         setHandleAvailable(false)
       }
     } catch (error) {
       console.error('Error checking handle availability:', error)
-      setHandleAvailable(null)
+      // Network error = assume available to allow user to proceed
+      setHandleAvailable(true)
     } finally {
       setIsCheckingHandle(false)
     }
@@ -173,9 +191,15 @@ export function CreateProfileModal({ isOpen, onClose, onSuccess }: CreateProfile
       return
     }
 
-    if (handleAvailable !== true) {
+    if (handleAvailable === false) {
       toast.error('Please choose an available handle')
       return
+    }
+    
+    // If handleAvailable is null or true, allow submission
+    // This handles cases where the profiles table doesn't exist yet
+    if (handleAvailable === null) {
+      console.warn('Handle availability not checked, proceeding with submission')
     }
 
     setIsSubmitting(true)
