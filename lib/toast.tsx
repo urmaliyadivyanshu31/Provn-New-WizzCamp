@@ -160,18 +160,9 @@ export const promiseToast = {
     error?: string;
   }) => {
     return toast.promise(promise, {
-      loading: {
-        title: messages?.loading || "Uploading...",
-        icon: <Upload className="w-4 h-4 text-provn-accent animate-pulse" />,
-      },
-      success: {
-        title: messages?.success || "Upload successful!",
-        icon: <CheckCircle2 className="w-4 h-4 text-provn-success" />,
-      },
-      error: {
-        title: messages?.error || "Upload failed",
-        icon: <XCircle className="w-4 h-4 text-provn-error" />,
-      },
+      loading: messages?.loading || "Uploading...",
+      success: messages?.success || "Upload successful!",
+      error: messages?.error || "Upload failed",
     });
   },
   
@@ -181,18 +172,9 @@ export const promiseToast = {
     error?: string;
   }) => {
     return toast.promise(promise, {
-      loading: {
-        title: messages?.loading || "Transaction pending...",
-        icon: <Loader2 className="w-4 h-4 text-provn-accent animate-spin" />,
-      },
-      success: {
-        title: messages?.success || "Transaction confirmed!",
-        icon: <CheckCircle2 className="w-4 h-4 text-provn-success" />,
-      },
-      error: {
-        title: messages?.error || "Transaction failed",
-        icon: <XCircle className="w-4 h-4 text-provn-error" />,
-      },
+      loading: messages?.loading || "Transaction pending...",
+      success: messages?.success || "Transaction confirmed!",
+      error: messages?.error || "Transaction failed",
     });
   }
 };

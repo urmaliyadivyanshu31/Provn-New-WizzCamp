@@ -69,7 +69,7 @@ export function useVideoMinting() {
         return {
           videoUrl: metadata.animation_url || '',
           metadataHash,
-          transactionHash
+          transactionHash: transactionHash || undefined
         };
       }
     } catch (error) {

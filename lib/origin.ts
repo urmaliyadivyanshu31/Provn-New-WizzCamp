@@ -1,11 +1,7 @@
 // Origin SDK integration for Camp Network
-import { Origin } from '@campnetwork/origin/react';
-
-// Export the Origin type for use in API routes
-export type { Origin };
 
 // Helper function to get Origin SDK instance
-export const getOriginSDK = (): Origin | null => {
+export const getOriginSDK = (): any | null => {
   if (typeof window !== 'undefined') {
     return (window as any).__ORIGIN_INSTANCE__ || null;
   }
