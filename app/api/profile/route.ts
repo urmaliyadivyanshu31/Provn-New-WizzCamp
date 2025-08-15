@@ -4,7 +4,10 @@ import { createAdminClient } from '@/lib/supabase'
 // POST - Create profile
 export async function POST(request: NextRequest) {
   try {
+    console.log('🔍 Profile Creation API: Starting profile creation...')
+    
     const walletAddress = request.headers.get('x-wallet-address')
+    console.log('🔍 Profile Creation API: Wallet address:', walletAddress)
     
     if (!walletAddress) {
       return NextResponse.json(
@@ -65,9 +68,10 @@ export async function POST(request: NextRequest) {
 
     // Check if profile already exists for this wallet
     const supabaseAdmin = createAdminClient()
+    let existingProfile = null
     
     try {
-      const { data: existingProfile, error: checkError } = await supabaseAdmin
+      const { data: profileData, error: checkError } = await supabaseAdmin
         .from('profiles')
         .select('id, handle')
         .eq('wallet_address', walletAddress.toLowerCase())
@@ -81,12 +85,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      if (existingProfile) {
-        return NextResponse.json(
-          { success: false, error: 'Profile already exists for this wallet address' },
-          { status: 409 }
-        )
-      }
+      existingProfile = profileData
     } catch (tableError: any) {
       // If the table doesn't exist, we can't check for existing profiles
       // This is expected during initial setup
