@@ -19,7 +19,7 @@ export async function GET(
       )
     }
 
-    const cookieStore = await cookies()
+    const cookieStore = cookies()
     const supabase = await createClient(cookieStore)
 
     let profileAddress: string

@@ -126,13 +126,13 @@ export async function PUT(
     const { handle, displayName, bio, avatarUrl } = await request.json()
 
     // Verify authentication
-    const authResult = await authService.verifyAuth(request)
-    if (!authResult.success) {
+    const authResult = await authService.authenticateRequest(request)
+    if (!authResult.isAuthenticated) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
     // Users can only update their own profile
-    if (authResult.user.address !== address) {
+    if (authResult.user!.address !== address) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 

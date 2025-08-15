@@ -154,6 +154,14 @@ export class PinataIPFSService {
   get initialized(): boolean {
     return this.isInitialized
   }
+
+  getIPFSUrl(hash: string): string {
+    return `${this.gatewayUrl}/ipfs/${hash}`
+  }
+
+  isValidIPFSHash(hash: string): boolean {
+    return /^[a-zA-Z0-9]{46,59}$/.test(hash)
+  }
 }
 
 // Export real IPFS service

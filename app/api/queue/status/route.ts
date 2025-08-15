@@ -84,9 +84,9 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.split(' ')[1]
-    const authResult = await authService.verifyToken(token)
+    const authResult = await authService.verifyJWT(token)
     
-    if (!authResult.success) {
+    if (!authResult.isValid) {
       return NextResponse.json(
         { error: 'Invalid authentication token' },
         { status: 401 }

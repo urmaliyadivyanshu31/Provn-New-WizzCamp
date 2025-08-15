@@ -61,7 +61,7 @@ export async function POST(
       duration: duration || 0 // 0 for perpetual
     }
 
-    const transactionResult = await blockchainService.purchaseLicense(
+    const transactionResult = await blockchainService.purchaseLicense(id, licensePrice, "premium", 
       licenseData,
       authResult.user.address
     )

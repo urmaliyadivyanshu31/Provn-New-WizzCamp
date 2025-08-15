@@ -22,7 +22,7 @@ export async function GET(
     }
 
     // Check if profile exists
-    const cookieStore = await cookies()
+    const cookieStore = cookies()
     const supabase = await createClient(cookieStore)
     
     const { data: profile, error: profileError } = await supabase
@@ -41,7 +41,7 @@ export async function GET(
 
     // For now, return empty videos array since we're not linking videos to profiles yet
     // This will be updated when the video system is integrated
-    const videos = []
+    const videos: any[] = []
 
     return NextResponse.json({
       videos,

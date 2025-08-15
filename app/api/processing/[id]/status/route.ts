@@ -28,7 +28,7 @@ export async function GET(
     }
 
     // Verify user can only view their own job status
-    if (jobStatus.creator !== walletAddress) {
+    if (jobStatus.userAddress !== walletAddress) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
     }
 
@@ -38,12 +38,7 @@ export async function GET(
       status: jobStatus.status,
       progress: jobStatus.progress,
       currentStep: jobStatus.currentStep,
-      steps: jobStatus.steps.map(step => ({
-        id: step.id,
-        status: step.status,
-        progress: step.progress,
-        completedAt: step.completedAt
-      })),
+      steps: jobStatus.steps,
       result: jobStatus.result,
       errorMessage: jobStatus.errorMessage
     }

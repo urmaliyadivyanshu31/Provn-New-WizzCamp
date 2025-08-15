@@ -150,11 +150,11 @@ async function generateQualityPlaylist(
 
     // Add segments
     for (let i = 0; i < numSegments; i++) {
-      const segmentDuration = i === numSegments - 1 ? 
-        totalDuration - (i * segmentDuration) : 
-        segmentDuration
+      const segmentDur = i === numSegments - 1 ? 
+        totalDuration - (i * 10.0) : 
+        10.0
 
-      playlist += `#EXTINF:${segmentDuration.toFixed(3)},\n`
+      playlist += `#EXTINF:${segmentDur.toFixed(3)},\n`
       playlist += `segment_${i.toString().padStart(3, '0')}.ts\n`
     }
 
