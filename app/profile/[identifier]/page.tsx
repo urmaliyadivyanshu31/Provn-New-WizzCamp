@@ -310,7 +310,6 @@ export default function ProfilePage() {
               {/* Additional Info */}
               <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-provn-muted">
                 <div className="flex items-center gap-1">
-                  📅
                   Joined {formatDate(profile.joinedDate)}
                 </div>
                 {profile.stats.totalTipsReceived > 0 && (

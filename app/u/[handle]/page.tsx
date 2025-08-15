@@ -1,0 +1,509 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useParams, useRouter } from "next/navigation"
+import { Navigation } from "@/components/provn/navigation"
+import { ProvnButton } from "@/components/provn/button"
+import { ProvnBadge } from "@/components/provn/badge"
+import { useAuth } from "@campnetwork/origin/react"
+import { useProfile } from "@/hooks/useProfile"
+import { useFollow } from "@/hooks/useFollow"
+import { toast } from "sonner"
+import { Profile } from "@/lib/supabase"
+import { Copy, ExternalLink } from "lucide-react"
+import { ProfileLoadingState, ErrorState, EmptyState } from "@/components/provn/loading-states"
+import { ProfileSkeleton } from "@/components/provn/profile-skeleton"
+import { AnimatedBackground } from "@/components/provn/animated-background"
+import { motion } from "framer-motion"
+
+export default function ProfilePage() {
+  const params = useParams()
+  const router = useRouter()
+  const { walletAddress: currentUserAddress } = useAuth()
+  const handle = params?.handle as string
+
+  const { profile, loading, error } = useProfile(handle)
+  const { followers, following, isFollowing, loading: followLoading, followUser, unfollowUser } = useFollow(handle)
+  const [activeTab, setActiveTab] = useState<'videos' | 'about' | 'analytics'>('videos')
+  const [copiedAddress, setCopiedAddress] = useState(false)
+  const [copiedHandle, setCopiedHandle] = useState(false)
+
+  // Check if this is the current user's profile
+  const isOwnProfile = currentUserAddress && 
+    profile && 
+    currentUserAddress.toLowerCase() === profile.wallet_address.toLowerCase()
+
+  useEffect(() => {
+    if (error && !loading) {
+      toast.error('Profile not found')
+      router.push('/')
+    }
+  }, [error, loading, router])
+
+    const handleCopyAddress = async () => {
+    if (!profile) return
+
+    try {
+      await navigator.clipboard.writeText(profile.wallet_address)
+      setCopiedAddress(true)
+      setTimeout(() => setCopiedAddress(false), 2000)
+      toast.success('Address copied to clipboard')
+    } catch (error) {
+      toast.error('Failed to copy address')
+    }
+  }
+
+  const handleCopyHandle = async () => {
+    if (!profile) return
+
+    try {
+      await navigator.clipboard.writeText(`@${profile.handle}`)
+      setCopiedHandle(true)
+      setTimeout(() => setCopiedHandle(false), 2000)
+      toast.success('Username copied to clipboard')
+    } catch (error) {
+      toast.error('Failed to copy username')
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+  }
+
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`
+  }
+
+  if (loading) {
+    return <ProfileLoadingState />
+  }
+
+  if (!profile) {
+    return (
+      <ErrorState 
+        title="Profile Not Found"
+        message="The requested profile could not be found."
+        onRetry={() => window.location.reload()}
+      />
+    )
+  }
+
+  return (
+    <>
+      <Navigation currentPage="profile" />
+      
+      <div className="min-h-screen bg-provn-bg">
+        {/* Profile Header */}
+        <div className="relative">
+          {/* Clean, minimal header with subtle background */}
+          <div className="h-32 sm:h-40 bg-gradient-to-br from-provn-surface via-provn-surface/80 to-provn-surface/60 relative overflow-hidden">
+            {/* Subtle animated background */}
+            <AnimatedBackground />
+          </div>
+          
+          {/* Profile Content Container */}
+          <div className="max-w-4xl mx-auto px-4">
+            {/* Profile Header */}
+            <div className="relative -mt-16 sm:-mt-20">
+              <div className="flex flex-col sm:flex-row items-start gap-8">
+                {/* Avatar */}
+                <div className="relative group">
+                  {profile.avatar_url ? (
+                    <>
+                      <img
+                        src={profile.avatar_url}
+                        alt={profile.handle}
+                        className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl border-2 border-provn-border/30 object-cover bg-provn-surface relative z-10 transition-all duration-300 group-hover:scale-105 shadow-lg"
+                        onError={(e) => {
+                          // Fallback to initials if image fails to load
+                          const target = e.target as HTMLImageElement
+                          target.style.display = 'none'
+                          target.nextElementSibling?.classList.remove('hidden')
+                        }}
+                      />
+                      {/* Subtle glow effect */}
+                      <div className="absolute inset-0 w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-gradient-to-br from-provn-accent/10 to-transparent blur-md scale-105 group-hover:scale-110 transition-all duration-500" />
+                    </>
+                  ) : null}
+                  {/* Fallback initials - hidden if image loads successfully */}
+                  <div className={`w-28 h-28 sm:w-36 sm:h-36 rounded-2xl border-2 border-provn-border/30 bg-gradient-to-br from-provn-accent to-provn-accent/80 flex items-center justify-center relative z-10 transition-all duration-300 group-hover:scale-105 shadow-lg ${profile.avatar_url ? 'hidden' : ''}`}>
+                    <span className="text-3xl sm:text-4xl font-bold text-provn-bg font-headline">
+                      {profile.display_name?.[0]?.toUpperCase() || profile.handle[0]?.toUpperCase()}
+                    </span>
+                  </div>
+                  {/* Glow for fallback too */}
+                  {!profile.avatar_url && (
+                    <div className="absolute inset-0 w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-gradient-to-br from-provn-accent/10 to-transparent blur-md scale-105 group-hover:scale-110 transition-all duration-500" />
+                  )}
+                </div>
+                
+                {/* Profile Info */}
+                <div className="flex-1 space-y-6">
+                  <div className="space-y-3">
+                    <h1 className="text-3xl sm:text-4xl font-bold text-provn-text font-headline">
+                      {profile.display_name || profile.handle}
+                    </h1>
+                    {profile.display_name && (
+                      <div className="flex items-center gap-2 group">
+                        <p className="text-xl text-provn-muted font-headline">@{profile.handle}</p>
+                        <button
+                          onClick={handleCopyHandle}
+                          className="p-1.5 hover:bg-provn-surface rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          {copiedHandle ? (
+                            <span className="text-green-500">✓</span>
+                          ) : (
+                            <Copy className="w-4 h-4 text-provn-muted" />
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Wallet Address */}
+                  <div className="flex items-center gap-3 group">
+                    <span className="text-sm text-provn-muted font-mono bg-provn-surface px-3 py-1.5 rounded-lg border border-provn-border/30">
+                      {formatAddress(profile.wallet_address)}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleCopyAddress}
+                        className="p-2 hover:bg-provn-surface rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        {copiedAddress ? (
+                          <span className="text-green-500">✓</span>
+                        ) : (
+                          <Copy className="w-4 h-4 text-provn-muted" />
+                        )}
+                      </button>
+                      <a
+                        href={`https://basecamp.cloud.blockscout.com/address/${profile.wallet_address}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 hover:bg-provn-surface rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <ExternalLink className="w-4 h-4 text-provn-muted" />
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Followers and Following Stats */}
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-provn-text font-headline">
+                        {followLoading ? '...' : followers.toLocaleString()}
+                      </span>
+                      <span className="text-sm text-provn-muted font-headline">Followers</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-provn-text font-headline">
+                        {followLoading ? '...' : following.toLocaleString()}
+                      </span>
+                      <span className="text-sm text-provn-muted font-headline">Following</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex gap-3 self-start">
+                  {isOwnProfile ? (
+                    <ProvnButton 
+                      variant="secondary"
+                      onClick={() => router.push('/dashboard')}
+                      className="px-6 py-3"
+                    >
+                      Dashboard
+                    </ProvnButton>
+                  ) : (
+                    <ProvnButton 
+                      variant={isFollowing ? "secondary" : "primary"}
+                      onClick={isFollowing ? unfollowUser : followUser}
+                      disabled={followLoading}
+                      className="px-6 py-3"
+                    >
+                      {followLoading ? '...' : isFollowing ? '👥 Following' : '👥 Follow'}
+                    </ProvnButton>
+                  )}
+                </div>
+              </div>
+              
+                            {/* Bio and Meta Info */}
+              <div className="mt-8 pt-6 border-t border-provn-border/20">
+                {profile.bio && (
+                  <div className="mb-6">
+                    <p className="text-provn-text leading-relaxed font-headline text-lg">{profile.bio}</p>
+                  </div>
+                )}
+                
+                {/* Joined Date */}
+                <div className="flex items-center gap-3 text-sm text-provn-muted font-headline">
+                  <div className="w-8 h-8 bg-provn-surface rounded-lg flex items-center justify-center border border-provn-border/30">
+                    <span className="text-xs">🗓️</span>
+                  </div>
+                  <span className="font-semibold text-provn-text">Joined {formatDate(profile.created_at)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Content Tabs */}
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          {/* Tab Navigation */}
+          <div className="flex border-b border-provn-border mb-6 relative">
+            <button
+              onClick={() => setActiveTab('videos')}
+              className={`px-6 py-3 font-medium transition-all duration-300 font-headline relative ${
+                activeTab === 'videos'
+                  ? 'text-provn-accent'
+                  : 'text-provn-muted hover:text-provn-text'
+              }`}
+            >
+              Videos
+              {activeTab === 'videos' && (
+                <motion.div
+                  layoutId="activeTab"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-provn-accent rounded-full"
+                  initial={false}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('about')}
+              className={`px-6 py-3 font-medium transition-all duration-300 font-headline relative ${
+                activeTab === 'about'
+                  ? 'text-provn-accent'
+                  : 'text-provn-muted hover:text-provn-text'
+              }`}
+            >
+              About
+              {activeTab === 'about' && (
+                <motion.div
+                  layoutId="activeTab"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-provn-accent rounded-full"
+                  initial={false}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`px-6 py-3 font-medium transition-all duration-300 font-headline relative ${
+                activeTab === 'analytics'
+                  ? 'text-provn-accent'
+                  : 'text-provn-muted hover:text-provn-text'
+              }`}
+            >
+              Analytics
+              {activeTab === 'analytics' && (
+                <motion.div
+                  layoutId="activeTab"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-provn-accent rounded-full"
+                  initial={false}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
+              )}
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === 'videos' && (
+            <EmptyState
+              icon="🎥"
+              title="No videos yet"
+              message="This profile doesn't have any videos to display."
+              action={isOwnProfile ? (
+                <ProvnButton 
+                  onClick={() => router.push('/upload')}
+                >
+                  Upload Your First Video
+                </ProvnButton>
+              ) : undefined}
+            />
+          )}
+
+                                {activeTab === 'about' && (
+                        <div className="space-y-6">
+                          <div className="bg-provn-surface rounded-lg p-6">
+                            <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Profile Information</h3>
+
+                            <div className="space-y-4">
+                              <div>
+                                <label className="text-sm font-medium text-provn-muted font-headline">Handle</label>
+                                <p className="text-provn-text font-headline">@{profile.handle}</p>
+                              </div>
+
+                              {profile.display_name && (
+                                <div>
+                                  <label className="text-sm font-medium text-provn-muted font-headline">Display Name</label>
+                                  <p className="text-provn-text font-headline">{profile.display_name}</p>
+                                </div>
+                              )}
+
+                              <div>
+                                <label className="text-sm font-medium text-provn-muted font-headline">Profile Picture</label>
+                                <div className="flex items-center gap-3">
+                                  {profile.avatar_url ? (
+                                    <img
+                                      src={profile.avatar_url}
+                                      alt={profile.handle}
+                                      className="w-16 h-16 rounded-full object-cover bg-provn-surface border border-provn-border"
+                                    />
+                                  ) : (
+                                    <div className="w-16 h-16 rounded-full bg-provn-accent flex items-center justify-center">
+                                      <span className="text-xl font-bold text-provn-bg font-headline">
+                                        {profile.display_name?.[0]?.toUpperCase() || profile.handle[0]?.toUpperCase()}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <span className="text-provn-muted text-sm font-headline">
+                                    {profile.avatar_url ? 'Custom avatar uploaded' : 'No avatar set'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-sm font-medium text-provn-muted font-headline">Wallet Address</label>
+                                <div className="flex items-center gap-2 group">
+                                  <p className="text-provn-text font-mono font-headline">{profile.wallet_address}</p>
+                                  <div className="flex gap-1">
+                                    <button
+                                      onClick={handleCopyAddress}
+                                      className="p-1.5 hover:bg-provn-surface-2 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                                    >
+                                      {copiedAddress ? (
+                                        <span className="text-green-500">✓</span>
+                                      ) : (
+                                        <Copy className="w-3.5 h-3.5 text-provn-muted" />
+                                      )}
+                                    </button>
+                                    <a
+                                      href={`https://basecamp.cloud.blockscout.com/address/${profile.wallet_address}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-1.5 hover:bg-provn-surface-2 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                                    >
+                                      <ExternalLink className="w-3.5 h-3.5 text-provn-muted" />
+                                    </a>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-sm font-medium text-provn-muted font-headline">Member Since</label>
+                                <p className="text-provn-text font-headline">{formatDate(profile.created_at)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {activeTab === 'analytics' && (
+                        <div className="space-y-6">
+                          {/* Stats Overview */}
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <div className="bg-provn-surface rounded-lg p-4 text-center">
+                              <div className="text-2xl font-bold text-provn-text font-headline">4</div>
+                              <div className="text-sm text-provn-muted font-headline">Videos</div>
+                            </div>
+                            <div className="bg-provn-surface rounded-lg p-4 text-center">
+                              <div className="text-2xl font-bold text-provn-text font-headline">4,240</div>
+                              <div className="text-sm text-provn-muted font-headline">Views</div>
+                            </div>
+                            <div className="bg-provn-surface rounded-lg p-4 text-center">
+                              <div className="text-2xl font-bold text-provn-text font-headline">167.5</div>
+                              <div className="text-sm text-provn-muted font-headline">wCAMP</div>
+                            </div>
+                            <div className="bg-provn-surface rounded-lg p-4 text-center">
+                              <div className="text-2xl font-bold text-provn-text font-headline">9</div>
+                              <div className="text-sm text-provn-muted font-headline">Licenses</div>
+                            </div>
+                          </div>
+
+                          {/* Content Performance & Revenue */}
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div className="bg-provn-surface rounded-lg p-6">
+                              <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Content Performance</h3>
+                              <div className="space-y-3">
+                                <div className="flex justify-between">
+                                  <span className="text-provn-muted font-headline">Average Views per Video</span>
+                                  <span className="text-provn-text font-headline font-semibold">1,060</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-provn-muted font-headline">Tips per Video</span>
+                                  <span className="text-provn-text font-headline font-semibold">21</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-provn-muted font-headline">License Conversion Rate</span>
+                                  <span className="text-provn-text font-headline font-semibold">0.21%</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-provn-muted font-headline">Earnings per Video</span>
+                                  <span className="text-provn-text font-headline font-semibold">41.9 wCAMP</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="bg-provn-surface rounded-lg p-6">
+                              <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Revenue Breakdown</h3>
+                              <div className="space-y-3">
+                                <div className="flex justify-between">
+                                  <span className="text-provn-muted font-headline">Tips Revenue</span>
+                                  <span className="text-green-500 font-headline font-semibold">212.5 wCAMP</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-provn-muted font-headline">License Revenue (70%)</span>
+                                  <span className="text-orange-500 font-headline font-semibold">63.0 wCAMP</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-provn-muted font-headline">Derivative Royalties (30%)</span>
+                                  <span className="text-purple-500 font-headline font-semibold">-108.0 wCAMP</span>
+                                </div>
+                                <div className="flex justify-between pt-2 border-t border-provn-border/30">
+                                  <span className="text-provn-text font-headline font-semibold">Total Earnings</span>
+                                  <span className="text-provn-accent font-headline font-semibold">167.5 wCAMP</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Top Performing Videos */}
+                          <div className="bg-provn-surface rounded-lg p-6">
+                            <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Top Performing Videos</h3>
+                            <div className="space-y-3">
+                              {[
+                                { rank: 1, title: "Cooking Experiment", type: "Original", date: "1/10/2024", views: "2,100", tips: "42", licenses: "5" },
+                                { rank: 2, title: "Creative Dance Routine", type: "Original", date: "1/15/2024", views: "1,250", tips: "25", licenses: "3" },
+                                { rank: 3, title: "Urban Art Tutorial", type: "Original", date: "1/12/2024", views: "890", tips: "18", licenses: "1" },
+                                { rank: 4, title: "Dance Remix - Electronic Vibes", type: "Derivative", date: "1/8/2024", views: "650", tips: "15", licenses: "2" }
+                              ].map((video, index) => (
+                                <div key={index} className="flex items-center gap-4 p-3 bg-provn-bg rounded-lg">
+                                  <div className="w-8 h-8 bg-provn-accent rounded-full flex items-center justify-center text-provn-bg font-bold font-headline text-sm">
+                                    {video.rank}
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="font-medium text-provn-text font-headline">{video.title}</div>
+                                    <div className="text-sm text-provn-muted font-headline">{video.type} • {video.date}</div>
+                                  </div>
+                                  <div className="text-right space-y-1">
+                                    <div className="text-sm text-provn-text font-headline">{video.views} views</div>
+                                    <div className="text-xs text-provn-muted font-headline">{video.tips} tips • {video.licenses} licenses</div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+
+                        </div>
+                      )}
+        </div>
+      </div>
+    </>
+  )
+}

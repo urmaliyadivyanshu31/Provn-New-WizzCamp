@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { useAuth, useModal } from '@campnetwork/origin/react'
 import { Menu, X, Wallet, User } from "lucide-react"
 import { motion, useScroll, useTransform } from "framer-motion"
+import { CreateProfileModal } from "./create-profile-modal"
+import { useProfile } from "@/hooks/useProfile"
 
 interface NavigationProps {
   currentPage?: "home" | "upload" | "dashboard" | "video" | "provs" | "profile"
@@ -39,9 +41,11 @@ const ProvnLogo = ({ isScrolled }: { isScrolled: boolean }) => {
 export function Navigation({ currentPage }: NavigationProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
+  const [showCreateProfile, setShowCreateProfile] = useState(false)
   const { scrollY } = useScroll()
   const { isAuthenticated, walletAddress } = useAuth()
   const { openModal } = useModal()
+  const { profile } = useProfile(walletAddress || undefined)
 
   // Handle scroll effect
   useEffect(() => {
@@ -105,15 +109,23 @@ export function Navigation({ currentPage }: NavigationProps) {
               {/* Profile and Connect Wallet */}
               {isAuthenticated ? (
                 <>
-                  <motion.a
-                    href={`/profile/${walletAddress}`}
+                  <motion.button
+                    onClick={() => {
+                      if (profile) {
+                        // Profile exists, navigate to it
+                        window.location.href = `/u/${profile.handle}`
+                      } else {
+                        // No profile, show create profile modal
+                        setShowCreateProfile(true)
+                      }
+                    }}
                     className="relative px-4 py-2 rounded-lg font-medium transition-all duration-200 text-provn-muted hover:text-provn-text hover:bg-provn-surface/30 flex items-center gap-2"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
                     <User className="w-4 h-4" />
-                    View Profile
-                  </motion.a>
+                    {profile ? 'View Profile' : 'Create Profile'}
+                  </motion.button>
                   <motion.button
                     onClick={openModal}
                     className="relative px-4 py-2 rounded-lg font-medium transition-all duration-200 text-provn-muted hover:text-provn-text hover:bg-provn-surface/30 flex items-center gap-2"
@@ -197,22 +209,32 @@ export function Navigation({ currentPage }: NavigationProps) {
             {/* Mobile Wallet Connection */}
             <div className="pt-4 border-t border-provn-border/30">
               {isAuthenticated ? (
-                <motion.a
-                  href={`/profile/${walletAddress}`}
-                  className="flex items-center gap-3 p-4 rounded-xl bg-provn-surface/50 border border-provn-border/50"
+                <motion.button
+                  onClick={() => {
+                    if (profile) {
+                      // Profile exists, navigate to it
+                      window.location.href = `/u/${profile.handle}`
+                    } else {
+                      // No profile, show create profile modal
+                      setShowCreateProfile(true)
+                    }
+                    setIsMenuOpen(false)
+                  }}
+                  className="flex items-center gap-3 p-4 rounded-xl bg-provn-surface/50 border border-provn-border/50 w-full text-left"
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => setIsMenuOpen(false)}
                 >
                   <div className="w-10 h-10 bg-provn-accent rounded-full flex items-center justify-center">
                     <User className="w-5 h-5 text-provn-bg" />
                   </div>
                   <div>
-                    <div className="font-medium text-provn-text">Connected</div>
+                    <div className="font-medium text-provn-text">
+                      {profile ? 'View Profile' : 'Create Profile'}
+                    </div>
                     <div className="text-sm text-provn-muted">
                       {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Wallet'}
                     </div>
                   </div>
-                </motion.a>
+                </motion.button>
               ) : (
                 <motion.button
                   onClick={() => {
@@ -231,6 +253,16 @@ export function Navigation({ currentPage }: NavigationProps) {
         </motion.div>
       </motion.nav>
 
+      {/* Create Profile Modal */}
+      <CreateProfileModal
+        isOpen={showCreateProfile}
+        onClose={() => setShowCreateProfile(false)}
+        onSuccess={(handle) => {
+          setShowCreateProfile(false)
+          // Navigate to the new profile
+          window.location.href = `/u/${handle}`
+        }}
+      />
     </>
   )
 }
