@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
+import { createAdminClient } from '@/lib/supabase'
 
 // GET - Fetch profile by ID, handle, or wallet address
 export async function GET(
@@ -17,8 +16,7 @@ export async function GET(
       )
     }
 
-    const cookieStore = cookies()
-    const supabase = await createClient(cookieStore)
+    const supabase = createAdminClient()
     
     let query = supabase
       .from('profiles')
