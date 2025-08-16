@@ -5,6 +5,13 @@ import { createAdminClient } from '@/lib/supabase'
 export async function POST(request: NextRequest) {
   try {
     console.log('🔍 Profile Creation API: Starting profile creation...')
+    console.log('🌍 Environment:', {
+      NODE_ENV: process.env.NODE_ENV,
+      hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      supabaseUrlSuffix: process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(-15),
+      hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      timestamp: new Date().toISOString()
+    })
     
     const walletAddress = request.headers.get('x-wallet-address')
     console.log('🔍 Profile Creation API: Wallet address:', walletAddress)
@@ -70,19 +77,48 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Profile Creation API: Creating profile in Supabase...')
     
     // Create profile in Supabase
-    const supabaseAdmin = createAdminClient()
+    let supabaseAdmin
+    try {
+      supabaseAdmin = createAdminClient()
+      console.log('✅ Supabase Admin Client created successfully')
+    } catch (clientError) {
+      console.error('❌ Failed to create Supabase client:', clientError)
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Database connection failed',
+          details: clientError instanceof Error ? clientError.message : 'Unknown client error'
+        },
+        { status: 500 }
+      )
+    }
+    
+    console.log('🔍 Profile Creation API: Attempting database insert...')
+    const profileData = {
+      wallet_address: walletAddress.toLowerCase(),
+      handle: handle.toLowerCase(),
+      display_name: display_name || null,
+      bio: bio || null,
+      avatar_url: avatar_url || null,
+    }
+    console.log('📋 Profile data to insert:', profileData)
     
     const { data: profile, error: insertError } = await supabaseAdmin
       .from('profiles')
-      .insert({
-        wallet_address: walletAddress.toLowerCase(),
-        handle: handle.toLowerCase(),
-        display_name: display_name || null,
-        bio: bio || null,
-        avatar_url: avatar_url || null,
-      })
+      .insert(profileData)
       .select()
       .single()
+    
+    console.log('📊 Database insert result:', {
+      success: !insertError,
+      hasData: !!profile,
+      error: insertError ? {
+        message: insertError.message,
+        code: insertError.code,
+        details: insertError.details,
+        hint: insertError.hint
+      } : null
+    })
 
     if (insertError) {
       console.error('❌ Profile Creation API: Error creating profile:', insertError)
