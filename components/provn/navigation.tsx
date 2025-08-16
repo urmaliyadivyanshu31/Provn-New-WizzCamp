@@ -114,7 +114,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                 Create
               </NavLink>
               <NavLink href="/dashboard" currentPage={currentPage} page="dashboard">
-                Dashboard
+                🏆 Leaderboard
               </NavLink>
               
               {/* Profile and Connect Wallet */}
@@ -214,7 +214,7 @@ export function Navigation({ currentPage }: NavigationProps) {
               Create Content
             </MobileNavLink>
             <MobileNavLink href="/dashboard" onClick={() => setIsMenuOpen(false)}>
-              Dashboard
+              🏆 Leaderboard
             </MobileNavLink>
 
             {/* Mobile Wallet Connection */}
