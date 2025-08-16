@@ -53,15 +53,8 @@ export async function GET(
     if (platformVideos.status === 'fulfilled' && platformVideos.value) {
       console.log('🔍 Raw platform videos result:', JSON.stringify(platformVideos.value, null, 2))
       
-      // Handle both direct array and result object with videos array
-      let platformVideoList: any[] = []
-      if (Array.isArray(platformVideos.value)) {
-        platformVideoList = platformVideos.value
-      } else if (platformVideos.value.videos && Array.isArray(platformVideos.value.videos)) {
-        platformVideoList = platformVideos.value.videos
-      } else if (platformVideos.value.id) {
-        platformVideoList = [platformVideos.value]
-      }
+      // The service returns { videos: VideoWithCreator[], hasMore: boolean }
+      const platformVideoList = platformVideos.value.videos || []
       
       console.log('🔍 Processed platform video list:', platformVideoList.length, 'videos')
       
