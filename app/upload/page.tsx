@@ -156,7 +156,7 @@ export default function UploadPage() {
         
         setMintResult(loadingResult)
         
-        // Fetch real metadata asynchronously
+        // Fetch real metadata asynchronously and sync to platform
         setTimeout(async () => {
           try {
             const metadata = await fetchMetadata(tokenIdStr, address!)
@@ -173,6 +173,71 @@ export default function UploadPage() {
                 videoUrl: metadata.videoUrl || ipfsUrl
               }
               setMintResult(finalResult)
+
+              // Sync the minted video to platform database
+              try {
+                console.log('🔄 Starting video sync to platform database...')
+                console.log('🔄 Sync data being sent:', {
+                  tokenId: tokenIdStr,
+                  transactionHash: metadata.transactionHash,
+                  creatorWallet: address,
+                  title,
+                  description: description || `A video uploaded via Provn platform`,
+                  tagsCount: tags ? tags.split(',').length : 0
+                })
+
+                const syncResponse = await fetch('/api/sync-minted-video', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    tokenId: tokenIdStr,
+                    transactionHash: metadata.transactionHash,
+                    creatorWallet: address,
+                    title,
+                    description: description || `A video uploaded via Provn platform`,
+                    tags: tags ? tags.split(',').map(t => t.trim()) : [],
+                    videoUrl: metadata.videoUrl || ipfsUrl,
+                    thumbnailUrl: preview,
+                    metadataUri: `https://gateway.pinata.cloud/ipfs/${metadata.metadataHash}`,
+                    license: {
+                      price: license.price,
+                      duration: license.duration,
+                      royalty: license.royalty,
+                      paymentToken: license.paymentToken
+                    },
+                    mintTimestamp: new Date().toISOString()
+                  })
+                })
+
+                console.log('🔄 Sync API response status:', syncResponse.status)
+                const syncData = await syncResponse.json()
+                console.log('🔄 Sync API response data:', syncData)
+
+                if (syncData.success && syncData.synced) {
+                  console.log('✅ Video successfully synced to platform!')
+                  console.log('✅ Platform video ID:', syncData.video?.id)
+                  console.log('✅ Sync completed in:', syncData.duration)
+                  toast.success('Video synced to your profile!')
+                } else if (syncData.success && !syncData.synced) {
+                  console.warn('⚠️ Video minted but not synced to platform')
+                  console.warn('⚠️ Reason:', syncData.message)
+                  console.warn('⚠️ Action required:', syncData.action_required)
+                  
+                  if (syncData.action_required?.includes('profile')) {
+                    toast.error('Please create a profile first to sync videos!')
+                  } else {
+                    toast.warning('Video minted but not synced to profile. Check console for details.')
+                  }
+                } else {
+                  console.error('❌ Sync failed:', syncData.error)
+                  toast.error('Video minted but sync failed. Check your profile later.')
+                }
+              } catch (syncError) {
+                console.error('❌ Sync request failed:', syncError)
+                toast.error('Video minted but sync failed. Check your profile later.')
+              }
             }
           } catch (error) {
             console.warn('Failed to fetch metadata:', error)

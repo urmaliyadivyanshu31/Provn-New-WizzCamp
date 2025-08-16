@@ -170,3 +170,65 @@ export const ipfsService = new PinataIPFSService()
 
 // Export the class for compatibility
 export { PinataIPFSService as IPFSService }
+
+/**
+ * IPFS Gateway utilities for reliable content access
+ */
+
+// List of IPFS gateways in order of preference for viewing content
+const IPFS_GATEWAYS = [
+  'https://ipfs.io',
+  'https://dweb.link', 
+  'https://gateway.pinata.cloud',
+  'https://cf-ipfs.com'
+]
+
+/**
+ * Convert any IPFS URL to use a reliable gateway
+ */
+export function getReliableIPFSUrl(url: string, preferredGateway = 0): string {
+  if (!url) return ''
+  
+  // If it's already a full URL with a gateway
+  if (url.startsWith('http')) {
+    // Extract IPFS hash from the URL
+    const ipfsHashMatch = url.match(/\/ipfs\/([a-zA-Z0-9]+)/)
+    if (ipfsHashMatch) {
+      const hash = ipfsHashMatch[1]
+      return `${IPFS_GATEWAYS[preferredGateway]}/ipfs/${hash}`
+    }
+    return url
+  }
+  
+  // If it's an IPFS hash, construct URL with preferred gateway
+  if (url.startsWith('Qm') || url.startsWith('bafy')) {
+    return `${IPFS_GATEWAYS[preferredGateway]}/ipfs/${url}`
+  }
+  
+  return url
+}
+
+/**
+ * Get fallback IPFS URLs for error handling
+ */
+export function getIPFSFallbacks(url: string): string[] {
+  return IPFS_GATEWAYS.map((gateway, index) => getReliableIPFSUrl(url, index))
+}
+
+/**
+ * Create error handler for IPFS content with automatic fallbacks
+ */
+export function createIPFSErrorHandler(originalUrl: string) {
+  const fallbacks = getIPFSFallbacks(originalUrl)
+  let currentIndex = 0
+  
+  return (element: HTMLVideoElement | HTMLImageElement) => {
+    currentIndex++
+    if (currentIndex < fallbacks.length) {
+      console.log(`IPFS: Switching to fallback gateway ${currentIndex}:`, fallbacks[currentIndex])
+      element.src = fallbacks[currentIndex]
+    } else {
+      console.error('IPFS: All gateways failed for:', originalUrl)
+    }
+  }
+}

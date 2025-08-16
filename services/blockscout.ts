@@ -229,4 +229,30 @@ export class BlockscoutService {
       return { videos: [], hasMore: false }
     }
   }
+
+  static async getTokensByOwner(walletAddress: string): Promise<{
+    items: Array<{
+      id: string
+      timestamp?: string
+      metadata?: any
+      token?: { address: string }
+      transaction_hash?: string
+      block_number?: string
+      token_uri?: string
+    }>
+  }> {
+    try {
+      // This would typically fetch from the blockchain API
+      // For now, return empty array as this is primarily for IP-NFTs
+      const url = `${BLOCKSCOUT_BASE_URL}/addresses/${walletAddress}/nft`
+      const data = await this.fetchWithRetry(url)
+      return data || { items: [] }
+    } catch (error) {
+      console.warn('Failed to fetch tokens by owner:', error)
+      return { items: [] }
+    }
+  }
 }
+
+// Export instance for use in other files
+export const blockscoutService = new BlockscoutService()

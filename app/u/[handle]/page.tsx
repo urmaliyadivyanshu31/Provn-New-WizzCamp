@@ -9,6 +9,7 @@ import { useAuth } from "@campnetwork/origin/react"
 import { useProfile } from "@/hooks/useProfile"
 import { useFollow } from "@/hooks/useFollow"
 import { useAnalytics } from "@/hooks/useAnalytics"
+import { useProfileVideos } from "@/hooks/useProfileVideos"
 import { toast } from "sonner"
 import { Profile } from "@/lib/supabase"
 import { Copy, ExternalLink, Edit } from "lucide-react"
@@ -16,6 +17,7 @@ import { ProfileLoadingState, ErrorState, EmptyState } from "@/components/provn/
 import { ProfileSkeleton } from "@/components/provn/profile-skeleton"
 import { AnimatedBackground } from "@/components/provn/animated-background"
 import { ProfileEditModal } from "@/components/provn/profile-edit-modal"
+import { ProfileVideoGrid } from "@/components/profile/ProfileVideoGrid"
 import { motion } from "framer-motion"
 
 export default function ProfilePage() {
@@ -27,6 +29,7 @@ export default function ProfilePage() {
   const { profile, loading, error } = useProfile(handle)
   const { followers, following, isFollowing, loading: followLoading, followUser, unfollowUser } = useFollow(handle)
   const { data: analytics, loading: analyticsLoading, error: analyticsError } = useAnalytics(handle)
+  const { videos, stats: videoStats, loading: videosLoading, error: videosError, refetch: refetchVideos } = useProfileVideos(handle)
   const [activeTab, setActiveTab] = useState<'videos' | 'about' | 'analytics'>('videos')
   const [copiedAddress, setCopiedAddress] = useState(false)
   const [copiedHandle, setCopiedHandle] = useState(false)
@@ -358,17 +361,13 @@ export default function ProfilePage() {
 
           {/* Tab Content */}
           {activeTab === 'videos' && (
-            <EmptyState
-              icon="🎥"
-              title="No videos yet"
-              message="This profile doesn't have any videos to display."
-              action={isOwnProfile ? (
-                <ProvnButton 
-                  onClick={() => router.push('/upload')}
-                >
-                  Upload Your First Video
-                </ProvnButton>
-              ) : undefined}
+            <ProfileVideoGrid 
+              videos={videos}
+              loading={videosLoading}
+              isOwnProfile={!!isOwnProfile}
+              onUploadClick={() => router.push('/upload')}
+              onRefreshVideos={refetchVideos}
+              userHandle={handle}
             />
           )}
 
@@ -482,27 +481,27 @@ export default function ProfilePage() {
                               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                                 <div className="bg-provn-surface rounded-lg p-4 text-center">
                                   <div className="text-2xl font-bold text-provn-text font-headline">
-                                    {analytics.videos.toLocaleString()}
+                                    {videoStats?.total.toLocaleString() || analytics?.videos.toLocaleString()}
                                   </div>
                                   <div className="text-sm text-provn-muted font-headline">Videos</div>
                                 </div>
                                 <div className="bg-provn-surface rounded-lg p-4 text-center">
                                   <div className="text-2xl font-bold text-provn-text font-headline">
-                                    {analytics.views.toLocaleString()}
+                                    {videoStats?.totalViews.toLocaleString() || analytics?.views.toLocaleString()}
                                   </div>
                                   <div className="text-sm text-provn-muted font-headline">Views</div>
                                 </div>
                                 <div className="bg-provn-surface rounded-lg p-4 text-center">
                                   <div className="text-2xl font-bold text-provn-text font-headline">
-                                    {analytics.wCAMP.toLocaleString()}
+                                    {videoStats?.totalTips.toLocaleString() || analytics?.wCAMP.toLocaleString()}
                                   </div>
-                                  <div className="text-sm text-provn-muted font-headline">wCAMP</div>
+                                  <div className="text-sm text-provn-muted font-headline">Tips</div>
                                 </div>
                                 <div className="bg-provn-surface rounded-lg p-4 text-center">
                                   <div className="text-2xl font-bold text-provn-text font-headline">
-                                    {analytics.licenses.toLocaleString()}
+                                    {videoStats?.blockchainOnly.toLocaleString() || analytics?.licenses.toLocaleString()}
                                   </div>
-                                  <div className="text-sm text-provn-muted font-headline">Licenses</div>
+                                  <div className="text-sm text-provn-muted font-headline">IP-NFTs</div>
                                 </div>
                               </div>
 

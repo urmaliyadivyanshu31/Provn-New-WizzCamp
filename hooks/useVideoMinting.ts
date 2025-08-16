@@ -114,18 +114,51 @@ export function useVideoMinting() {
     },
     parentId: string
   ) => {
-    await recoverProvider()
+    // Enhanced connection recovery with retries
+    console.log('🔍 Checking wallet connection...')
+    
+    try {
+      await recoverProvider()
+    } catch (err) {
+      console.warn('First connection attempt failed, retrying...', err)
+      try {
+        // Wait a bit and try again
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        await recoverProvider()
+      } catch (retryErr) {
+        console.error('Connection retry failed:', retryErr)
+        setError('Failed to connect to wallet. Please try refreshing the page and connecting again.')
+        return null
+      }
+    }
+
+    // Validate connection state with retries
+    let connectionAttempts = 0
+    const maxAttempts = 3
+    
+    while ((!origin || !jwt || !address) && connectionAttempts < maxAttempts) {
+      connectionAttempts++
+      console.log(`🔄 Connection attempt ${connectionAttempts}/${maxAttempts}...`)
+      
+      try {
+        await recoverProvider()
+        await new Promise(resolve => setTimeout(resolve, 500)) // Give time for state to update
+      } catch (err) {
+        console.warn(`Connection attempt ${connectionAttempts} failed:`, err)
+      }
+    }
 
     if (!origin || !jwt) {
-      setError('Please connect your wallet first')
+      setError('Wallet connection lost. Please reconnect your wallet and try again.')
       return null
     }
     
-    // Check if wallet is connected to BaseCAMP network
     if (!address) {
-      setError('Wallet address not found. Please reconnect your wallet.')
+      setError('Wallet address not found. Please ensure your wallet is connected to BaseCAMP network.')
       return null
     }
+    
+    console.log('✅ Wallet connection verified:', { hasOrigin: !!origin, hasJWT: !!jwt, address })
     
     // Validate file size (blockchain has limits)
     const maxFileSize = 100 * 1024 * 1024; // 100MB limit

@@ -1,8 +1,20 @@
 import { createClient } from '@supabase/supabase-js'
 
+// Use service role for admin operations (video creation, updates)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient(supabaseUrl, supabaseKey)
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+// Admin client for write operations
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+})
+
+// Public client for read operations  
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export interface PlatformVideo {
   id: string
@@ -56,10 +68,6 @@ export interface VideoWithCreator extends PlatformVideo {
     handle: string
     display_name?: string
     avatar_url?: string
-    verification_status: string
-    is_platform_creator: boolean
-    followers_count: number
-    videos_count: number
   }
 }
 
@@ -150,7 +158,7 @@ export class PlatformVideoService {
         throw new Error('Creator profile not found. Profile required for video uploads.')
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('platform_videos')
         .insert([{
           creator_id: profile.id,
@@ -188,7 +196,7 @@ export class PlatformVideoService {
       }
 
       // Update creator's video count
-      await supabase
+      await supabaseAdmin
         .from('profiles')
         .update({ 
           videos_count: profile.videos_count + 1,
@@ -225,7 +233,7 @@ export class PlatformVideoService {
         sortBy = 'latest'
       } = options
 
-      let query = supabase
+      let query = supabaseAdmin
         .from('platform_videos')
         .select(`
           *,
@@ -234,11 +242,7 @@ export class PlatformVideoService {
             wallet_address,
             handle,
             display_name,
-            avatar_url,
-            verification_status,
-            is_platform_creator,
-            followers_count,
-            videos_count
+            avatar_url
           )
         `)
         .eq('visibility', 'public')
@@ -308,7 +312,7 @@ export class PlatformVideoService {
     try {
       const { limit = 20, offset = 0, includePrivate = false } = options
 
-      let query = supabase
+      let query = supabaseAdmin
         .from('platform_videos')
         .select(`
           *,
@@ -317,18 +321,16 @@ export class PlatformVideoService {
             wallet_address,
             handle,
             display_name,
-            avatar_url,
-            verification_status,
-            is_platform_creator,
-            followers_count,
-            videos_count
+            avatar_url
           )
         `)
         .eq('creator_wallet', creatorWallet.toLowerCase())
         .eq('upload_status', 'ready')
 
       if (!includePrivate) {
-        query = query.eq('visibility', 'public').eq('moderation_status', 'approved')
+        query = query.eq('visibility', 'public')
+        // Allow both approved and pending videos for creator's own profile
+        query = query.in('moderation_status', ['approved', 'pending'])
       }
 
       query = query
@@ -375,7 +377,7 @@ export class PlatformVideoService {
         viewerProfileId = profile?.id
       }
 
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('video_views')
         .insert([{
           video_id: videoId,
@@ -421,7 +423,7 @@ export class PlatformVideoService {
 
       if (existingLike) {
         // Unlike
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
           .from('video_likes')
           .delete()
           .eq('video_id', videoId)
@@ -431,7 +433,7 @@ export class PlatformVideoService {
         return { liked: false }
       } else {
         // Like
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
           .from('video_likes')
           .insert([{
             video_id: videoId,
@@ -459,7 +461,7 @@ export class PlatformVideoService {
         sharerProfileId = profile?.id
       }
 
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('video_shares')
         .insert([{
           video_id: videoId,
@@ -482,7 +484,7 @@ export class PlatformVideoService {
    */
   static async getVideoByTokenId(tokenId: string): Promise<VideoWithCreator | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('platform_videos')
         .select(`
           *,
@@ -491,11 +493,7 @@ export class PlatformVideoService {
             wallet_address,
             handle,
             display_name,
-            avatar_url,
-            verification_status,
-            is_platform_creator,
-            followers_count,
-            videos_count
+            avatar_url
           )
         `)
         .eq('token_id', tokenId)
@@ -569,7 +567,7 @@ export class PlatformVideoService {
     try {
       const { limit = 20, offset = 0, category } = options
 
-      let supabaseQuery = supabase
+      let supabaseQuery = supabaseAdmin
         .from('platform_videos')
         .select(`
           *,
@@ -578,11 +576,7 @@ export class PlatformVideoService {
             wallet_address,
             handle,
             display_name,
-            avatar_url,
-            verification_status,
-            is_platform_creator,
-            followers_count,
-            videos_count
+            avatar_url
           )
         `)
         .eq('visibility', 'public')
