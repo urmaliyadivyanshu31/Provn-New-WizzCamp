@@ -74,7 +74,7 @@ export async function GET(
           description: video.description,
           videoUrl: video.video_url,
           thumbnailUrl: video.thumbnail_url,
-          createdAt: video.uploaded_at || video.created_at,
+          createdAt: video.uploaded_at,
           views: video.views_count || 0,
           likes: video.likes_count || 0,
           tips: video.tips_count || 0,
