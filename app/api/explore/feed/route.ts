@@ -197,7 +197,7 @@ function convertPlatformVideoToExploreVideo(platformVideo: VideoWithCreator): Ex
       displayName: platformVideo.creator.display_name || platformVideo.creator.handle,
       avatarUrl: platformVideo.creator.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${platformVideo.creator.wallet_address}`,
       walletAddress: platformVideo.creator.wallet_address,
-      followers: platformVideo.creator.followers_count,
+      followers: 0, // Followers count not available in current schema
       joinedDate: platformVideo.uploaded_at
     },
     ipInfo: {
