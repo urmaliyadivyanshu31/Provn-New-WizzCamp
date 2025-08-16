@@ -11,10 +11,11 @@ import { useFollow } from "@/hooks/useFollow"
 import { useAnalytics } from "@/hooks/useAnalytics"
 import { toast } from "sonner"
 import { Profile } from "@/lib/supabase"
-import { Copy, ExternalLink } from "lucide-react"
+import { Copy, ExternalLink, Edit } from "lucide-react"
 import { ProfileLoadingState, ErrorState, EmptyState } from "@/components/provn/loading-states"
 import { ProfileSkeleton } from "@/components/provn/profile-skeleton"
 import { AnimatedBackground } from "@/components/provn/animated-background"
+import { ProfileEditModal } from "@/components/provn/profile-edit-modal"
 import { motion } from "framer-motion"
 
 export default function ProfilePage() {
@@ -29,6 +30,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'videos' | 'about' | 'analytics'>('videos')
   const [copiedAddress, setCopiedAddress] = useState(false)
   const [copiedHandle, setCopiedHandle] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
   // Check if this is the current user's profile
   const isOwnProfile = currentUserAddress && 
@@ -78,6 +80,37 @@ export default function ProfilePage() {
 
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
+  }
+
+  const handleSaveProfile = async (updatedProfile: any) => {
+    try {
+      const response = await fetch(`/api/profile/${profile?.handle}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-wallet-address': currentUserAddress!
+        },
+        body: JSON.stringify({
+          handle: updatedProfile.handle.startsWith('@') ? updatedProfile.handle.slice(1) : updatedProfile.handle,
+          display_name: updatedProfile.displayName || null,
+          bio: updatedProfile.bio || null,
+          avatar_url: updatedProfile.avatarUrl || null
+        })
+      })
+
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to update profile')
+      }
+
+      // Refresh the profile data
+      window.location.reload()
+      
+    } catch (error: any) {
+      console.error('Failed to update profile:', error)
+      throw error
+    }
   }
 
   if (loading) {
@@ -213,13 +246,23 @@ export default function ProfilePage() {
                 {/* Action Buttons */}
                 <div className="flex gap-3 self-start">
                   {isOwnProfile ? (
-                    <ProvnButton 
-                      variant="secondary"
-                      onClick={() => router.push('/dashboard')}
-                      className="px-6 py-3"
-                    >
-                      Dashboard
-                    </ProvnButton>
+                    <>
+                      <ProvnButton 
+                        variant="secondary"
+                        onClick={() => setIsEditModalOpen(true)}
+                        className="px-6 py-3"
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit Profile
+                      </ProvnButton>
+                      <ProvnButton 
+                        variant="secondary"
+                        onClick={() => router.push('/dashboard')}
+                        className="px-6 py-3"
+                      >
+                        Dashboard
+                      </ProvnButton>
+                    </>
                   ) : (
                     <ProvnButton 
                       variant={isFollowing ? "secondary" : "primary"}
@@ -332,7 +375,19 @@ export default function ProfilePage() {
                                 {activeTab === 'about' && (
                         <div className="space-y-6">
                           <div className="bg-provn-surface rounded-lg p-6">
-                            <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Profile Information</h3>
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="text-lg font-semibold text-provn-text font-headline">Profile Information</h3>
+                              {isOwnProfile && (
+                                <ProvnButton 
+                                  variant="secondary" 
+                                  size="sm"
+                                  onClick={() => setIsEditModalOpen(true)}
+                                >
+                                  <Edit className="w-4 h-4 mr-1" />
+                                  Edit
+                                </ProvnButton>
+                              )}
+                            </div>
 
                             <div className="space-y-4">
                               <div>
@@ -551,6 +606,23 @@ export default function ProfilePage() {
                       )}
         </div>
       </div>
+
+      {/* Profile Edit Modal */}
+      {isOwnProfile && profile && (
+        <ProfileEditModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          profile={{
+            walletAddress: profile.wallet_address,
+            handle: profile.handle,
+            displayName: profile.display_name || '',
+            bio: profile.bio || '',
+            avatarUrl: profile.avatar_url || '',
+            bannerUrl: '' // Add banner support later if needed
+          }}
+          onSave={handleSaveProfile}
+        />
+      )}
     </>
   )
 }

@@ -1,0 +1,92 @@
+/* Explore page mobile optimizations */
+
+/* Prevent scrolling on body when in explore mode */
+.explore-mode {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+/* Smooth scrolling for video transitions */
+.video-container {
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+}
+
+.video-item {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+/* Touch-friendly button sizes for mobile */
+@media (max-width: 768px) {
+  .action-button {
+    min-width: 48px;
+    min-height: 48px;
+    touch-action: manipulation;
+  }
+  
+  .video-overlay {
+    pointer-events: none;
+  }
+  
+  .video-overlay > * {
+    pointer-events: auto;
+  }
+}
+
+/* Disable text selection on video overlays */
+.video-overlay {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Ensure video fills screen on mobile */
+.video-player {
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+}
+
+/* Safe area padding for mobile devices with notches */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .explore-header {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .explore-content {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .video-transition {
+    transition: none;
+  }
+  
+  .action-button {
+    animation: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .video-overlay {
+    background: rgba(0, 0, 0, 0.8);
+  }
+  
+  .action-button {
+    border: 2px solid white;
+  }
+}
+
+/* Dark mode optimizations */
+@media (prefers-color-scheme: dark) {
+  .video-overlay-text {
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  }
+}

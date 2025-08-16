@@ -442,7 +442,7 @@ export function CreateProfileModal({ isOpen, onClose, onSuccess }: CreateProfile
                   <ProvnButton
                     type="submit"
                     className="w-full"
-                    disabled={isSubmitting || handleAvailable !== true}
+                    disabled={isSubmitting || !formData.handle}
                   >
                     {isSubmitting ? 'Creating Profile...' : 'Create Profile'}
                   </ProvnButton>

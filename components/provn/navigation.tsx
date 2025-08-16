@@ -8,7 +8,7 @@ import { CreateProfileModal } from "./create-profile-modal"
 import { useProfile } from "@/hooks/useProfile"
 
 interface NavigationProps {
-  currentPage?: "home" | "upload" | "dashboard" | "video" | "provs" | "profile"
+  currentPage?: "home" | "upload" | "dashboard" | "video" | "provs" | "profile" | "explore"
 }
 
 // Custom Provn Logo Component
@@ -107,7 +107,7 @@ export function Navigation({ currentPage }: NavigationProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
             >
-              <NavLink href="/provs" currentPage={currentPage} page="provs">
+              <NavLink href="/explore" currentPage={currentPage} page="explore">
                 Explore
               </NavLink>
               <NavLink href="/upload" currentPage={currentPage} page="upload">
@@ -207,8 +207,8 @@ export function Navigation({ currentPage }: NavigationProps) {
           id="mobile-menu"
         >
           <div className="px-4 py-6 space-y-4">
-            <MobileNavLink href="/provs" onClick={() => setIsMenuOpen(false)}>
-              Explore Provs
+            <MobileNavLink href="/explore" onClick={() => setIsMenuOpen(false)}>
+              Explore Videos
             </MobileNavLink>
             <MobileNavLink href="/upload" onClick={() => setIsMenuOpen(false)}>
               Create Content

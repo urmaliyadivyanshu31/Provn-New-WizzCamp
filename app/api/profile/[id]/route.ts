@@ -87,3 +87,120 @@ export async function GET(
     )
   }
 }
+
+// PUT - Update profile
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const walletAddress = request.headers.get('x-wallet-address')
+    
+    if (!walletAddress) {
+      return NextResponse.json(
+        { success: false, error: 'Wallet address required' },
+        { status: 401 }
+      )
+    }
+
+    const body = await request.json()
+    const { handle, display_name, bio, avatar_url } = body
+
+    console.log('🔄 Profile Update API: Updating profile for ID:', id)
+    console.log('🔄 Profile Update API: Wallet address:', walletAddress)
+    console.log('🔄 Profile Update API: Update data:', { handle, display_name, bio, avatar_url })
+
+    const supabase = createAdminClient()
+
+    // First, verify the profile belongs to the requesting wallet
+    let verifyQuery = supabase
+      .from('profiles')
+      .select('id, wallet_address')
+
+    // Check if id is a wallet address (0x...) or handle
+    if (id.startsWith('0x') && id.length === 42) {
+      verifyQuery = verifyQuery.eq('wallet_address', id.toLowerCase())
+    } else {
+      verifyQuery = verifyQuery.eq('handle', id.toLowerCase())
+    }
+
+    const { data: existingProfile, error: verifyError } = await verifyQuery.single()
+
+    if (verifyError || !existingProfile) {
+      return NextResponse.json(
+        { success: false, error: 'Profile not found' },
+        { status: 404 }
+      )
+    }
+
+    // Verify ownership
+    if (existingProfile.wallet_address.toLowerCase() !== walletAddress.toLowerCase()) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized - you can only update your own profile' },
+        { status: 403 }
+      )
+    }
+
+    // Check if new handle is already taken (if handle is being changed)
+    if (handle && handle !== id) {
+      const { data: handleCheck } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('handle', handle.toLowerCase())
+        .single()
+
+      if (handleCheck) {
+        return NextResponse.json(
+          { success: false, error: 'Handle is already taken' },
+          { status: 409 }
+        )
+      }
+    }
+
+    // Update the profile
+    const { data: updatedProfile, error: updateError } = await supabase
+      .from('profiles')
+      .update({
+        handle: handle?.toLowerCase(),
+        display_name,
+        bio,
+        avatar_url,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', existingProfile.id)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error('❌ Profile Update API: Supabase error:', updateError)
+      return NextResponse.json(
+        { success: false, error: 'Failed to update profile' },
+        { status: 500 }
+      )
+    }
+
+    console.log('✅ Profile Update API: Profile updated successfully')
+
+    return NextResponse.json({
+      success: true,
+      profile: {
+        id: updatedProfile.id,
+        wallet_address: updatedProfile.wallet_address,
+        handle: updatedProfile.handle,
+        display_name: updatedProfile.display_name,
+        bio: updatedProfile.bio,
+        avatar_url: updatedProfile.avatar_url,
+        created_at: updatedProfile.created_at,
+        updated_at: updatedProfile.updated_at,
+      }
+    })
+
+  } catch (error) {
+    console.error('❌ Profile Update API: Unexpected error:', error)
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
