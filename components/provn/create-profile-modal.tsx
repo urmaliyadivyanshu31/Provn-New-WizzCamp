@@ -216,17 +216,46 @@ export function CreateProfileModal({ isOpen, onClose, onSuccess }: CreateProfile
       })
 
       const data = await response.json()
+      
+      console.log('📋 Profile Creation Response:', { status: response.status, data })
 
       if (data.success) {
         toast.success('Profile created successfully!')
         onSuccess(formData.handle)
         onClose()
       } else {
-        throw new Error(data.error || 'Failed to create profile')
+        // Show specific error messages based on response
+        if (response.status === 409) {
+          if (data.error.includes('Handle')) {
+            toast.error('Handle already taken. Please choose a different one.')
+          } else if (data.error.includes('wallet')) {
+            toast.error('Profile already exists for this wallet address.')
+          } else {
+            toast.error(data.error)
+          }
+        } else if (response.status === 500 && data.error.includes('Database not set up')) {
+          toast.error('Database configuration error. Please contact support.')
+        } else {
+          toast.error(data.error || 'Failed to create profile')
+        }
+        
+        // Log detailed error for debugging
+        console.error('❌ Profile Creation Error:', {
+          status: response.status,
+          error: data.error,
+          details: data.details,
+          code: data.code
+        })
       }
     } catch (error: any) {
-      console.error('Failed to create profile:', error)
-      toast.error(error.message || 'Failed to create profile')
+      console.error('❌ Profile Creation Network Error:', error)
+      
+      // Handle network errors
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        toast.error('Network error. Please check your connection and try again.')
+      } else {
+        toast.error(error.message || 'Failed to create profile')
+      }
     } finally {
       setIsSubmitting(false)
     }

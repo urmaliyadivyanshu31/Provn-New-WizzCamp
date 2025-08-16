@@ -86,8 +86,38 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error('❌ Profile Creation API: Error creating profile:', insertError)
+      
+      // Check if it's a duplicate handle error
+      if (insertError.code === '23505' && insertError.message.includes('handle')) {
+        return NextResponse.json(
+          { success: false, error: 'Handle already taken' },
+          { status: 409 }
+        )
+      }
+      
+      // Check if it's a duplicate wallet address error
+      if (insertError.code === '23505' && insertError.message.includes('wallet_address')) {
+        return NextResponse.json(
+          { success: false, error: 'Profile already exists for this wallet' },
+          { status: 409 }
+        )
+      }
+      
+      // Check if table doesn't exist
+      if (insertError.code === '42P01') {
+        return NextResponse.json(
+          { success: false, error: 'Database not set up. Please contact support.' },
+          { status: 500 }
+        )
+      }
+      
       return NextResponse.json(
-        { success: false, error: 'Failed to create profile' },
+        { 
+          success: false, 
+          error: 'Failed to create profile', 
+          details: insertError.message,
+          code: insertError.code 
+        },
         { status: 500 }
       )
     }
