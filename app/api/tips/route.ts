@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       amount,
       message: message || '',
       timestamp: timestamp || new Date().toISOString(),
-      senderAddress: senderAddress || null
+      senderAddress: senderAddress || undefined
     }
 
     // Store tip

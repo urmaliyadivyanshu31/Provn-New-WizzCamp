@@ -236,7 +236,7 @@ export function CreateProfileModal({ isOpen, onClose, onSuccess }: CreateProfile
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  const getHandleStatus = () => {
+  const getHandleStatus = (): 'checking' | 'available' | 'taken' | 'invalid' | null => {
     // Temporarily always return available to fix profile creation
     if (!formData.handle) return null
     return 'available'

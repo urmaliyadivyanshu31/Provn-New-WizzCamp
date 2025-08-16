@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
+    const cookieStore = cookies()
     const supabase = await createClient(cookieStore)
     
     // Check if profiles table exists

@@ -290,8 +290,8 @@ export async function GET(request: NextRequest) {
           const platformData = await PlatformVideoService.getPlatformVideoFeed({
             limit,
             offset: page * limit,
-            category,
-            creatorWallet: creator,
+            category: category || undefined,
+            creatorWallet: creator || undefined,
             tags: tag ? [tag] : undefined,
             sortBy
           })
@@ -359,8 +359,8 @@ export async function GET(request: NextRequest) {
           const platformData = await PlatformVideoService.getPlatformVideoFeed({
             limit: halfLimit,
             offset: page * halfLimit,
-            category,
-            creatorWallet: creator,
+            category: category || undefined,
+            creatorWallet: creator || undefined,
             tags: tag ? [tag] : undefined,
             sortBy
           })

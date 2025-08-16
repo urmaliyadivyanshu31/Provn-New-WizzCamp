@@ -74,7 +74,7 @@ export function useOriginLicensing() {
       const address = userAddress || walletAddress
       if (!address) return false
 
-      const hasAccessResult = await origin.hasAccess(BigInt(tokenId), address)
+      const hasAccessResult = await (origin as any).hasAccess(BigInt(tokenId), address)
       return hasAccessResult
     } catch (error) {
       console.error('Failed to check access:', error)
@@ -106,7 +106,7 @@ export function useOriginLicensing() {
       const address = userAddress || walletAddress
       if (!address) return null
 
-      const expiry = await origin.subscriptionExpiry(BigInt(tokenId), address)
+      const expiry = await (origin as any).subscriptionExpiry(BigInt(tokenId), address)
       return new Date(Number(expiry) * 1000)
     } catch (error) {
       console.error('Failed to get subscription expiry:', error)
@@ -124,7 +124,7 @@ export function useOriginLicensing() {
     setError(null)
 
     try {
-      const result = await origin.renewAccess(BigInt(tokenId), periods)
+      const result = await (origin as any).renewAccess(BigInt(tokenId), periods, walletAddress)
       console.log('✅ License renewal result:', result)
 
       toast.success(`Successfully renewed license for ${periods} period(s)!`)
