@@ -105,17 +105,17 @@ export async function GET(request: NextRequest) {
           hint: profilesError.hint
         } : null,
         count_error: profileSampleError ? {
-          message: profileSampleError.message,
-          code: profileSampleError.code
+          message: profileSampleError instanceof Error ? profileSampleError.message : 'Unknown error',
+          code: (profileSampleError as any)?.code || 'UNKNOWN'
         } : null
       },
       permissions: {
         can_insert: insertTestSuccess,
         insert_error: insertTestError ? {
-          message: insertTestError.message,
-          code: insertTestError.code,
-          details: insertTestError.details,
-          hint: insertTestError.hint
+          message: insertTestError instanceof Error ? insertTestError.message : 'Unknown error',
+          code: (insertTestError as any)?.code || 'UNKNOWN',
+          details: (insertTestError as any)?.details || null,
+          hint: (insertTestError as any)?.hint || null
         } : null
       },
       timestamp: new Date().toISOString()
