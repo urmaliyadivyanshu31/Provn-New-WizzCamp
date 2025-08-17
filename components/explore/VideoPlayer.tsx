@@ -152,7 +152,7 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
       {/* Video Element */}
       <video
         ref={videoRef}
-        className="w-fit h-fit object-cover cursor-pointer mt-3 rounded-sm"
+        className="w-fit h-[calc(100vh-100px)] max-w-[390px] object-contain cursor-pointer mt-3 rounded-sm"
         src={videoSrc}
         poster={posterSrc || undefined}
         muted={isMuted}
