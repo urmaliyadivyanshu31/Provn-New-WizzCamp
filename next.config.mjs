@@ -6,13 +6,6 @@ const nextConfig = {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },
   
-  // API route configuration
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb', // Set body size limit to 10MB
-    },
-  },
-  
   // Handle ES modules and external packages
   serverExternalPackages: ['viem', 'wagmi'],
   

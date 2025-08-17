@@ -4,6 +4,7 @@ import { PlatformVideoService } from '@/services/platformVideos'
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
   let step = 'initialization'
+  let body: any = {} // Initialize body variable at function scope
   
   try {
     console.log('🔄 Video Sync API: Starting post-mint video sync...')
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
     
     step = 'parsing_request_body'
-    const body = await request.json()
+    body = await request.json()
     const { 
       tokenId, 
       transactionHash, 
