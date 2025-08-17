@@ -1,14 +1,27 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useAuth, useModal } from '@campnetwork/origin/react'
-import { Menu, X, Wallet, User } from "lucide-react"
-import { motion, useScroll, useTransform } from "framer-motion"
-import { CreateProfileModal } from "./create-profile-modal"
-import { useProfile } from "@/hooks/useProfile"
+import { useState, useEffect } from "react";
+import {
+  CampButton,
+  CampModal,
+  useAuth,
+  useAuthState,
+  useModal,
+} from "@campnetwork/origin/react";
+import { Menu, X, Wallet, User } from "lucide-react";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { CreateProfileModal } from "./create-profile-modal";
+import { useProfile } from "@/hooks/useProfile";
 
 interface NavigationProps {
-  currentPage?: "home" | "upload" | "dashboard" | "video" | "provs" | "profile" | "explore"
+  currentPage?:
+    | "home"
+    | "upload"
+    | "dashboard"
+    | "video"
+    | "provs"
+    | "profile"
+    | "explore";
 }
 
 // Custom Provn Logo Component
@@ -27,78 +40,85 @@ const ProvnLogo = ({ isScrolled }: { isScrolled: boolean }) => {
         {/* Glow effect */}
         <div className="absolute inset-0 w-8 h-8 bg-provn-accent/20 rounded-lg blur-sm"></div>
       </div>
-      
+
       {/* Logo Text */}
       <div className="font-headline font-bold">
         <span className="text-2xl text-provn-text">Prov</span>
         <span className="text-2xl text-provn-accent">n</span>
-        <div className={`h-0.5 bg-gradient-to-r from-provn-accent to-transparent transition-all duration-300 ${isScrolled ? 'w-8' : 'w-12'}`}></div>
+        <div
+          className={`h-0.5 bg-gradient-to-r from-provn-accent to-transparent transition-all duration-300 ${
+            isScrolled ? "w-8" : "w-12"
+          }`}
+        ></div>
       </div>
     </motion.div>
-  )
-}
+  );
+};
 
 export function Navigation({ currentPage }: NavigationProps) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isScrolled, setIsScrolled] = useState(false)
-  const [showCreateProfile, setShowCreateProfile] = useState(false)
-  const { scrollY } = useScroll()
-  const { isAuthenticated, walletAddress } = useAuth()
-  const { openModal } = useModal()
-  const { profile, loading, error } = useProfile(walletAddress || undefined)
-  
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [showCreateProfile, setShowCreateProfile] = useState(false);
+  const { scrollY } = useScroll();
+  const { isAuthenticated, walletAddress } = useAuth();
+  const { authenticated } = useAuthState();
+  const { openModal, closeModal } = useModal();
+  const { profile, loading, error } = useProfile(walletAddress || undefined);
+  useEffect(() => {
+    console.log("🔍 Navigation: Wallet address:", authenticated);
+  }, [authenticated]);
   // Debug logging
   useEffect(() => {
-    console.log('🔍 Navigation: Profile state:', {
+    console.log("🔍 Navigation: Profile state:", {
       walletAddress,
       profile,
       loading,
       error,
-      hasProfile: !!profile
-    })
-    
+      hasProfile: !!profile,
+    });
+
     // Debug: Check if profile API is working
     if (walletAddress && !profile && !loading) {
-      console.log('🔍 Navigation: Testing profile API directly...')
+      console.log("🔍 Navigation: Testing profile API directly...");
       fetch(`/api/profile/${walletAddress}`)
-        .then(res => res.json())
-        .then(data => {
-          console.log('🔍 Navigation: Direct API test result:', data)
+        .then((res) => res.json())
+        .then((data) => {
+          console.log("🔍 Navigation: Direct API test result:", data);
         })
-        .catch(err => {
-          console.error('🔍 Navigation: Direct API test error:', err)
-        })
+        .catch((err) => {
+          console.error("🔍 Navigation: Direct API test error:", err);
+        });
     }
-  }, [walletAddress, profile, loading, error])
+  }, [walletAddress, profile, loading, error]);
 
   // Handle scroll effect
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20)
-    }
-    
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+      setIsScrolled(window.scrollY > 20);
+    };
 
-  const navOpacity = useTransform(scrollY, [0, 100], [1, 0.95])
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const navOpacity = useTransform(scrollY, [0, 100], [1, 0.95]);
 
   return (
     <>
-      <motion.nav 
+      <motion.nav
         style={{ opacity: navOpacity }}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isScrolled 
-            ? 'bg-provn-bg/80 backdrop-blur-xl border-b border-provn-border/50 shadow-lg shadow-provn-bg/20' 
-            : 'bg-transparent'
+          isScrolled
+            ? "bg-provn-bg/80 backdrop-blur-xl border-b border-provn-border/50 shadow-lg shadow-provn-bg/20"
+            : "bg-transparent"
         }`}
-        role="navigation" 
+        role="navigation"
         aria-label="Main navigation"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <motion.div 
+            <motion.div
               className="flex items-center"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -114,7 +134,7 @@ export function Navigation({ currentPage }: NavigationProps) {
             </motion.div>
 
             {/* Desktop Navigation */}
-            <motion.div 
+            <motion.div
               className="hidden md:flex items-center gap-8"
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -126,21 +146,24 @@ export function Navigation({ currentPage }: NavigationProps) {
               <NavLink href="/upload" currentPage={currentPage} page="upload">
                 Create
               </NavLink>
-              <NavLink href="/dashboard" currentPage={currentPage} page="dashboard">
+              <NavLink
+                href="/dashboard"
+                currentPage={currentPage}
+                page="dashboard"
+              >
                 Leaderboard
               </NavLink>
-              
+
               {/* Profile and Connect Wallet */}
               {isAuthenticated ? (
                 <>
                   <motion.button
                     onClick={() => {
                       if (profile) {
-                        // Profile exists, navigate to it
-                        window.location.href = `/u/${profile.handle}`
+                        window.location.href = `/u/${profile.handle}`;
                       } else {
                         // No profile, show create profile modal
-                        setShowCreateProfile(true)
+                        setShowCreateProfile(true);
                       }
                     }}
                     className="relative px-4 py-2 rounded-lg font-medium transition-all duration-200 text-provn-muted hover:text-provn-text hover:bg-provn-surface/30 flex items-center gap-2"
@@ -148,7 +171,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                     whileTap={{ scale: 0.95 }}
                   >
                     <User className="w-4 h-4" />
-                    {profile ? 'View Profile' : 'Create Profile'}
+                    {profile ? "View Profile" : "Create Profile"}
                   </motion.button>
                   <motion.button
                     onClick={openModal}
@@ -157,24 +180,29 @@ export function Navigation({ currentPage }: NavigationProps) {
                     whileTap={{ scale: 0.95 }}
                   >
                     <Wallet className="w-4 h-4" />
-                    {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Wallet'}
+                    {walletAddress
+                      ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(
+                          -4
+                        )}`
+                      : "Wallet"}
                   </motion.button>
                 </>
               ) : (
-                <motion.button
-                  onClick={openModal}
-                  className="relative px-4 py-2 rounded-lg font-medium transition-all duration-200 text-provn-muted hover:text-provn-text hover:bg-provn-surface/30 flex items-center gap-2"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Wallet className="w-4 h-4" />
-                  Connect Wallet
-                </motion.button>
+                // <motion.button
+                //   onClick={openModal}
+                //   className="relative px-4 py-2 rounded-lg font-medium transition-all duration-200 text-provn-muted hover:text-provn-text hover:bg-provn-surface/30 flex items-center gap-2"
+                //   whileHover={{ scale: 1.05 }}
+                //   whileTap={{ scale: 0.95 }}
+                // >
+                //   <Wallet className="w-4 h-4" />
+                //   Connect Wallet
+                // </motion.button>
+                <CampModal />
               )}
             </motion.div>
-
+            <div></div>
             {/* Mobile menu button */}
-            <motion.div 
+            <motion.div
               className="md:hidden"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -183,7 +211,7 @@ export function Navigation({ currentPage }: NavigationProps) {
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className={`p-2 rounded-xl text-provn-muted hover:text-provn-text hover:bg-provn-surface/50 focus:outline-none focus:ring-2 focus:ring-provn-accent focus:ring-offset-2 focus:ring-offset-provn-bg transition-all duration-200 ${
-                  isScrolled ? 'bg-provn-surface/30' : ''
+                  isScrolled ? "bg-provn-surface/30" : ""
                 }`}
                 aria-expanded={isMenuOpen}
                 aria-controls="mobile-menu"
@@ -198,7 +226,14 @@ export function Navigation({ currentPage }: NavigationProps) {
             </motion.div>
           </div>
         </div>
-
+        <div
+          className="fixed bottom hidden z-[-10]"
+          onClick={() => {
+            return;
+          }}
+        >
+          <CampModal />
+        </div>
         {/* Mobile Menu */}
         <motion.div
           initial={false}
@@ -213,7 +248,7 @@ export function Navigation({ currentPage }: NavigationProps) {
               opacity: 0,
               height: 0,
               y: -10,
-            }
+            },
           }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
           className="md:hidden overflow-hidden bg-provn-bg/95 backdrop-blur-xl border-t border-provn-border/50"
@@ -226,23 +261,26 @@ export function Navigation({ currentPage }: NavigationProps) {
             <MobileNavLink href="/upload" onClick={() => setIsMenuOpen(false)}>
               Create Content
             </MobileNavLink>
-            <MobileNavLink href="/dashboard" onClick={() => setIsMenuOpen(false)}>
+            <MobileNavLink
+              href="/dashboard"
+              onClick={() => setIsMenuOpen(false)}
+            >
               Leaderboard
             </MobileNavLink>
 
             {/* Mobile Wallet Connection */}
             <div className="pt-4 border-t border-provn-border/30">
-              {isAuthenticated ? (
+              {authenticated ? (
                 <motion.button
                   onClick={() => {
                     if (profile) {
                       // Profile exists, navigate to it
-                      window.location.href = `/u/${profile.handle}`
+                      window.location.href = `/u/${profile.handle}`;
                     } else {
                       // No profile, show create profile modal
-                      setShowCreateProfile(true)
+                      setShowCreateProfile(true);
                     }
-                    setIsMenuOpen(false)
+                    setIsMenuOpen(false);
                   }}
                   className="flex items-center gap-3 p-4 rounded-xl bg-provn-surface/50 border border-provn-border/50 w-full text-left"
                   whileTap={{ scale: 0.98 }}
@@ -252,18 +290,22 @@ export function Navigation({ currentPage }: NavigationProps) {
                   </div>
                   <div>
                     <div className="font-medium text-provn-text">
-                      {profile ? 'View Profile' : 'Create Profile'}
+                      {profile ? "View Profile" : "Create Profile"}
                     </div>
                     <div className="text-sm text-provn-muted">
-                      {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Wallet'}
+                      {walletAddress
+                        ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(
+                            -4
+                          )}`
+                        : "Wallet"}
                     </div>
                   </div>
                 </motion.button>
               ) : (
                 <motion.button
                   onClick={() => {
-                    openModal()
-                    setIsMenuOpen(false)
+                    openModal();
+                    setIsMenuOpen(false);
                   }}
                   className="w-full flex items-center justify-center gap-2 p-4 rounded-xl bg-provn-surface/50 border border-provn-border/50 text-provn-text hover:bg-provn-surface hover:border-provn-border transition-all duration-200 cursor-pointer"
                   whileTap={{ scale: 0.98 }}
@@ -282,36 +324,36 @@ export function Navigation({ currentPage }: NavigationProps) {
         isOpen={showCreateProfile}
         onClose={() => setShowCreateProfile(false)}
         onSuccess={(handle) => {
-          setShowCreateProfile(false)
+          setShowCreateProfile(false);
           // Navigate to the new profile
-          window.location.href = `/u/${handle}`
+          window.location.href = `/u/${handle}`;
         }}
       />
     </>
-  )
+  );
 }
 
 // Desktop Navigation Link Component
-const NavLink = ({ 
-  href, 
-  children, 
-  currentPage, 
-  page 
-}: { 
-  href: string
-  children: React.ReactNode
-  currentPage?: string
-  page: string 
+const NavLink = ({
+  href,
+  children,
+  currentPage,
+  page,
+}: {
+  href: string;
+  children: React.ReactNode;
+  currentPage?: string;
+  page: string;
 }) => {
-  const isActive = currentPage === page
+  const isActive = currentPage === page;
 
   return (
     <motion.a
       href={href}
       className={`relative px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
         isActive
-          ? 'text-provn-accent bg-provn-accent/10'
-          : 'text-provn-muted hover:text-provn-text hover:bg-provn-surface/30'
+          ? "text-provn-accent bg-provn-accent/10"
+          : "text-provn-muted hover:text-provn-text hover:bg-provn-surface/30"
       }`}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
@@ -325,18 +367,18 @@ const NavLink = ({
         />
       )}
     </motion.a>
-  )
-}
+  );
+};
 
-// Mobile Navigation Link Component  
-const MobileNavLink = ({ 
-  href, 
-  children, 
-  onClick 
-}: { 
-  href: string
-  children: React.ReactNode
-  onClick: () => void
+// Mobile Navigation Link Component
+const MobileNavLink = ({
+  href,
+  children,
+  onClick,
+}: {
+  href: string;
+  children: React.ReactNode;
+  onClick: () => void;
 }) => {
   return (
     <motion.a
@@ -347,5 +389,5 @@ const MobileNavLink = ({
     >
       {children}
     </motion.a>
-  )
-}
+  );
+};
