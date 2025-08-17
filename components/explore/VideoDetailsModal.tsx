@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ExploreVideo } from "@/types/explore"
 import { 
@@ -17,11 +17,14 @@ import {
   DollarSign,
   Copy,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Play,
+  Loader2
 } from "lucide-react"
 import { ProvnButton } from "@/components/provn/button"
 import { useOriginLicensing } from "@/hooks/useOriginLicensing"
 import { toast } from "sonner"
+import { ipfsGateway } from "@/lib/ipfs-gateway"
 
 interface VideoDetailsModalProps {
   video: ExploreVideo
@@ -33,8 +36,59 @@ interface VideoDetailsModalProps {
 export function VideoDetailsModal({ video, isOpen, onClose, isAuthenticated }: VideoDetailsModalProps) {
   const [activeTab, setActiveTab] = useState<'creator' | 'ip' | 'licensing'>('creator')
   const [licensePeriods, setLicensePeriods] = useState(1)
+  const [videoSrc, setVideoSrc] = useState<string>("")
+  const [posterSrc, setPosterSrc] = useState<string>("")
+  const [videoLoading, setVideoLoading] = useState(true)
+  const [videoError, setVideoError] = useState(false)
   
   const { buyLicense, loading: licenseLoading } = useOriginLicensing()
+
+  // Optimize IPFS URLs when modal opens or video changes
+  useEffect(() => {
+    if (!isOpen || !video) return
+
+    const optimizeVideoUrls = async () => {
+      setVideoLoading(true)
+      setVideoError(false)
+
+      try {
+        // Get optimal video URL with fallback mechanisms
+        if (video.videoUrl) {
+          try {
+            const optimizedVideoUrl = await ipfsGateway.getOptimalUrl(video.videoUrl, true)
+            setVideoSrc(optimizedVideoUrl)
+          } catch (error) {
+            console.warn('Failed to get optimal video URL, trying direct:', error)
+            try {
+              const directUrl = await ipfsGateway.getOptimalUrl(video.videoUrl, false)
+              setVideoSrc(directUrl)
+            } catch (directError) {
+              console.error('Failed to get direct URL, using original:', directError)
+              setVideoSrc(video.videoUrl)
+            }
+          }
+        }
+
+        // Optimize thumbnail URL
+        if (video.thumbnailUrl) {
+          try {
+            const optimizedThumbnailUrl = await ipfsGateway.getOptimalUrl(video.thumbnailUrl, true)
+            setPosterSrc(optimizedThumbnailUrl)
+          } catch (error) {
+            console.warn('Failed to optimize thumbnail, using original:', error)
+            setPosterSrc(video.thumbnailUrl)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to optimize video URLs:', error)
+        setVideoError(true)
+      } finally {
+        setVideoLoading(false)
+      }
+    }
+
+    optimizeVideoUrls()
+  }, [isOpen, video?.videoUrl, video?.thumbnailUrl])
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -102,6 +156,60 @@ export function VideoDetailsModal({ video, isOpen, onClose, isAuthenticated }: V
               >
                 <X className="w-5 h-5 text-provn-muted" />
               </button>
+            </div>
+
+            {/* Video Player Section */}
+            <div className="border-b border-provn-border">
+              <div className="aspect-video bg-black relative">
+                {videoLoading ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black">
+                    <div className="text-center space-y-3">
+                      <Loader2 className="w-8 h-8 text-white animate-spin mx-auto" />
+                      <p className="text-white/80 text-sm">Loading video...</p>
+                    </div>
+                  </div>
+                ) : videoError ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black">
+                    <div className="text-center space-y-3">
+                      <AlertTriangle className="w-8 h-8 text-red-400 mx-auto" />
+                      <p className="text-red-400 text-sm">Failed to load video</p>
+                      <ProvnButton 
+                        size="sm" 
+                        onClick={() => window.open(video.videoUrl, '_blank')}
+                      >
+                        Open Original
+                      </ProvnButton>
+                    </div>
+                  </div>
+                ) : (
+                  <video
+                    src={videoSrc}
+                    poster={posterSrc}
+                    controls
+                    className="w-full h-full"
+                    crossOrigin="anonymous"
+                    preload="metadata"
+                    onError={(e) => {
+                      console.error('Video load error in modal:', e)
+                      const target = e.target as HTMLVideoElement
+                      if (video?.videoUrl) {
+                        const errorHandler = ipfsGateway.createErrorHandler(video.videoUrl)
+                        errorHandler(target)
+                      } else {
+                        setVideoError(true)
+                      }
+                    }}
+                    onLoadStart={() => console.log('Modal video load started')}
+                    onLoadedData={() => console.log('Modal video data loaded')}
+                    onCanPlay={() => {
+                      console.log('Modal video can play')
+                      setVideoLoading(false)
+                    }}
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                )}
+              </div>
             </div>
 
             {/* Tabs */}
@@ -252,7 +360,7 @@ export function VideoDetailsModal({ video, isOpen, onClose, isAuthenticated }: V
                     <div className="flex items-center justify-between">
                       <div>
                         <h4 className="font-semibold text-provn-text mb-1">IpNFT ID</h4>
-                        <p className="text-provn-muted font-mono">#{video.tokenId}</p>
+                        <p className="text-provn-muted font-mono">#{video.tokenId.slice(0, 6)}...{video.tokenId.slice(-4)}</p>
                       </div>
                       <div className={`px-3 py-1 rounded-full text-sm font-medium ${
                         video.ipInfo.status === 'verified'
@@ -297,7 +405,7 @@ export function VideoDetailsModal({ video, isOpen, onClose, isAuthenticated }: V
                   {video.ipInfo.parentId && (
                     <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-4">
                       <h4 className="font-semibold text-provn-text mb-2">Parent IP-NFT</h4>
-                      <p className="text-provn-muted">This is a derivative work based on IP-NFT #{video.ipInfo.parentId}</p>
+                      <p className="text-provn-muted">This is a derivative work based on IP-NFT #{video.ipInfo.parentId?.slice(0, 6)}...{video.ipInfo.parentId?.slice(-4)}</p>
                     </div>
                   )}
 

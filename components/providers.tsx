@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { CampProvider } from "@campnetwork/origin/react";
 import { Toaster } from 'sonner';
+import { VideoModalProvider } from '@/contexts/VideoModalContext';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
@@ -13,19 +14,37 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     // Handle ethereum object conflicts from multiple wallet extensions
     const handleEthereumConflict = () => {
       if (typeof window !== 'undefined') {
-        const originalDefineProperty = Object.defineProperty;
-        Object.defineProperty = function<T>(obj: T, prop: PropertyKey, descriptor: PropertyDescriptor & ThisType<any>): T {
-          if (prop === 'ethereum' && obj === window && window.ethereum) {
-            console.warn('ethereum object already exists, skipping redefinition');
-            return obj;
-          }
-          return originalDefineProperty.call(this, obj, prop, descriptor) as T;
-        };
-        
-        // Restore after extensions load
-        setTimeout(() => {
-          Object.defineProperty = originalDefineProperty;
-        }, 5000);
+        // Prevent ethereum property redefinition errors
+        try {
+          const originalDefineProperty = Object.defineProperty;
+          Object.defineProperty = function<T>(obj: T, prop: PropertyKey, descriptor: PropertyDescriptor & ThisType<any>): T {
+            try {
+              if (prop === 'ethereum' && obj === window) {
+                // Check if ethereum already exists and is configurable
+                const existingDescriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
+                if (existingDescriptor && existingDescriptor.configurable === false) {
+                  console.warn('ethereum property already exists and is not configurable, skipping redefinition');
+                  return obj;
+                }
+                if (window.ethereum) {
+                  console.warn('ethereum object already exists, skipping redefinition');
+                  return obj;
+                }
+              }
+              return originalDefineProperty.call(this, obj, prop, descriptor) as T;
+            } catch (error) {
+              console.warn('Error defining property:', prop, error);
+              return obj;
+            }
+          };
+          
+          // Restore after extensions load
+          setTimeout(() => {
+            Object.defineProperty = originalDefineProperty;
+          }, 5000);
+        } catch (error) {
+          console.warn('Error setting up ethereum conflict handler:', error);
+        }
       }
     };
 
@@ -64,8 +83,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
           allowAnalytics={false}
         >
+          <VideoModalProvider>
             {children}
             <Toaster position="top-right" richColors />
+          </VideoModalProvider>
         </CampProvider>
     </QueryClientProvider>
   );

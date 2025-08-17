@@ -9,6 +9,8 @@ import { Play, Eye, Heart, DollarSign, ExternalLink, RefreshCw } from 'lucide-re
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { useGlobalVideoModal } from '@/contexts/VideoModalContext'
+import { profileVideoToExploreVideo } from '@/lib/video-adapters'
 
 interface ProfileVideoGridProps {
   videos: ProfileVideo[]
@@ -17,6 +19,13 @@ interface ProfileVideoGridProps {
   onUploadClick?: () => void
   onRefreshVideos?: () => void
   userHandle?: string
+  profileInfo?: {
+    handle: string
+    displayName?: string
+    avatarUrl?: string
+    followers?: number
+    joinedDate?: string
+  }
 }
 
 export function ProfileVideoGrid({ 
@@ -25,10 +34,12 @@ export function ProfileVideoGrid({
   isOwnProfile = false, 
   onUploadClick,
   onRefreshVideos,
-  userHandle
+  userHandle,
+  profileInfo
 }: ProfileVideoGridProps) {
   const router = useRouter()
   const [syncing, setSyncing] = useState(false)
+  const { openVideoModal } = useGlobalVideoModal()
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) {
@@ -64,13 +75,26 @@ export function ProfileVideoGrid({
   }
 
   const handleVideoClick = (video: ProfileVideo) => {
-    if (video.type === 'platform' || video.tokenId) {
-      // Route to video player page
-      router.push(`/video/${video.tokenId}`)
-    } else {
-      // For blockchain-only videos without platform integration
-      console.log('Opening blockchain video:', video)
-      // Could open in a modal or external link
+    try {
+      // Convert ProfileVideo to ExploreVideo format
+      const exploreVideo = profileVideoToExploreVideo(video, profileInfo)
+      
+      // Open in unified video modal
+      openVideoModal(exploreVideo)
+      
+      console.log('📺 Opening video in modal:', {
+        title: video.title,
+        tokenId: video.tokenId,
+        type: video.type
+      })
+    } catch (error) {
+      console.error('Failed to open video modal:', error)
+      toast.error('Failed to open video. Please try again.')
+      
+      // Fallback to navigation for now
+      if (video.tokenId) {
+        router.push(`/video/${video.tokenId}`)
+      }
     }
   }
 
@@ -265,36 +289,11 @@ export function ProfileVideoGrid({
             className="group bg-provn-surface rounded-lg overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer"
             onClick={() => handleVideoClick(video)}
           >
-            {/* Video Thumbnail */}
+            {/* Video Thumbnail - Clean placeholder */}
             <div className="relative aspect-video bg-provn-surface-2 overflow-hidden">
-              {video.thumbnailUrl || video.videoUrl ? (
-                <>
-                  {video.thumbnailUrl ? (
-                    <img
-                      src={video.thumbnailUrl}
-                      alt={video.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => {
-                        // Fallback to video URL if thumbnail fails
-                        if (video.videoUrl) {
-                          const target = e.target as HTMLImageElement
-                          target.src = video.videoUrl
-                        }
-                      }}
-                    />
-                  ) : (
-                    <video
-                      src={video.videoUrl}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      muted
-                    />
-                  )}
-                </>
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-provn-accent/20 to-provn-accent/10 flex items-center justify-center">
-                  <Play className="w-12 h-12 text-provn-accent/60" />
-                </div>
-              )}
+              <div className="w-full h-full bg-gradient-to-br from-provn-accent/20 to-provn-accent/10 flex items-center justify-center">
+                <Play className="w-12 h-12 text-provn-accent/60" />
+              </div>
               
               {/* Play overlay */}
               <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">

@@ -368,6 +368,13 @@ export default function ProfilePage() {
               onUploadClick={() => router.push('/upload')}
               onRefreshVideos={refetchVideos}
               userHandle={handle}
+              profileInfo={profile ? {
+                handle: profile.handle,
+                displayName: profile.display_name || undefined,
+                avatarUrl: profile.avatar_url || undefined,
+                followers: followers || 0,
+                joinedDate: profile.created_at
+              } : undefined}
             />
           )}
 

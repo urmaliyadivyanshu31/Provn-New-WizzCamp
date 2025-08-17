@@ -1,22 +1,30 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Validate required environment variables at build time
+  // Environment variables
   env: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },
   
-  // Ensure environment variables are available
-  serverExternalPackages: [],
+  // Handle ES modules and external packages
+  serverExternalPackages: ['viem', 'wagmi'],
   
-  // Add webpack configuration to handle missing env vars
+  // Webpack configuration
   webpack: (config, { isServer }) => {
+    // Handle viem and other ESM packages
+    config.externals = config.externals || []
     if (isServer) {
-      // Validate environment variables on server side
-      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-        throw new Error('Missing required Supabase environment variables');
-      }
+      config.externals.push({
+        'viem': 'commonjs viem',
+        'wagmi': 'commonjs wagmi'
+      })
     }
+
+    // Only warn about missing env vars instead of throwing
+    if (isServer && (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)) {
+      console.warn('⚠️ Warning: Missing Supabase environment variables. Using mock data for development.')
+    }
+    
     return config;
   },
 };

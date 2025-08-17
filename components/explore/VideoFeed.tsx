@@ -10,10 +10,10 @@ import { Loader2 } from "lucide-react"
 interface VideoFeedProps {
   onVideoDetails: (video: ExploreVideo) => void
   isAuthenticated: boolean
-  useBlockchainData?: boolean
+  dataSource?: 'platform' | 'blockchain' | 'hybrid' | 'mock'
 }
 
-export function VideoFeed({ onVideoDetails, isAuthenticated, useBlockchainData = false }: VideoFeedProps) {
+export function VideoFeed({ onVideoDetails, isAuthenticated, dataSource = 'platform' }: VideoFeedProps) {
   const [videos, setVideos] = useState<ExploreVideo[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -25,15 +25,12 @@ export function VideoFeed({ onVideoDetails, isAuthenticated, useBlockchainData =
 
   // Fetch initial videos and refetch when data source changes
   useEffect(() => {
-    fetchVideos(0, useBlockchainData)
-  }, [useBlockchainData])
+    fetchVideos(0, dataSource)
+  }, [dataSource])
 
-  const fetchVideos = async (page: number = 0, useBlockchain = false) => {
+  const fetchVideos = async (page: number = 0, source: string = dataSource) => {
     try {
       setLoading(true)
-      
-      // Determine source based on useBlockchain prop
-      const source = useBlockchain ? 'blockchain' : 'platform'
       
       // Build query parameters
       const params = new URLSearchParams({
@@ -83,7 +80,7 @@ export function VideoFeed({ onVideoDetails, isAuthenticated, useBlockchainData =
       setCurrentIndex(prev => prev + 1)
       // Load more videos when near the end
       if (currentIndex >= videos.length - 3 && hasMore) {
-        fetchVideos(Math.floor(videos.length / 10), useBlockchainData)
+        fetchVideos(Math.floor(videos.length / 10), dataSource)
       }
     } else if (delta < -50 && currentIndex > 0) {
       setCurrentIndex(prev => prev - 1)
@@ -110,7 +107,7 @@ export function VideoFeed({ onVideoDetails, isAuthenticated, useBlockchainData =
       if (deltaY > 0 && currentIndex < videos.length - 1) {
         setCurrentIndex(prev => prev + 1)
         if (currentIndex >= videos.length - 3 && hasMore) {
-          fetchVideos(Math.floor(videos.length / 10), useBlockchainData)
+          fetchVideos(Math.floor(videos.length / 10), dataSource)
         }
       } else if (deltaY < 0 && currentIndex > 0) {
         setCurrentIndex(prev => prev - 1)
@@ -132,7 +129,7 @@ export function VideoFeed({ onVideoDetails, isAuthenticated, useBlockchainData =
       if (direction === 'down' && currentIndex < videos.length - 1) {
         setCurrentIndex(prev => prev + 1)
         if (currentIndex >= videos.length - 3 && hasMore) {
-          fetchVideos(Math.floor(videos.length / 10), useBlockchainData)
+          fetchVideos(Math.floor(videos.length / 10), dataSource)
         }
       } else if (direction === 'up' && currentIndex > 0) {
         setCurrentIndex(prev => prev - 1)

@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from "react"
 import { ExploreVideo } from "@/types/explore"
 import { Play, Pause, VolumeX, Volume2 } from "lucide-react"
+import { ipfsGateway } from "@/lib/ipfs-gateway"
 
 interface VideoPlayerProps {
   video: ExploreVideo
@@ -16,6 +17,8 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
   const [isMuted, setIsMuted] = useState(true)
   const [progress, setProgress] = useState(0)
   const [showControls, setShowControls] = useState(false)
+  const [videoSrc, setVideoSrc] = useState<string>("")
+  const [posterSrc, setPosterSrc] = useState<string>("")
 
   // Auto-play/pause based on active state
   useEffect(() => {
@@ -34,6 +37,43 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
       setIsPlaying(false)
     }
   }, [isActive, isVisible])
+
+  // Initialize optimal IPFS URL and setup error handler
+  useEffect(() => {
+    const videoElement = videoRef.current
+    if (!videoElement || !video.videoUrl) return
+
+    // Get optimal IPFS URLs for video and poster
+    ipfsGateway.getOptimalUrl(video.videoUrl).then(url => {
+      setVideoSrc(url)
+    }).catch(error => {
+      console.error('Failed to get optimal IPFS URL:', error)
+      setVideoSrc(video.videoUrl) // Fallback to original URL
+    })
+
+    // Get poster URL if available
+    if (video.thumbnailUrl) {
+      ipfsGateway.getOptimalUrl(video.thumbnailUrl).then(url => {
+        setPosterSrc(url)
+      }).catch(error => {
+        console.error('Failed to get optimal poster URL:', error)
+        if (video.thumbnailUrl) {
+          setPosterSrc(video.thumbnailUrl) // Fallback to original URL
+        }
+      })
+    }
+
+    // Setup error handler for automatic fallbacks
+    const errorHandler = ipfsGateway.createErrorHandler(video.videoUrl)
+    
+    const handleError = () => {
+      console.warn('Video failed to load, trying fallback gateway...')
+      errorHandler(videoElement)
+    }
+
+    videoElement.addEventListener('error', handleError)
+    return () => videoElement.removeEventListener('error', handleError)
+  }, [video.videoUrl])
 
   // Update progress
   useEffect(() => {
@@ -76,7 +116,11 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
     }
   }
 
-  const toggleMute = () => {
+  const toggleMute = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation()
+    }
+    
     const videoElement = videoRef.current
     if (!videoElement) return
 
@@ -99,8 +143,8 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
       <video
         ref={videoRef}
         className="w-full h-full object-cover cursor-pointer"
-        src={video.videoUrl}
-        poster={video.thumbnailUrl}
+        src={videoSrc}
+        poster={posterSrc || undefined}
         muted={isMuted}
         loop
         playsInline
@@ -133,7 +177,7 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
 
       {/* Audio Control */}
       <button
-        onClick={toggleMute}
+        onClick={(e) => toggleMute(e)}
         className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm rounded-full p-2 hover:bg-black/70 transition-colors z-10"
       >
         {isMuted ? (
@@ -160,7 +204,7 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
       </div>
 
       {/* Loading State */}
-      {!video.videoUrl && (
+      {!videoSrc && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
           <div className="text-white text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>

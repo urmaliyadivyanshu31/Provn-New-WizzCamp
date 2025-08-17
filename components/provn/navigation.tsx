@@ -56,6 +56,19 @@ export function Navigation({ currentPage }: NavigationProps) {
       error,
       hasProfile: !!profile
     })
+    
+    // Debug: Check if profile API is working
+    if (walletAddress && !profile && !loading) {
+      console.log('🔍 Navigation: Testing profile API directly...')
+      fetch(`/api/profile/${walletAddress}`)
+        .then(res => res.json())
+        .then(data => {
+          console.log('🔍 Navigation: Direct API test result:', data)
+        })
+        .catch(err => {
+          console.error('🔍 Navigation: Direct API test error:', err)
+        })
+    }
   }, [walletAddress, profile, loading, error])
 
   // Handle scroll effect
@@ -114,7 +127,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                 Create
               </NavLink>
               <NavLink href="/dashboard" currentPage={currentPage} page="dashboard">
-                🏆 Leaderboard
+                Leaderboard
               </NavLink>
               
               {/* Profile and Connect Wallet */}
@@ -214,7 +227,7 @@ export function Navigation({ currentPage }: NavigationProps) {
               Create Content
             </MobileNavLink>
             <MobileNavLink href="/dashboard" onClick={() => setIsMenuOpen(false)}>
-              🏆 Leaderboard
+              Leaderboard
             </MobileNavLink>
 
             {/* Mobile Wallet Connection */}

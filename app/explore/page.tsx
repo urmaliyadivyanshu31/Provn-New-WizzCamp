@@ -11,7 +11,7 @@ import "@/styles/explore.css"
 export default function ExplorePage() {
   const [selectedVideo, setSelectedVideo] = useState<ExploreVideo | null>(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
-  const [dataSource, setDataSource] = useState<'platform' | 'blockchain' | 'hybrid' | 'mock'>('platform')
+  // Always use platform data source for real videos
   const { isAuthenticated, walletAddress } = useAuth()
 
   const handleVideoDetails = (video: ExploreVideo) => {
@@ -70,41 +70,14 @@ export default function ExplorePage() {
       <Navigation currentPage="explore" />
       
       {/* Full screen video feed */}
-      <div className="fixed inset-0 bg-black video-container">
+      <div className="fixed inset-x-0 top-16 bottom-0 bg-black video-container">
         <VideoFeed 
           onVideoDetails={handleVideoDetails}
           isAuthenticated={isAuthenticated}
-          useBlockchainData={dataSource === 'blockchain'}
+          dataSource="platform"
         />
       </div>
 
-      {/* Data Source Toggle */}
-      <div className="fixed top-20 left-4 z-40 flex flex-col gap-2">
-        <div className="bg-black/50 backdrop-blur-sm rounded-lg p-2">
-          <div className="text-xs text-white/60 mb-2">Video Source</div>
-          <div className="flex flex-col gap-1">
-            {[
-              { key: 'platform', label: '🏢 Platform', desc: 'Provn videos' },
-              { key: 'blockchain', label: '🔗 Blockchain', desc: 'External IP-NFTs' },
-              { key: 'hybrid', label: '🔄 Hybrid', desc: 'Mixed feed' },
-              { key: 'mock', label: '📝 Mock', desc: 'Demo data' }
-            ].map((option) => (
-              <button
-                key={option.key}
-                onClick={() => setDataSource(option.key as any)}
-                className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 text-left ${
-                  dataSource === option.key
-                    ? 'bg-provn-accent/20 text-provn-accent border border-provn-accent/30' 
-                    : 'bg-gray-500/20 text-gray-400 border border-gray-500/30 hover:bg-gray-500/30'
-                }`}
-              >
-                <div>{option.label}</div>
-                <div className="text-xs opacity-60">{option.desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
 
       {/* Video Details Modal */}
       {selectedVideo && (

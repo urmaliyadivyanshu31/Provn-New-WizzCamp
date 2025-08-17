@@ -287,13 +287,15 @@ export async function GET(request: NextRequest) {
       case 'platform':
         try {
           console.log('🏢 Fetching platform videos from Supabase...')
+          // For explore feed, include both approved and pending videos to show all platform content
           const platformData = await PlatformVideoService.getPlatformVideoFeed({
             limit,
             offset: page * limit,
             category: category || undefined,
             creatorWallet: creator || undefined,
             tags: tag ? [tag] : undefined,
-            sortBy
+            sortBy,
+            includePending: true // Include pending videos in explore feed
           })
 
           videos = platformData.videos.map(convertPlatformVideoToExploreVideo)
@@ -316,9 +318,8 @@ export async function GET(request: NextRequest) {
           })
         } catch (error) {
           console.error('❌ Platform video fetch failed:', error)
-          actualSource = 'mock'
-          videos = [...MOCK_VIDEOS].slice(page * limit, (page + 1) * limit) as ExploreVideo[]
-          hasMore = (page + 1) * limit < MOCK_VIDEOS.length
+          // Don't fallback to mock data for platform source - return error instead
+          throw new Error(`Failed to fetch platform videos: ${error instanceof Error ? error.message : 'Unknown error'}`)
         }
         break
 

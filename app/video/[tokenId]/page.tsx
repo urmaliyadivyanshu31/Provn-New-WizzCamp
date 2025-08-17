@@ -6,7 +6,9 @@ import { Navigation } from "@/components/provn/navigation"
 import { ProvnButton } from "@/components/provn/button"
 import { ProvnBadge } from "@/components/provn/badge"
 import { ArrowLeft, ExternalLink, Play } from "lucide-react"
-import { getReliableIPFSUrl, createIPFSErrorHandler } from "@/lib/ipfs"
+import { ipfsGateway } from "@/lib/ipfs-gateway"
+import { useGlobalVideoModal } from "@/contexts/VideoModalContext"
+import { createMinimalExploreVideo } from "@/lib/video-adapters"
 
 interface VideoData {
   id: string
@@ -31,11 +33,14 @@ export default function VideoPage() {
   const params = useParams()
   const router = useRouter()
   const tokenId = params?.tokenId as string
+  const { openVideoModal } = useGlobalVideoModal()
   
   const [video, setVideo] = useState<VideoData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [videoErrorHandler, setVideoErrorHandler] = useState<((element: HTMLVideoElement) => void) | null>(null)
+  const [videoSrc, setVideoSrc] = useState<string>("")
+  const [posterSrc, setPosterSrc] = useState<string>("")
+  const [shouldOpenModal, setShouldOpenModal] = useState(false)
 
   useEffect(() => {
     if (!tokenId) return
@@ -50,9 +55,32 @@ export default function VideoPage() {
         
         if (data.success && data.video) {
           setVideo(data.video)
-          // Create error handler for IPFS video URLs
+          
+          // Get optimal IPFS URLs with fallback
           if (data.video.videoUrl) {
-            setVideoErrorHandler(() => createIPFSErrorHandler(data.video.videoUrl))
+            try {
+              const url = await ipfsGateway.getOptimalUrl(data.video.videoUrl, true)
+              setVideoSrc(url)
+            } catch (error) {
+              console.error('Failed to get optimal video URL, trying direct:', error)
+              try {
+                const directUrl = await ipfsGateway.getOptimalUrl(data.video.videoUrl, false)
+                setVideoSrc(directUrl)
+              } catch (directError) {
+                console.error('Failed to get direct URL, using original:', directError)
+                setVideoSrc(data.video.videoUrl)
+              }
+            }
+          }
+          
+          if (data.video.thumbnailUrl) {
+            try {
+              const posterUrl = await ipfsGateway.getOptimalUrl(data.video.thumbnailUrl, true)
+              setPosterSrc(posterUrl)
+            } catch (error) {
+              console.error('Failed to get optimal poster URL:', error)
+              setPosterSrc(data.video.thumbnailUrl || "")
+            }
           }
         } else {
           setError('Video not found')
@@ -67,6 +95,32 @@ export default function VideoPage() {
 
     fetchVideo()
   }, [tokenId])
+
+  // Auto-open modal when video data is available
+  useEffect(() => {
+    if (video && !shouldOpenModal) {
+      try {
+        const exploreVideo = createMinimalExploreVideo({
+          tokenId: video.tokenId,
+          title: video.title,
+          description: video.description,
+          videoUrl: video.videoUrl,
+          thumbnailUrl: video.thumbnailUrl || undefined,
+          creatorWallet: video.creator.wallet,
+          creatorHandle: video.creator.handle || undefined
+        })
+        
+        openVideoModal(exploreVideo)
+        setShouldOpenModal(true)
+        
+        // Optionally navigate back or to explore after opening modal
+        // router.push('/explore')
+      } catch (error) {
+        console.error('Failed to open video modal:', error)
+        // Fall back to showing the page normally
+      }
+    }
+  }, [video, shouldOpenModal, openVideoModal])
 
   if (loading) {
     return (
@@ -122,19 +176,23 @@ export default function VideoPage() {
           <div className="bg-provn-surface rounded-lg overflow-hidden mb-6">
             <div className="aspect-video bg-black">
               <video 
-                src={getReliableIPFSUrl(video.videoUrl)} 
+                src={videoSrc} 
                 controls 
                 className="w-full h-full"
-                poster={video.thumbnailUrl}
+                poster={posterSrc}
                 crossOrigin="anonymous"
                 preload="metadata"
                 onError={(e) => {
                   console.error('Video load error:', e)
                   const target = e.target as HTMLVideoElement
-                  if (videoErrorHandler) {
-                    videoErrorHandler(target)
+                  if (video?.videoUrl) {
+                    const errorHandler = ipfsGateway.createErrorHandler(video.videoUrl)
+                    errorHandler(target)
                   }
                 }}
+                onLoadStart={() => console.log('Video load started')}
+                onLoadedData={() => console.log('Video data loaded')}
+                onCanPlay={() => console.log('Video can play')}
               >
                 Your browser does not support the video tag.
               </video>

@@ -107,7 +107,7 @@ class CDNService {
       }
 
       // Get content from IPFS via optimized gateway
-      const contentUrl = this.getOptimizedIPFSUrl(ipfsHash, fileName)
+      const contentUrl = await this.getOptimizedIPFSUrl(ipfsHash, fileName)
       
       // For now, just return the URL
       // In production, you'd fetch and cache the actual content
@@ -150,20 +150,21 @@ class CDNService {
     return thumbnails
   }
 
-  // Get optimized IPFS gateway URL
-  getOptimizedIPFSUrl(ipfsHash: string, fileName?: string): string {
-    // Use fastest available gateway with CDN caching
-    const gateways = [
-      'https://cf-ipfs.com',
-      'https://dweb.link', 
-      'https://gateway.pinata.cloud',
-      'https://ipfs.io'
-    ]
-
-    const gateway = gateways[0] // Use CloudFlare for best performance
-    const baseUrl = `${gateway}/ipfs/${ipfsHash}`
-    
-    return fileName ? `${baseUrl}/${fileName}` : baseUrl
+  // Get optimized IPFS gateway URL using enhanced gateway service
+  async getOptimizedIPFSUrl(ipfsHash: string, fileName?: string): Promise<string> {
+    try {
+      // Import the enhanced gateway service
+      const { ipfsGateway } = await import('./ipfs-gateway')
+      
+      const baseUrl = await ipfsGateway.getOptimalUrl(ipfsHash)
+      return fileName ? `${baseUrl}/${fileName}` : baseUrl
+    } catch (error) {
+      console.warn('Failed to get optimal IPFS URL, using fallback:', error)
+      
+      // Fallback to CloudFlare if gateway service fails
+      const fallbackUrl = `https://cf-ipfs.com/ipfs/${ipfsHash}`
+      return fileName ? `${fallbackUrl}/${fileName}` : fallbackUrl
+    }
   }
 
   // Generate HLS quality variants

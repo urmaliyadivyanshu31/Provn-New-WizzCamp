@@ -222,6 +222,7 @@ export class PlatformVideoService {
     creatorWallet?: string
     tags?: string[]
     sortBy?: 'latest' | 'popular' | 'trending'
+    includePending?: boolean
   } = {}) {
     try {
       const {
@@ -230,7 +231,8 @@ export class PlatformVideoService {
         category,
         creatorWallet,
         tags,
-        sortBy = 'latest'
+        sortBy = 'latest',
+        includePending = false
       } = options
 
       let query = supabaseAdmin
@@ -246,9 +248,15 @@ export class PlatformVideoService {
           )
         `)
         .eq('visibility', 'public')
-        .eq('moderation_status', 'approved')
         .eq('upload_status', 'ready')
         .not('published_at', 'is', null)
+
+      // Apply moderation status filter based on includePending flag
+      if (includePending) {
+        query = query.in('moderation_status', ['approved', 'pending'])
+      } else {
+        query = query.eq('moderation_status', 'approved')
+      }
 
       // Apply filters
       if (category) {

@@ -40,8 +40,19 @@ export async function GET(
     console.log('🔍 Profile Fetch API: Query result:', { 
       hasProfile: !!profile, 
       error: error?.message,
-      errorCode: error?.code 
+      errorCode: error?.code,
+      fullError: error
     })
+    
+    // Additional logging for debugging
+    if (error) {
+      console.error('🔍 Profile Fetch API: Full error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
+    }
 
     if (error) {
       if (error.code === 'PGRST116') { // No rows returned
