@@ -177,13 +177,34 @@ export default function UploadPage() {
               // Sync the minted video to platform database
               try {
                 console.log('🔄 Starting video sync to platform database...')
-                console.log('🔄 Sync data being sent:', {
+                // Create sync payload without large data URLs
+                const syncPayload = {
                   tokenId: tokenIdStr,
                   transactionHash: metadata.transactionHash,
                   creatorWallet: address,
                   title,
                   description: description || `A video uploaded via Provn platform`,
-                  tagsCount: tags ? tags.split(',').length : 0
+                  tags: tags ? tags.split(',').map(t => t.trim()) : [],
+                  videoUrl: metadata.videoUrl || ipfsUrl,
+                  // Don't send data URLs in sync request - they're too large
+                  thumbnailUrl: preview && !preview.startsWith('data:') ? preview : '',
+                  metadataUri: `https://gateway.pinata.cloud/ipfs/${metadata.metadataHash}`,
+                  license: {
+                    price: license.price,
+                    duration: license.duration,
+                    royalty: license.royalty,
+                    paymentToken: license.paymentToken
+                  },
+                  mintTimestamp: new Date().toISOString()
+                }
+                
+                console.log('🔄 Sync data being sent:', {
+                  ...syncPayload,
+                  // Add debug info
+                  payloadSize: JSON.stringify(syncPayload).length + ' chars',
+                  originalPreviewSize: preview ? preview.length + ' chars' : 'none',
+                  isPreviewDataUrl: preview ? preview.startsWith('data:') : false,
+                  thumbnailUrlSent: syncPayload.thumbnailUrl || 'empty'
                 })
 
                 const syncResponse = await fetch('/api/sync-minted-video', {
@@ -191,24 +212,7 @@ export default function UploadPage() {
                   headers: {
                     'Content-Type': 'application/json',
                   },
-                  body: JSON.stringify({
-                    tokenId: tokenIdStr,
-                    transactionHash: metadata.transactionHash,
-                    creatorWallet: address,
-                    title,
-                    description: description || `A video uploaded via Provn platform`,
-                    tags: tags ? tags.split(',').map(t => t.trim()) : [],
-                    videoUrl: metadata.videoUrl || ipfsUrl,
-                    thumbnailUrl: preview,
-                    metadataUri: `https://gateway.pinata.cloud/ipfs/${metadata.metadataHash}`,
-                    license: {
-                      price: license.price,
-                      duration: license.duration,
-                      royalty: license.royalty,
-                      paymentToken: license.paymentToken
-                    },
-                    mintTimestamp: new Date().toISOString()
-                  })
+                  body: JSON.stringify(syncPayload)
                 })
 
                 console.log('🔄 Sync API response status:', syncResponse.status)
