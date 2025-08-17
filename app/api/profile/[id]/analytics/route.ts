@@ -130,7 +130,7 @@ export async function GET(
       success: true,
       data: {
         // Overview stats
-        videos: videoCount,
+        ipnfts: videoCount, // All videos are IP-NFTs
         views: totalViews,
         likes: totalLikes,
         tips: totalTips,

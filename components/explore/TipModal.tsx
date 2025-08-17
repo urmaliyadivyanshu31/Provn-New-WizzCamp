@@ -1,11 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ExploreVideo } from "@/types/explore"
-import { X, DollarSign, Heart, Loader2 } from "lucide-react"
+import { X, DollarSign, Heart, Loader2, Wallet, Network, RefreshCw } from "lucide-react"
 import { ProvnButton } from "@/components/provn/button"
 import { useOriginTipping } from "@/hooks/useOriginTipping"
+import { useAuth } from "@campnetwork/origin/react"
+import { NetworkStatus } from "./NetworkStatus"
+import { ensureEthersAvailable, createProvider, createContract, formatUnits } from "@/utils/ethers-utils"
 
 interface TipModalProps {
   isOpen: boolean
@@ -14,15 +17,20 @@ interface TipModalProps {
   isAuthenticated: boolean
 }
 
-const PRESET_AMOUNTS = [1, 5, 10, 25, 50, 100]
+const PRESET_AMOUNTS = [0.01, 0.05, 0.1, 0.5, 1, 5]
 
 export function TipModal({ isOpen, onClose, video, isAuthenticated }: TipModalProps) {
-  const [selectedAmount, setSelectedAmount] = useState<number>(5)
+  const [selectedAmount, setSelectedAmount] = useState<number>(0.1)
   const [customAmount, setCustomAmount] = useState<string>("")
   const [isCustom, setIsCustom] = useState(false)
   const [message, setMessage] = useState("")
+  const [userBalance, setUserBalance] = useState<string>("0")
+  const [isCheckingBalance, setIsCheckingBalance] = useState(false)
+  const [balanceError, setBalanceError] = useState<string>("")
   
   const { sendTip, loading, error } = useOriginTipping()
+
+  const [userAddress, setUserAddress] = useState<string>("")
 
   const handleAmountSelect = (amount: number) => {
     setSelectedAmount(amount)
@@ -39,6 +47,188 @@ export function TipModal({ isOpen, onClose, video, isAuthenticated }: TipModalPr
     }
   }
 
+  // Check user's wCAMP balance
+  const checkUserBalance = async () => {
+    if (!isAuthenticated) return
+    
+    setIsCheckingBalance(true)
+    setBalanceError("")
+    try {
+      // Check window.ethereum directly for user info and balance
+      if (!window.ethereum) return
+      
+      // Ensure ethers.js is available
+      const ethersAvailable = await ensureEthersAvailable()
+      if (!ethersAvailable) {
+        console.error('Ethers.js not loaded')
+        setUserBalance("0.0000")
+        return
+      }
+      
+      const provider = createProvider()
+      const signer = provider.getSigner()
+      const address = await signer.getAddress()
+      setUserAddress(address)
+      
+      // Check if we're on the correct network (BaseCAMP)
+      const network = await provider.getNetwork()
+      console.log('🔍 Current network:', {
+        chainId: network.chainId.toString(),
+        expectedChainId: '123420001114',
+        isCorrectNetwork: network.chainId.toString() === '123420001114'
+      })
+      
+      if (network.chainId.toString() !== '123420001114') {
+        console.warn('⚠️ Not on BaseCAMP network, balance may not be accurate')
+        setUserBalance("0.0000")
+        return
+      }
+      
+      // Query real wCAMP balance using Blockscout API
+      try {
+        const WCAMP_TOKEN_ADDRESS = '0x1aE9c40eCd2DD6ad5858E5430A556d7aff28A44b'
+        
+        console.log('🔍 Fetching wCAMP balance for address:', address)
+        console.log('🔍 Using Blockscout API for token balance')
+        
+        // First, get the address info from Blockscout API
+        const addressResponse = await fetch(`https://basecamp.cloud.blockscout.com/api/v2/addresses/${address}`)
+        
+        if (!addressResponse.ok) {
+          throw new Error(`Blockscout API error: ${addressResponse.status} ${addressResponse.statusText}`)
+        }
+        
+        const addressData = await addressResponse.json()
+        console.log('🔍 Address data from Blockscout:', addressData)
+        
+        // Try multiple Blockscout API endpoints for token balance
+        let wcampBalance = "0"
+        
+        // Method 1: Get all tokens for the address
+        try {
+          const tokenResponse = await fetch(`https://basecamp.cloud.blockscout.com/api/v2/addresses/${address}/tokens`)
+          
+          if (tokenResponse.ok) {
+            const tokenData = await tokenResponse.json()
+            console.log('🔍 All tokens from Blockscout:', tokenData)
+            
+            if (tokenData && tokenData.length > 0) {
+              const wcampToken = tokenData.find((token: any) => 
+                token.token.address_hash.toLowerCase() === WCAMP_TOKEN_ADDRESS.toLowerCase()
+              )
+              
+              if (wcampToken) {
+                wcampBalance = wcampToken.value
+                console.log('🔍 Found wCAMP balance from tokens endpoint:', wcampBalance)
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to fetch from tokens endpoint:', error)
+        }
+        
+        // Method 2: If no balance found, try the specific token endpoint
+        if (wcampBalance === "0") {
+          try {
+            const specificTokenResponse = await fetch(`https://basecamp.cloud.blockscout.com/api/v2/addresses/${address}/tokens?token_address=${WCAMP_TOKEN_ADDRESS}`)
+            
+            if (specificTokenResponse.ok) {
+              const specificTokenData = await specificTokenResponse.json()
+              console.log('🔍 Specific token data from Blockscout:', specificTokenData)
+              
+              if (specificTokenData && specificTokenData.length > 0) {
+                const wcampToken = specificTokenData.find((token: any) => 
+                  token.token.address_hash.toLowerCase() === WCAMP_TOKEN_ADDRESS.toLowerCase()
+                )
+                
+                if (wcampToken) {
+                  wcampBalance = wcampToken.value
+                  console.log('🔍 Found wCAMP balance from specific token endpoint:', wcampBalance)
+                }
+              }
+            }
+          } catch (error) {
+            console.warn('⚠️ Failed to fetch from specific token endpoint:', error)
+          }
+        }
+        
+        // Method 3: Try to get token info and calculate balance
+        if (wcampBalance === "0") {
+          try {
+            const tokenInfoResponse = await fetch(`https://basecamp.cloud.blockscout.com/api/v2/tokens/${WCAMP_TOKEN_ADDRESS}`)
+            
+            if (tokenInfoResponse.ok) {
+              const tokenInfo = await tokenInfoResponse.json()
+              console.log('🔍 Token info from Blockscout:', tokenInfo)
+              
+              // Try to get balance from token transfers or other endpoints
+              console.log('🔍 Attempting to find balance from token info...')
+            }
+          } catch (error) {
+            console.warn('⚠️ Failed to fetch token info:', error)
+          }
+        }
+        
+        console.log('🔍 Final wCAMP balance found:', wcampBalance)
+        
+        // If Blockscout API didn't return a balance, try smart contract as fallback
+        if (wcampBalance === "0") {
+          console.log('🔍 No balance from Blockscout API, trying smart contract fallback...')
+          
+          try {
+            const WCAMP_ABI = [
+              "function balanceOf(address owner) view returns (uint256)",
+              "function decimals() view returns (uint8)"
+            ]
+            
+            const wcampContract = createContract(WCAMP_TOKEN_ADDRESS, WCAMP_ABI, provider)
+            const contractBalance = await wcampContract.balanceOf(address)
+            const decimals = await wcampContract.decimals()
+            
+            wcampBalance = contractBalance.toString()
+            console.log('🔍 Balance from smart contract fallback:', wcampBalance)
+            console.log('🔍 Token decimals from contract:', decimals)
+          } catch (contractError) {
+            console.warn('⚠️ Smart contract fallback also failed:', contractError)
+          }
+        }
+        
+        // Format the balance (assuming 18 decimals for wCAMP)
+        const balanceInWei = BigInt(wcampBalance || "0")
+        const formattedBalance = (balanceInWei / BigInt(10 ** 18)).toString()
+        
+        console.log('🔍 Balance in Wei:', wcampBalance)
+        console.log('🔍 Formatted balance:', formattedBalance)
+        
+        setUserBalance(parseFloat(formattedBalance).toFixed(4))
+        console.log('✅ Balance set successfully:', parseFloat(formattedBalance).toFixed(4))
+        
+      } catch (error: any) {
+        console.error('❌ Failed to fetch wCAMP balance from Blockscout:', error)
+        console.error('❌ Error details:', {
+          message: error?.message || 'Unknown error',
+          stack: error?.stack || 'No stack trace',
+          code: error?.code || 'No error code'
+        })
+        setUserBalance("0.0000")
+        setBalanceError(`Failed to fetch balance: ${error?.message || 'Unknown error'}`)
+      }
+    } catch (error: any) {
+      console.error('Failed to check balance:', error)
+      setUserBalance("0")
+      setBalanceError(`Failed to check balance: ${error?.message || 'Unknown error'}`)
+    } finally {
+      setIsCheckingBalance(false)
+    }
+  }
+
+  // Check balance when modal opens
+  useEffect(() => {
+    if (isOpen && isAuthenticated) {
+      checkUserBalance()
+    }
+  }, [isOpen, isAuthenticated])
+
   const handleSendTip = async () => {
     if (!isAuthenticated) return
     
@@ -50,10 +240,12 @@ export function TipModal({ isOpen, onClose, video, isAuthenticated }: TipModalPr
       if (success) {
         onClose()
         // Reset form
-        setSelectedAmount(5)
+        setSelectedAmount(0.1)
         setCustomAmount("")
         setMessage("")
         setIsCustom(false)
+        // Refresh balance after successful tip
+        checkUserBalance()
       }
     } catch (error) {
       console.error('Failed to send tip:', error)
@@ -122,6 +314,60 @@ export function TipModal({ isOpen, onClose, video, isAuthenticated }: TipModalPr
                   <p className="text-sm text-provn-muted">@{video.creator.handle}</p>
                 </div>
               </div>
+
+              {/* Network Status */}
+              <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <Network className="w-4 h-4 text-blue-500" />
+                <NetworkStatus />
+              </div>
+
+              {/* User Balance */}
+              {isAuthenticated && userAddress && (
+                <div className="flex items-center justify-between p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-green-500" />
+                    <span className="text-sm text-green-600">
+                      Your Balance: {isCheckingBalance ? (
+                        <span className="flex items-center gap-1">
+                          <div className="w-3 h-3 border border-green-500 border-t-transparent rounded-full animate-spin" />
+                          Fetching...
+                        </span>
+                      ) : (
+                        `${userBalance} wCAMP`
+                      )}
+                    </span>
+                  </div>
+                  <button
+                    onClick={checkUserBalance}
+                    disabled={isCheckingBalance}
+                    className="p-1 hover:bg-green-500/20 rounded transition-colors disabled:opacity-50"
+                    title="Refresh balance"
+                  >
+                    <RefreshCw className={`w-3 h-3 text-green-500 ${isCheckingBalance ? 'animate-spin' : ''}`} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      console.log('🔍 Debug: Current state:', {
+                        userAddress,
+                        userBalance,
+                        balanceError,
+                        isCheckingBalance
+                      })
+                    }}
+                    className="p-1 hover:bg-blue-500/20 rounded transition-colors"
+                    title="Debug info"
+                  >
+                    <span className="text-xs text-blue-500">?</span>
+                  </button>
+                </div>
+              )}
+              
+              {/* Balance Error */}
+              {balanceError && (
+                <div className="p-2 bg-red-500/10 border border-red-500/20 rounded-lg">
+                  <p className="text-xs text-red-500">{balanceError}</p>
+                </div>
+              )}
 
               {/* Amount Selection */}
               <div>

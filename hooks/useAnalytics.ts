@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from 'react'
 
 interface AnalyticsData {
   // Overview stats
-  videos: number
+  ipnfts: number
   views: number
+  likes: number
+  tips: number
   wCAMP: number
   licenses: number
   
@@ -12,12 +14,6 @@ interface AnalyticsData {
   avgTipsPerVideo: number
   licenseConversionRate: number
   avgEarningsPerVideo: number
-  
-  // Revenue breakdown
-  tipsRevenue: number
-  licenseRevenue: number
-  derivativeRoyalties: number
-  totalEarnings: number
   
   // Top performing videos
   topVideos: Array<{

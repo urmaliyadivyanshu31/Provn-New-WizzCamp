@@ -18,6 +18,7 @@ export function useFollow(profileIdentifier: string): UseFollowReturn {
   const [following, setFollowing] = useState(0)
   const [isFollowing, setIsFollowing] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [profileAddress, setProfileAddress] = useState<string>('')
 
   const fetchFollowData = useCallback(async () => {
     if (!profileIdentifier) return
@@ -32,6 +33,7 @@ export function useFollow(profileIdentifier: string): UseFollowReturn {
         setFollowers(data.data.followers)
         setFollowing(data.data.following)
         setIsFollowing(data.data.isFollowing)
+        setProfileAddress(data.data.profileAddress)
       }
     } catch (error) {
       console.error('Error fetching follow data:', error)
@@ -41,7 +43,7 @@ export function useFollow(profileIdentifier: string): UseFollowReturn {
   }, [profileIdentifier, walletAddress])
 
   const followUser = useCallback(async () => {
-    if (!walletAddress || !profileIdentifier) {
+    if (!walletAddress || !profileAddress) {
       toast.error('Wallet not connected')
       return
     }
@@ -54,7 +56,7 @@ export function useFollow(profileIdentifier: string): UseFollowReturn {
           'x-wallet-address': walletAddress
         },
         body: JSON.stringify({
-          followingAddress: profileIdentifier
+          followingAddress: profileAddress
         })
       })
 
@@ -63,7 +65,6 @@ export function useFollow(profileIdentifier: string): UseFollowReturn {
       if (data.success) {
         setIsFollowing(true)
         setFollowers(prev => prev + 1)
-        toast.success('Successfully followed user!')
       } else {
         throw new Error(data.error || 'Failed to follow user')
       }
@@ -71,10 +72,10 @@ export function useFollow(profileIdentifier: string): UseFollowReturn {
       console.error('Failed to follow user:', error)
       toast.error(error.message || 'Failed to follow user')
     }
-  }, [walletAddress, profileIdentifier])
+  }, [walletAddress, profileAddress])
 
   const unfollowUser = useCallback(async () => {
-    if (!walletAddress || !profileIdentifier) {
+    if (!walletAddress || !profileAddress) {
       toast.error('Wallet not connected')
       return
     }
@@ -87,7 +88,7 @@ export function useFollow(profileIdentifier: string): UseFollowReturn {
           'x-wallet-address': walletAddress
         },
         body: JSON.stringify({
-          followingAddress: profileIdentifier
+          followingAddress: profileAddress
         })
       })
 
@@ -96,7 +97,6 @@ export function useFollow(profileIdentifier: string): UseFollowReturn {
       if (data.success) {
         setIsFollowing(false)
         setFollowers(prev => Math.max(0, prev - 1))
-        toast.success('Successfully unfollowed user!')
       } else {
         throw new Error(data.error || 'Failed to unfollow user')
       }
@@ -104,7 +104,7 @@ export function useFollow(profileIdentifier: string): UseFollowReturn {
       console.error('Failed to unfollow user:', error)
       toast.error(error.message || 'Failed to unfollow user')
     }
-  }, [walletAddress, profileIdentifier])
+  }, [walletAddress, profileAddress])
 
   const refetch = useCallback(async () => {
     await fetchFollowData()

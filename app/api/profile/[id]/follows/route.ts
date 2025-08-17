@@ -50,6 +50,20 @@ export async function GET(
       .select('*', { count: 'exact', head: true })
       .eq('following_address', profileAddress)
 
+    // Handle case where follows table doesn't exist
+    if (followersError && followersError.code === 'PGRST205') {
+      console.log('Follows table does not exist, returning default values')
+      return NextResponse.json({
+        success: true,
+        data: {
+          followers: 0,
+          following: 0,
+          isFollowing: false,
+          profileAddress
+        }
+      })
+    }
+
     if (followersError) {
       console.error('Error fetching followers count:', followersError)
       return NextResponse.json(

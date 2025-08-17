@@ -85,6 +85,8 @@ export default function LeaderboardPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedTier, setSelectedTier] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize] = useState(10)
 
   // Fetch leaderboard data
   useEffect(() => {
@@ -92,10 +94,11 @@ export default function LeaderboardPage() {
       try {
         setLoading(true)
         
+        const offset = (currentPage - 1) * pageSize
         const params = new URLSearchParams({
           timeframe,
-          limit: '50',
-          offset: '0'
+          limit: pageSize.toString(),
+          offset: offset.toString()
         })
         
         if (selectedCategory) params.append('category', selectedCategory)
@@ -115,7 +118,7 @@ export default function LeaderboardPage() {
     }
 
     fetchLeaderboardData()
-  }, [timeframe, selectedCategory, selectedTier, walletAddress])
+  }, [timeframe, selectedCategory, selectedTier, walletAddress, currentPage, pageSize])
 
   // Fetch categories data
   useEffect(() => {
@@ -146,11 +149,23 @@ export default function LeaderboardPage() {
     return { icon: '→', color: 'text-provn-muted', text: '0' }
   }
 
+  const getCompetitionLevel = (totalCreators: number) => {
+    if (totalCreators >= 20) return { level: 'Intense', color: 'text-red-400', dotColor: 'bg-red-500' }
+    if (totalCreators >= 10) return { level: 'High', color: 'text-orange-400', dotColor: 'bg-orange-500' }
+    if (totalCreators >= 5) return { level: 'Medium', color: 'text-yellow-400', dotColor: 'bg-yellow-500' }
+    return { level: 'Low', color: 'text-green-400', dotColor: 'bg-green-500' }
+  }
+
 
   const filteredLeaderboard = leaderboardData?.leaderboard.filter(creator =>
     creator.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     creator.handle.toLowerCase().includes(searchQuery.toLowerCase())
   ) || []
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [timeframe, selectedCategory, selectedTier, searchQuery])
 
   if (loading) {
     return (
@@ -202,14 +217,6 @@ export default function LeaderboardPage() {
             <p className="text-provn-muted max-w-xl mx-auto">
               Compete with the best creators and climb your way to the top
             </p>
-            
-            {leaderboardData?.userRank && (
-              <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-provn-surface border border-provn-border rounded-lg">
-                <span className="text-provn-accent font-medium">
-                  Your Rank: #{leaderboardData.userRank}
-                </span>
-              </div>
-            )}
           </div>
 
           {/* Key Metrics */}
@@ -231,8 +238,15 @@ export default function LeaderboardPage() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <div className="text-3xl font-bold text-red-400">High</div>
-                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                      {(() => {
+                        const competition = getCompetitionLevel(leaderboardData.stats.total_creators)
+                        return (
+                          <>
+                            <div className={`text-3xl font-bold ${competition.color}`}>{competition.level}</div>
+                            <div className={`w-2 h-2 ${competition.dotColor} rounded-full animate-pulse`}></div>
+                          </>
+                        )
+                      })()}
                     </div>
                     <div className="text-sm text-provn-muted mt-1">Competition Level</div>
                   </div>
@@ -241,8 +255,8 @@ export default function LeaderboardPage() {
             </ProvnCard>
           )}
 
-          {/* Top Performers - Simple List */}
-          {topThree.length >= 3 && (
+          {/* Top Performers - Simple List - Commented out for now */}
+          {/* {topThree.length >= 3 && (
             <div className="mb-8">
               <h2 className="font-headline text-xl font-bold text-provn-text mb-4">Top 3 This Month</h2>
               
@@ -271,7 +285,7 @@ export default function LeaderboardPage() {
                 </ProvnCardContent>
               </ProvnCard>
             </div>
-          )}
+          )} */}
 
           {/* Filters - Simplified */}
           <ProvnCard className="mb-6">
@@ -472,7 +486,36 @@ export default function LeaderboardPage() {
             </ProvnCard>
           )}
 
-         
+          {/* Pagination Controls */}
+          {leaderboardData && leaderboardData.stats.total_creators > pageSize && (
+            <div className="flex justify-center items-center gap-4 py-6">
+              <ProvnButton
+                variant="secondary"
+                size="sm"
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2"
+              >
+                Previous
+              </ProvnButton>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-provn-muted">
+                  Page {currentPage} of {Math.ceil(leaderboardData.stats.total_creators / pageSize)}
+                </span>
+              </div>
+              
+              <ProvnButton
+                variant="secondary"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage >= Math.ceil(leaderboardData.stats.total_creators / pageSize)}
+                className="px-4 py-2"
+              >
+                Next
+              </ProvnButton>
+            </div>
+          )}
 
           {/* Call to Action - Minimal */}
           <div className="mt-12 mb-8">

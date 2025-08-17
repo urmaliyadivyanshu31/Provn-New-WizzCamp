@@ -256,7 +256,7 @@ export function ProfileVideoGrid({
           <div className="text-2xl font-bold text-provn-text font-headline">
             {videos.length}
           </div>
-          <div className="text-sm text-provn-muted font-headline">Videos</div>
+          <div className="text-sm text-provn-muted font-headline">IP-NFTs</div>
         </div>
         <div className="bg-provn-surface rounded-lg p-4 text-center">
           <div className="text-2xl font-bold text-provn-text font-headline">

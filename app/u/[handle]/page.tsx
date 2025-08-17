@@ -271,9 +271,20 @@ export default function ProfilePage() {
                       variant={isFollowing ? "secondary" : "primary"}
                       onClick={isFollowing ? unfollowUser : followUser}
                       disabled={followLoading}
-                      className="px-6 py-3"
+                      className={`px-4 py-2 transition-all duration-200 hover:scale-105 ${
+                        followLoading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg'
+                      }`}
                     >
-                      {followLoading ? '...' : isFollowing ? '👥 Following' : '👥 Follow'}
+                      {followLoading ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                          <span>Loading...</span>
+                        </div>
+                      ) : isFollowing ? (
+                        'Following'
+                      ) : (
+                        'Follow'
+                      )}
                     </ProvnButton>
                   )}
                 </div>
@@ -488,9 +499,9 @@ export default function ProfilePage() {
                               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                                 <div className="bg-provn-surface rounded-lg p-4 text-center">
                                   <div className="text-2xl font-bold text-provn-text font-headline">
-                                    {videoStats?.total.toLocaleString() || analytics?.videos.toLocaleString()}
+                                    {videoStats?.total.toLocaleString() || analytics?.ipnfts.toLocaleString()}
                                   </div>
-                                  <div className="text-sm text-provn-muted font-headline">Videos</div>
+                                  <div className="text-sm text-provn-muted font-headline">IP-NFTs</div>
                                 </div>
                                 <div className="bg-provn-surface rounded-lg p-4 text-center">
                                   <div className="text-2xl font-bold text-provn-text font-headline">
@@ -545,30 +556,24 @@ export default function ProfilePage() {
                                 </div>
 
                                 <div className="bg-provn-surface rounded-lg p-6">
-                                  <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Revenue Breakdown</h3>
+                                  <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Content Performance</h3>
                                   <div className="space-y-3">
                                     <div className="flex justify-between">
-                                      <span className="text-provn-muted font-headline">Tips Revenue</span>
+                                      <span className="text-provn-muted font-headline">Average Views per IP-NFT</span>
+                                      <span className="text-blue-500 font-headline font-semibold">
+                                        {analytics.avgViewsPerVideo}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-provn-muted font-headline">Average Tips per IP-NFT</span>
                                       <span className="text-green-500 font-headline font-semibold">
-                                        {analytics.tipsRevenue} wCAMP
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-provn-muted font-headline">License Revenue (70%)</span>
-                                      <span className="text-orange-500 font-headline font-semibold">
-                                        {analytics.licenseRevenue} wCAMP
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-provn-muted font-headline">Derivative Royalties (30%)</span>
-                                      <span className="text-purple-500 font-headline font-semibold">
-                                        {analytics.derivativeRoyalties} wCAMP
+                                        {analytics.avgTipsPerVideo}
                                       </span>
                                     </div>
                                     <div className="flex justify-between pt-2 border-t border-provn-border/30">
-                                      <span className="text-provn-text font-headline font-semibold">Total Earnings</span>
+                                      <span className="text-provn-text font-headline font-semibold">Total Tips Received</span>
                                       <span className="text-provn-accent font-headline font-semibold">
-                                        {analytics.totalEarnings} wCAMP
+                                        {analytics.tips} wCAMP
                                       </span>
                                     </div>
                                   </div>

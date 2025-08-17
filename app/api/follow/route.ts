@@ -48,6 +48,15 @@ export async function POST(request: NextRequest) {
       .eq('following_address', followingAddress.toLowerCase())
       .single()
 
+    // Handle case where follows table doesn't exist
+    if (checkError && checkError.code === 'PGRST205') {
+      console.error('Follows table does not exist. Please create it in Supabase dashboard.')
+      return NextResponse.json(
+        { success: false, error: 'Follow functionality is not yet set up. Please contact administrator.' },
+        { status: 503 }
+      )
+    }
+
     if (checkError && checkError.code !== 'PGRST116') {
       console.error('Error checking existing follow:', checkError)
       return NextResponse.json(
