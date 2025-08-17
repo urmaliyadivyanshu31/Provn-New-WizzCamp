@@ -42,11 +42,11 @@ export async function GET(
       profileAddress = profile.wallet_address
     }
 
-    // Get videos count
+    // Get videos count from platform_videos table
     const { count: videosCount, error: videosError } = await supabase
-      .from('videos')
+      .from('platform_videos')
       .select('*', { count: 'exact', head: true })
-      .eq('owner_address', profileAddress)
+      .eq('creator_wallet', profileAddress)
 
     if (videosError) {
       console.error('Error fetching videos count:', videosError)
@@ -56,11 +56,11 @@ export async function GET(
       )
     }
 
-    // Get total views
+    // Get total views from platform_videos table
     const { data: videosData, error: videosDataError } = await supabase
-      .from('videos')
-      .select('views_count')
-      .eq('owner_address', profileAddress)
+      .from('platform_videos')
+      .select('views_count, likes_count, tips_count')
+      .eq('creator_wallet', profileAddress)
 
     if (videosDataError) {
       console.error('Error fetching videos data:', videosDataError)
@@ -71,42 +71,20 @@ export async function GET(
     }
 
     const totalViews = videosData?.reduce((sum, video) => sum + (video.views_count || 0), 0) || 0
+    const totalLikes = videosData?.reduce((sum, video) => sum + (video.likes_count || 0), 0) || 0
+    const totalTips = videosData?.reduce((sum, video) => sum + (video.tips_count || 0), 0) || 0
 
-    // Get total earnings
-    const { data: earningsData, error: earningsError } = await supabase
-      .from('videos')
-      .select('total_earnings')
-      .eq('owner_address', profileAddress)
+    // For now, set total earnings to 0 since it's not tracked in platform_videos
+    const totalEarnings = 0
 
-    if (earningsError) {
-      console.error('Error fetching earnings data:', earningsError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch earnings data' },
-        { status: 500 }
-      )
-    }
-
-    const totalEarnings = earningsData?.reduce((sum, video) => sum + parseFloat(video.total_earnings || '0'), 0) || 0
-
-    // Get total licenses
-    const { count: licensesCount, error: licensesError } = await supabase
-      .from('licenses')
-      .select('*', { count: 'exact', head: true })
-      .eq('video_id', supabase.from('videos').select('id').eq('owner_address', profileAddress))
-
-    if (licensesError) {
-      console.error('Error fetching licenses count:', licensesError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch licenses count' },
-        { status: 500 }
-      )
-    }
+    // Get total licenses (not available in current schema, set to 0)
+    const licensesCount = 0
 
     // Get content performance metrics
     const { data: performanceData, error: performanceError } = await supabase
-      .from('videos')
-      .select('views_count, tips_count, licenses_count, total_earnings')
-      .eq('owner_address', profileAddress)
+      .from('platform_videos')
+      .select('views_count, tips_count')
+      .eq('creator_wallet', profileAddress)
 
     if (performanceError) {
       console.error('Error fetching performance data:', performanceError)
@@ -118,32 +96,14 @@ export async function GET(
 
     const videoCount = videosCount || 0
     const avgViewsPerVideo = videoCount > 0 ? Math.round(totalViews / videoCount) : 0
-    const avgTipsPerVideo = videoCount > 0 ? Math.round((performanceData?.reduce((sum, v) => sum + (v.tips_count || 0), 0) || 0) / videoCount) : 0
-    const avgEarningsPerVideo = videoCount > 0 ? parseFloat((totalEarnings / videoCount).toFixed(1)) : 0
-
-    // Get revenue breakdown
-    const { data: revenueData, error: revenueError } = await supabase
-      .from('videos')
-      .select('tips_revenue, license_revenue, derivative_royalties')
-      .eq('owner_address', profileAddress)
-
-    if (revenueError) {
-      console.error('Error fetching revenue data:', revenueError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch revenue data' },
-        { status: 500 }
-      )
-    }
-
-    const totalTipsRevenue = revenueData?.reduce((sum, v) => sum + parseFloat(v.tips_revenue || '0'), 0) || 0
-    const totalLicenseRevenue = revenueData?.reduce((sum, v) => sum + parseFloat(v.license_revenue || '0'), 0) || 0
-    const totalDerivativeRoyalties = revenueData?.reduce((sum, v) => sum + parseFloat(v.derivative_royalties || '0'), 0) || 0
+    const avgTipsPerVideo = videoCount > 0 ? Math.round(totalTips / videoCount) : 0
+    const avgEarningsPerVideo = 0 // Not tracked in current schema
 
     // Get top performing videos
     const { data: topVideos, error: topVideosError } = await supabase
-      .from('videos')
-      .select('id, title, video_type, created_at, views_count, tips_count, licenses_count')
-      .eq('owner_address', profileAddress)
+      .from('platform_videos')
+      .select('id, title, uploaded_at, views_count, tips_count')
+      .eq('creator_wallet', profileAddress)
       .order('views_count', { ascending: false })
       .limit(4)
 
@@ -159,11 +119,11 @@ export async function GET(
     const formattedTopVideos = topVideos?.map((video, index) => ({
       rank: index + 1,
       title: video.title,
-      type: video.video_type.charAt(0).toUpperCase() + video.video_type.slice(1),
-      date: new Date(video.created_at).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }),
+      type: 'Video',
+      date: new Date(video.uploaded_at).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }),
       views: video.views_count?.toLocaleString() || '0',
       tips: video.tips_count?.toString() || '0',
-      licenses: video.licenses_count?.toString() || '0'
+      licenses: '0' // Not tracked in current schema
     })) || []
 
     return NextResponse.json({
@@ -172,20 +132,16 @@ export async function GET(
         // Overview stats
         videos: videoCount,
         views: totalViews,
-        wCAMP: parseFloat(totalEarnings.toFixed(1)),
-        licenses: licensesCount || 0,
+        likes: totalLikes,
+        tips: totalTips,
+        wCAMP: 0, // Not tracked in current schema
+        licenses: 0, // Not tracked in current schema
         
         // Content performance
         avgViewsPerVideo,
         avgTipsPerVideo,
-        licenseConversionRate: videoCount > 0 ? parseFloat(((licensesCount || 0) / videoCount * 100).toFixed(2)) : 0,
+        licenseConversionRate: 0, // Not tracked in current schema
         avgEarningsPerVideo,
-        
-        // Revenue breakdown
-        tipsRevenue: parseFloat(totalTipsRevenue.toFixed(1)),
-        licenseRevenue: parseFloat(totalLicenseRevenue.toFixed(1)),
-        derivativeRoyalties: parseFloat(totalDerivativeRoyalties.toFixed(1)),
-        totalEarnings: parseFloat(totalEarnings.toFixed(1)),
         
         // Top performing videos
         topVideos: formattedTopVideos

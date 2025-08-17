@@ -118,7 +118,8 @@ export function VideoFeed({ onVideoDetails, isAuthenticated, dataSource = 'platf
   // Track view when video becomes current
   useEffect(() => {
     if (videos[currentIndex]) {
-      viewVideo(videos[currentIndex].tokenId)
+      // Since explore feed uses platform videos, pass isPlatformVideo=true
+      viewVideo(videos[currentIndex].tokenId, true)
     }
   }, [currentIndex, videos, viewVideo])
 
@@ -143,25 +144,68 @@ export function VideoFeed({ onVideoDetails, isAuthenticated, dataSource = 'platf
   const handleLike = async (videoId: string) => {
     if (!isAuthenticated) return
     
-    const success = await likeVideo(videoId)
-    if (success) {
+    // Find the current video to get its current state
+    const currentVideo = videos.find(v => v.tokenId === videoId)
+    if (!currentVideo) return
+    
+    // Optimistic update - immediately update the UI
+    const newLikeCount = currentVideo.isLiked ? currentVideo.metrics.likes - 1 : currentVideo.metrics.likes + 1
+    const newIsLiked = !currentVideo.isLiked
+    
+    setVideos(prev => prev.map(video => 
+      video.tokenId === videoId 
+        ? { 
+            ...video, 
+            isLiked: newIsLiked,
+            metrics: {
+              ...video.metrics,
+              likes: newLikeCount
+            }
+          }
+        : video
+    ))
+    
+    // Make the API call in the background
+    try {
+      const success = await likeVideo(videoId, true)
+      if (!success) {
+        // Revert the optimistic update if the API call failed
+        setVideos(prev => prev.map(video => 
+          video.tokenId === videoId 
+            ? { 
+                ...video, 
+                isLiked: currentVideo.isLiked,
+                metrics: {
+                  ...video.metrics,
+                  likes: currentVideo.metrics.likes
+                }
+              }
+            : video
+        ))
+        // You could show a toast error here
+        console.error('Failed to like video, reverting UI update')
+      }
+    } catch (error) {
+      // Revert the optimistic update if there's an error
       setVideos(prev => prev.map(video => 
         video.tokenId === videoId 
           ? { 
               ...video, 
-              isLiked: !video.isLiked,
+              isLiked: currentVideo.isLiked,
               metrics: {
                 ...video.metrics,
-                likes: video.isLiked ? video.metrics.likes - 1 : video.metrics.likes + 1
+                likes: currentVideo.metrics.likes
               }
             }
           : video
       ))
+      console.error('Error liking video:', error)
     }
   }
 
   const handleShare = async (video: ExploreVideo, platform: 'twitter' | 'instagram') => {
-    await shareVideo(video.tokenId, platform)
+    // Since explore feed uses platform videos, pass isPlatformVideo=true
+    await shareVideo(video.tokenId, platform, true)
     setVideos(prev => prev.map(v => 
       v.tokenId === video.tokenId 
         ? { ...v, metrics: { ...v.metrics, shares: v.metrics.shares + 1 }}

@@ -2,15 +2,16 @@
 
 import { useState } from "react"
 import { ExploreVideo, ShareOptions } from "@/types/explore"
-import { Heart, Share2, DollarSign, Info, Eye, MessageCircle } from "lucide-react"
+import { Share2, DollarSign, Info, Eye, MessageCircle } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { TipModal } from "./TipModal"
 import { ShareModal } from "./ShareModal"
+import { LikeButton } from "./LikeButton"
 
 interface VideoOverlayProps {
   video: ExploreVideo
   isAuthenticated: boolean
-  onLike: () => void
+  onLike: () => Promise<void>
   onShare: (video: ExploreVideo, platform: 'twitter' | 'instagram') => void
   onDetails: () => void
 }
@@ -136,29 +137,12 @@ export function VideoOverlay({
         {/* Right Side - Action Buttons */}
         <div className="absolute bottom-20 right-4 flex flex-col gap-4 pointer-events-auto">
           {/* Like Button */}
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={onLike}
-            disabled={!isAuthenticated}
-            className={`flex flex-col items-center gap-1 ${
-              !isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            <div className={`p-3 rounded-full backdrop-blur-sm transition-colors ${
-              video.isLiked 
-                ? 'bg-red-500/20 border-2 border-red-500' 
-                : 'bg-black/30 border-2 border-white/30 hover:bg-black/50'
-            }`}>
-              <Heart 
-                className={`w-6 h-6 transition-colors ${
-                  video.isLiked ? 'text-red-500 fill-red-500' : 'text-white'
-                }`} 
-              />
-            </div>
-            <span className="text-white text-xs font-medium">
-              {formatCount(video.metrics.likes)}
-            </span>
-          </motion.button>
+          <LikeButton
+            isLiked={video.isLiked || false}
+            likeCount={video.metrics.likes}
+            onLike={onLike}
+            isAuthenticated={isAuthenticated}
+          />
 
           {/* Share Button */}
           <motion.button

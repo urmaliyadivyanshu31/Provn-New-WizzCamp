@@ -199,7 +199,7 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
       <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm rounded-lg px-3 py-1">
         <div className="flex items-center gap-2 text-white text-sm">
           <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-          <span>IP-NFT #{video.tokenId}</span>
+          <span>IP-NFT #{video.tokenId.length > 20 ? `${video.tokenId.slice(0, 8)}...${video.tokenId.slice(-8)}` : video.tokenId}</span>
         </div>
       </div>
 

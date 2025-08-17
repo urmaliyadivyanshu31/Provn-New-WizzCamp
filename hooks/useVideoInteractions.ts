@@ -6,7 +6,7 @@ export function useVideoInteractions() {
   const [error, setError] = useState<string | null>(null)
   const { isAuthenticated, walletAddress } = useAuth()
 
-  const likeVideo = async (videoId: string): Promise<boolean> => {
+  const likeVideo = async (videoId: string, isPlatformVideo: boolean = false): Promise<boolean> => {
     if (!isAuthenticated) {
       setError('Please connect your wallet first')
       return false
@@ -16,7 +16,10 @@ export function useVideoInteractions() {
     setError(null)
 
     try {
-      const response = await fetch(`/api/videos/${videoId}/like`, {
+      // Use platform video API for platform videos, regular API for others
+      const endpoint = isPlatformVideo ? `/api/platform-videos/${videoId}/like` : `/api/videos/${videoId}/like`
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -41,10 +44,13 @@ export function useVideoInteractions() {
     }
   }
 
-  const viewVideo = async (videoId: string): Promise<boolean> => {
+  const viewVideo = async (videoId: string, isPlatformVideo: boolean = false): Promise<boolean> => {
     try {
+      // Use platform video API for platform videos, regular API for others
+      const endpoint = isPlatformVideo ? `/api/platform-videos/${videoId}/view` : `/api/videos/${videoId}/view`
+      
       // Track view (doesn't require authentication)
-      const response = await fetch(`/api/videos/${videoId}/view`, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -63,10 +69,13 @@ export function useVideoInteractions() {
     }
   }
 
-  const shareVideo = async (videoId: string, platform: 'twitter' | 'instagram'): Promise<boolean> => {
+  const shareVideo = async (videoId: string, platform: 'twitter' | 'instagram', isPlatformVideo: boolean = false): Promise<boolean> => {
     try {
+      // Use platform video API for platform videos, regular API for others
+      const endpoint = isPlatformVideo ? `/api/platform-videos/${videoId}/share` : `/api/videos/${videoId}/share`
+      
       // Track share
-      const response = await fetch(`/api/videos/${videoId}/share`, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -86,9 +95,12 @@ export function useVideoInteractions() {
     }
   }
 
-  const getVideoStats = async (videoId: string) => {
+  const getVideoStats = async (videoId: string, isPlatformVideo: boolean = false) => {
     try {
-      const response = await fetch(`/api/videos/${videoId}/stats`)
+      // Use platform video API for platform videos, regular API for others
+      const endpoint = isPlatformVideo ? `/api/platform-videos/${videoId}/stats` : `/api/videos/${videoId}/stats`
+      
+      const response = await fetch(endpoint)
       const data = await response.json()
       
       if (data.success) {
