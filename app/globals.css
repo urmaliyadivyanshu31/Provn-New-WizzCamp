@@ -464,4 +464,38 @@
     background: var(--provn-surface-2) !important;
     color: var(--provn-text) !important;
   }
+
+  /* Hide the default Camp Network wallet button that appears outside the layout, but not in navigation */
+  .buttons-module_connect-button__CJhUa:not(.camp-wallet-button) {
+    display: none !important;
+  }
+
+  /* Camp Network button styling for navigation */
+  .camp-wallet-button {
+    background-color: #ff6f00 !important;
+    border: none !important;
+    border-radius: 0.75rem !important;
+    box-shadow: inset 0 2px 0 hsla(0, 0%, 100%, 0.15), inset 0 -2px 4px rgba(0, 0, 0, 0.05), 0 1px 1px rgba(46, 54, 80, 0.075) !important;
+    color: #fff !important;
+    font-family: Satoshi, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Open Sans, Helvetica Neue, sans-serif !important;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    height: 2.75rem !important;
+    line-height: 1.333rem !important;
+    padding-inline: 1rem !important;
+    position: relative !important;
+    transition: background-color 0.15s !important;
+    min-width: auto !important;
+  }
+
+  .camp-wallet-button:hover {
+    background-color: #e55a00 !important;
+  }
+
+  /* Hide any other Camp Network UI elements that might appear */
+  [data-testid="connect-button"],
+  .camp-connect-button,
+  .origin-connect-button {
+    display: none !important;
+  }
 }

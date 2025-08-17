@@ -1,7 +1,6 @@
 "use client"
-import React, { useRef } from "react"
+import React, { useRef, useState, useEffect } from "react"
 import { motion, useScroll, useTransform, useInView } from "framer-motion"
-import { ProvnCard, ProvnCardContent } from "@/components/provn/card"
 import { ProvnBadge } from "@/components/provn/badge"
 import { Navigation } from "@/components/provn/navigation"
 import { ProvnButton } from "@/components/provn/button"
@@ -72,11 +71,11 @@ const CreatorStory = ({
 }
 
 // Platform Metrics Component  
-const LiveMetrics = () => {
+const LiveMetrics = ({ creatorsCount, videosCount }: { creatorsCount: number, videosCount: number }) => {
   const metrics = [
-    { label: "Active Creators", value: "2,847", icon: Users },
+    { label: "Active Creators", value: creatorsCount.toString(), icon: Users },
     { label: "Total Earnings", value: "$2.3M", icon: DollarSign },
-    { label: "Videos Protected", value: "47.2K", icon: CheckCircle },
+    { label: "Videos Protected", value: videosCount.toString(), icon: CheckCircle },
     { label: "Zero Platform Fees", value: "100%", icon: CheckCircle }
   ]
 
@@ -113,6 +112,52 @@ export default function HomePage() {
   
   const heroRef = useRef(null)
   const isHeroInView = useInView(heroRef, { once: true })
+  
+  // Real platform data
+  const [platformData, setPlatformData] = useState({
+    creatorsCount: 4, // Default fallback
+    videosCount: 3   // Default fallback
+  })
+  
+  // Fetch real platform data
+  useEffect(() => {
+    const fetchPlatformData = async () => {
+      try {
+        const [creatorsResponse, videosResponse] = await Promise.all([
+          fetch('/api/leaderboard?limit=1000'), // Get all creators
+          fetch('/api/platform-stats') // We'll create this endpoint
+        ])
+        
+        const creatorsData = await creatorsResponse.json()
+        
+        if (creatorsData.success) {
+          setPlatformData(prev => ({
+            ...prev,
+            creatorsCount: creatorsData.data.stats.total_creators
+          }))
+        }
+        
+        // Try to get video count from existing endpoint or use fallback
+        try {
+          const videosData = await videosResponse.json()
+          if (videosData.success) {
+            setPlatformData(prev => ({
+              ...prev,
+              videosCount: videosData.videosCount
+            }))
+          }
+        } catch (e) {
+          // Keep fallback value if endpoint doesn't exist
+        }
+        
+      } catch (error) {
+        console.error('Failed to fetch platform data:', error)
+        // Keep fallback values
+      }
+    }
+    
+    fetchPlatformData()
+  }, [])
 
   return (
     <div className="min-h-screen font-headline bg-provn-bg">
@@ -168,7 +213,7 @@ export default function HomePage() {
               </h1>
               
               <p className="text-xl font-headline md:text-2xl text-provn-muted leading-relaxed max-w-3xl mx-auto">
-                Join <strong className="text-provn-text">2,847 creators</strong> who've escaped platform fees and built true content ownership on Provn.
+                Join <strong className="text-provn-text">{platformData.creatorsCount}+ Elite Creators</strong> who've escaped platform fees and built true content ownership on Provn.
               </p>
             </div>
             
@@ -185,7 +230,7 @@ export default function HomePage() {
               <ProvnButton
                 variant="secondary"
                 size="lg"
-                onClick={() => document.getElementById('creator-stories')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={() => (window.location.href = "/dashboard")}
                 className="px-12 py-4 text-xl group"
               >
                 <Play className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
@@ -209,7 +254,7 @@ export default function HomePage() {
                 <div className="text-sm text-provn-muted mt-1">Platform Fees</div>
               </div>
               <div className="text-center">
-                <div className="text-4xl font-bold text-provn-text font-headline">47.2K+</div>
+                <div className="text-4xl font-bold text-provn-text font-headline">{platformData.videosCount}+</div>
                 <div className="text-sm text-provn-muted mt-1">Videos Protected</div>
               </div>
             </motion.div>
@@ -279,7 +324,9 @@ export default function HomePage() {
                     <div className="flex items-center justify-between p-4 bg-red-500/5 border border-red-500/20 rounded-xl">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center">
-                          <span className="text-red-400 font-bold text-sm">YT</span>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="text-red-400" viewBox="0 0 16 16">
+                            <path d="M8.051 1.999h.089c.822.003 4.987.033 6.11.335a2.01 2.01 0 0 1 1.415 1.42c.101.38.172.883.22 1.402l.01.104.022.26.008.104c.065.914.073 1.77.074 1.957v.075c-.001.194-.01 1.108-.082 2.06l-.008.105-.009.104c-.05.572-.124 1.14-.235 1.558a2.01 2.01 0 0 1-1.415 1.42c-1.16.312-5.569.334-6.18.335h-.142c-.309 0-1.587-.006-2.927-.052l-.17-.006-.087-.004-.171-.007-.171-.007c-1.11-.049-2.167-.128-2.654-.26a2.01 2.01 0 0 1-1.415-1.419c-.111-.417-.185-.986-.235-1.558L.09 9.82l-.008-.104A31 31 0 0 1 0 7.68v-.123c.002-.215.01-.958.064-1.778l.007-.103.003-.052.008-.104.022-.26.01-.104c.048-.519.119-1.023.22-1.402a2.01 2.01 0 0 1 1.415-1.42c.487-.13 1.544-.21 2.654-.26l.17-.007.172-.006.086-.003.171-.007A100 100 0 0 1 7.858 2zM6.4 5.209v4.818l4.157-2.408z"/>
+                          </svg>
                         </div>
                         <span className="text-red-400 font-medium">YouTube</span>
                       </div>
@@ -292,7 +339,9 @@ export default function HomePage() {
                     <div className="flex items-center justify-between p-4 bg-purple-500/5 border border-purple-500/20 rounded-xl">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                          <span className="text-purple-400 font-bold text-sm">TT</span>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="text-purple-400" viewBox="0 0 16 16">
+                            <path d="M9 0h1.98c.144.715.54 1.617 1.235 2.512C12.895 3.389 13.797 4 15 4v2c-1.753 0-3.07-.814-4-1.829V11a5 5 0 1 1-5-5v2a3 3 0 1 0 3 3z"/>
+                          </svg>
                         </div>
                         <span className="text-purple-400 font-medium">TikTok</span>
                       </div>
@@ -508,7 +557,7 @@ export default function HomePage() {
           </p>
         </motion.div>
 
-        <LiveMetrics />
+        <LiveMetrics creatorsCount={platformData.creatorsCount} videosCount={platformData.videosCount} />
       </section>
 
       {/* Final CTA */}
@@ -605,9 +654,23 @@ export default function HomePage() {
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <span>Crafted for</span>
-                  <span className="text-provn-accent font-semibold">Camp Network</span>
+                  <a 
+                    href="https://x.com/campnetworkxyz" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-provn-accent font-semibold hover:text-provn-accent/80 transition-colors cursor-pointer"
+                  >
+                    Camp Network
+                  </a>
                   <span>by</span>
-                  <span className="text-provn-accent font-semibold">Divyanshu Urmaliya</span>
+                  <a 
+                    href="https://x.com/divyanshueth" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-provn-accent font-semibold hover:text-provn-accent/80 transition-colors cursor-pointer"
+                  >
+                    Divyanshu Urmaliya
+                  </a>
                 </div>
               </div>
             </div>

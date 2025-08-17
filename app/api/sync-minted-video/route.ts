@@ -8,6 +8,22 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔄 Video Sync API: Starting post-mint video sync...')
     
+    // Check content length before parsing
+    const contentLength = request.headers.get('content-length')
+    const MAX_CONTENT_SIZE = 10 * 1024 * 1024 // 10MB limit
+    
+    if (contentLength && parseInt(contentLength) > MAX_CONTENT_SIZE) {
+      console.error('❌ Video Sync API: Request too large:', contentLength)
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Request too large: ${contentLength} bytes. Maximum allowed: ${MAX_CONTENT_SIZE} bytes`,
+          step: 'content_size_check'
+        },
+        { status: 413 }
+      )
+    }
+    
     step = 'parsing_request_body'
     const body = await request.json()
     const { 
@@ -25,19 +41,57 @@ export async function POST(request: NextRequest) {
       mintTimestamp
     } = body
 
+    // Validate and truncate large fields to prevent payload issues
+    const MAX_URL_LENGTH = 2000 // URLs longer than 2KB are suspicious
+    const MAX_DESCRIPTION_LENGTH = 5000 // 5KB max for description
+    const MAX_TITLE_LENGTH = 200 // 200 chars max for title
+    
+    // Check for suspicious data URLs that might be too large
+    if (videoUrl && videoUrl.startsWith('data:') && videoUrl.length > MAX_URL_LENGTH) {
+      console.error('❌ Video Sync API: Video URL too large (data URL):', videoUrl.length)
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Video URL too large: ${videoUrl.length} characters. Data URLs not supported for sync.`,
+          step: 'data_validation'
+        },
+        { status: 413 }
+      )
+    }
+    
+    if (thumbnailUrl && thumbnailUrl.startsWith('data:') && thumbnailUrl.length > MAX_URL_LENGTH) {
+      console.error('❌ Video Sync API: Thumbnail URL too large (data URL):', thumbnailUrl.length)
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Thumbnail URL too large: ${thumbnailUrl.length} characters. Data URLs not supported for sync.`,
+          step: 'data_validation'
+        },
+        { status: 413 }
+      )
+    }
+    
+    // Truncate large fields
+    const truncatedTitle = title && title.length > MAX_TITLE_LENGTH ? title.substring(0, MAX_TITLE_LENGTH) : title
+    const truncatedDescription = description && description.length > MAX_DESCRIPTION_LENGTH ? description.substring(0, MAX_DESCRIPTION_LENGTH) : description
+    
     console.log('📋 Video Sync API: Received data:', {
       tokenId,
       transactionHash,
       creatorWallet: creatorWallet?.toLowerCase(),
-      title: title?.substring(0, 50) + (title?.length > 50 ? '...' : ''),
-      description: description?.substring(0, 100) + (description?.length > 100 ? '...' : ''),
+      title: truncatedTitle?.substring(0, 50) + (truncatedTitle?.length > 50 ? '...' : ''),
+      description: truncatedDescription?.substring(0, 100) + (truncatedDescription?.length > 100 ? '...' : ''),
       videoUrl: videoUrl?.substring(0, 50) + (videoUrl?.length > 50 ? '...' : ''),
       thumbnailUrl: thumbnailUrl?.substring(0, 50) + (thumbnailUrl?.length > 50 ? '...' : ''),
       metadataUri: metadataUri?.substring(0, 50) + (metadataUri?.length > 50 ? '...' : ''),
       hasLicense: !!license,
       tagsCount: Array.isArray(tags) ? tags.length : (tags ? 1 : 0),
       blockNumber,
-      mintTimestamp
+      mintTimestamp,
+      originalTitleLength: title?.length || 0,
+      originalDescriptionLength: description?.length || 0,
+      videoUrlLength: videoUrl?.length || 0,
+      thumbnailUrlLength: thumbnailUrl?.length || 0
     })
 
     // Validate required fields
@@ -45,7 +99,7 @@ export async function POST(request: NextRequest) {
     const missingFields = []
     if (!tokenId) missingFields.push('tokenId')
     if (!creatorWallet) missingFields.push('creatorWallet')
-    if (!title) missingFields.push('title')
+    if (!truncatedTitle) missingFields.push('title')
     if (!videoUrl) missingFields.push('videoUrl')
     
     if (missingFields.length > 0) {
@@ -116,8 +170,8 @@ export async function POST(request: NextRequest) {
       creatorWallet: normalizedWallet,
       tokenId,
       transactionHash: transactionHash || 'unknown',
-      title,
-      description: description || 'No description provided',
+      title: truncatedTitle,
+      description: truncatedDescription || 'No description provided',
       tagsCount: Array.isArray(tags) ? tags.length : (tags ? 1 : 0)
     })
     
@@ -129,8 +183,8 @@ export async function POST(request: NextRequest) {
       blockNumber,
       mintTimestamp,
       metadataUri,
-      title,
-      description: description || 'No description provided',
+      title: truncatedTitle,
+      description: truncatedDescription || 'No description provided',
       tags: Array.isArray(tags) ? tags : (tags ? tags.split(',').map((t: string) => t.trim()) : []),
       videoUrl,
       thumbnailUrl,
@@ -170,6 +224,26 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error) {
       console.error('❌ Video Sync API: Error message:', error.message)
       console.error('❌ Video Sync API: Error stack:', error.stack)
+      
+      // Special handling for payload too large errors
+      if (error.message.includes('413') || error.message.includes('Request too large') || error.message.includes('Content Too Large')) {
+        console.error('❌ Video Sync API: Payload size error detected')
+        return NextResponse.json({
+          success: true,
+          message: 'Video minted successfully but sync failed due to large payload',
+          synced: false,
+          error: 'Request payload too large - data URLs or large descriptions not supported',
+          step,
+          duration: `${duration}ms`,
+          action_required: 'Use manual sync with minimal data',
+          manual_sync_endpoint: '/api/manual-sync-video',
+          manual_sync_payload: {
+            tokenId: body?.tokenId,
+            transactionHash: body?.transactionHash,
+            creatorWallet: body?.creatorWallet
+          }
+        }, { status: 200 })
+      }
     }
     
     // Don't fail the response if sync fails - the video was still minted successfully
@@ -180,7 +254,13 @@ export async function POST(request: NextRequest) {
       error: error instanceof Error ? error.message : 'Unknown sync error',
       step,
       duration: `${duration}ms`,
-      action_required: 'Check console logs and try manual sync'
+      action_required: 'Try manual sync in your profile or contact support',
+      manual_sync_endpoint: '/api/manual-sync-video',
+      manual_sync_payload: {
+        tokenId: body.tokenId,
+        transactionHash: body.transactionHash,
+        creatorWallet: body.creatorWallet
+      }
     }, { status: 200 }) // Still return 200 since minting succeeded
   }
 }
