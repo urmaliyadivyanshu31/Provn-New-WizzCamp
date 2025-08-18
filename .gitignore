@@ -204,3 +204,18 @@ local/
 secrets/
 secrets.json
 config.local.*
+
+# Additional cleanup - keep repository professional
+.DS_Store
+.vscode/
+*.sql
+/supabase/migrations/
+/supabase/config.toml
+/sql/
+package-updates.md
+env.*
+!env.example
+
+# Scripts - only allow specific useful ones
+/scripts/*
+!/scripts/generate-twitter-assets.js
