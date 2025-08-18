@@ -262,6 +262,205 @@ export default function HomePage() {
         </div>
       </motion.section>
 
+      {/* Platform Demo Section */}
+      <section className="py-24 relative overflow-hidden">
+        {/* Background Elements */}
+        <div className="absolute inset-0">
+          <motion.div
+            animate={{ 
+              rotate: [0, 360],
+              scale: [1, 1.2, 1]
+            }}
+            transition={{ 
+              rotate: { duration: 30, repeat: Infinity, ease: "linear" },
+              scale: { duration: 12, repeat: Infinity, ease: "easeInOut" }
+            }}
+            className="absolute -top-40 -left-40 w-80 h-80 bg-provn-accent/10 rounded-full blur-3xl"
+          />
+          <motion.div
+            animate={{ 
+              rotate: [360, 0],
+              scale: [1, 1.1, 1]
+            }}
+            transition={{ 
+              rotate: { duration: 25, repeat: Infinity, ease: "linear" },
+              scale: { duration: 10, repeat: Infinity, ease: "easeInOut" }
+            }}
+            className="absolute -bottom-40 -right-40 w-96 h-96 bg-provn-success/8 rounded-full blur-3xl"
+          />
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          {/* Section Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              viewport={{ once: true }}
+            >
+              <ProvnBadge className="bg-provn-accent/10 text-provn-accent border-provn-accent/20 mb-6">
+                <Play className="w-4 h-4 mr-1" />
+                Platform Walkthrough
+              </ProvnBadge>
+            </motion.div>
+            
+            <h2 className="font-headline text-4xl md:text-6xl font-bold text-provn-text mb-6 leading-tight">
+              Exploring the Provn Platform:{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-provn-accent to-provn-accent/80">
+                A New Era
+              </span>{" "}
+              for Content Creators
+            </h2>
+            <p className="text-xl font-headline md:text-2xl text-provn-muted max-w-3xl mx-auto leading-relaxed">
+              Watch how creators are revolutionizing their earnings with zero platform fees
+            </p>
+          </motion.div>
+
+          {/* Video Container */}
+          <motion.div
+            initial={{ opacity: 0, y: 40, scale: 0.95 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            viewport={{ once: true }}
+            className="relative"
+          >
+            {/* Decorative elements */}
+            <div className="absolute inset-0 bg-gradient-to-br from-provn-accent/20 to-provn-success/20 rounded-3xl blur-2xl transform rotate-1"></div>
+            <div className="absolute inset-0 bg-gradient-to-tl from-provn-accent/10 to-transparent rounded-3xl blur-xl transform -rotate-1"></div>
+            
+            {/* Video wrapper with glassmorphism effect */}
+            <div className="relative bg-gradient-to-br from-provn-surface/90 to-provn-surface/70 backdrop-blur-xl border border-provn-border/50 rounded-3xl p-8 shadow-2xl">
+              <div className="relative">
+                {/* Video container with rounded corners */}
+                <div className="relative overflow-hidden rounded-2xl bg-provn-surface border border-provn-border/30">
+                  {/* Video option with iframe */}
+                  <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
+                    <iframe 
+                      src="https://www.loom.com/embed/e228fc775d8645e2a4bb68922dea8104?sid=1293affb-0e46-4184-b566-979fded63daa" 
+                      style={{ 
+                        position: 'absolute', 
+                        top: 0, 
+                        left: 0, 
+                        width: '100%', 
+                        height: '100%',
+                        border: 'none',
+                        borderRadius: '1rem'
+                      }}
+                      allow="fullscreen"
+                      title="Exploring the Provn Platform: A New Era for Content Creators"
+                    />
+                  </div>
+
+                  {/* Alternative: Thumbnail GIF (uncomment to use instead of iframe) */}
+                  {/* 
+                  <div className="relative group cursor-pointer" onClick={() => window.open('https://www.loom.com/share/e228fc775d8645e2a4bb68922dea8104', '_blank')}>
+                    <img 
+                      src="https://cdn.loom.com/sessions/thumbnails/e228fc775d8645e2a4bb68922dea8104-d62552280dee495c-full-play.gif"
+                      alt="Exploring the Provn Platform: A New Era for Content Creators - Watch Video"
+                      className="w-full rounded-2xl transition-all duration-300 group-hover:scale-105"
+                      style={{ maxWidth: '100%', height: 'auto' }}
+                    />
+                    <div className="absolute inset-0 bg-black/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                      <div className="bg-provn-accent/90 rounded-full p-4">
+                        <Play className="w-8 h-8 text-white" />
+                      </div>
+                    </div>
+                  </div>
+                  */}
+                </div>
+
+                {/* Floating stats overlay */}
+                <motion.div
+                  initial={{ opacity: 0, x: 30 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.8, delay: 0.6 }}
+                  viewport={{ once: true }}
+                  className="absolute -top-4 -right-4 bg-gradient-to-br from-provn-success/90 to-provn-success/80 backdrop-blur-sm border border-provn-success/20 rounded-xl p-4 text-center shadow-lg"
+                >
+                  <div className="text-2xl font-bold text-white font-headline">100%</div>
+                  <div className="text-xs text-white/80">Earnings Kept</div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, x: -30 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.8, delay: 0.8 }}
+                  viewport={{ once: true }}
+                  className="absolute -bottom-4 -left-4 bg-gradient-to-br from-provn-accent/90 to-provn-accent/80 backdrop-blur-sm border border-provn-accent/20 rounded-xl p-4 text-center shadow-lg"
+                >
+                  <div className="text-2xl font-bold text-white font-headline">0%</div>
+                  <div className="text-xs text-white/80">Platform Fees</div>
+                </motion.div>
+              </div>
+
+              {/* Bottom action area */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 1.0 }}
+                viewport={{ once: true }}
+                className="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center"
+              >
+                <ProvnButton
+                  onClick={() => (window.location.href = "/upload")}
+                  className="px-8 py-3 text-lg group"
+                >
+                  <Upload className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform" />
+                  Start Your Journey
+                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                </ProvnButton>
+                <ProvnButton
+                  variant="secondary"
+                  onClick={() => (window.location.href = "/explore")}
+                  className="px-8 py-3 text-lg group"
+                >
+                  <Play className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                  Explore Platform
+                </ProvnButton>
+              </motion.div>
+            </div>
+          </motion.div>
+
+          {/* Features highlight */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            viewport={{ once: true }}
+            className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6"
+          >
+            {[
+              { icon: CheckCircle, title: "Instant Upload", desc: "Mint content as IP-NFTs in seconds" },
+              { icon: DollarSign, title: "Zero Fees", desc: "Keep 100% of your earnings" },
+              { icon: Users, title: "True Ownership", desc: "Your content, your control, forever" }
+            ].map((feature, index) => {
+              const Icon = feature.icon
+              return (
+                <motion.div
+                  key={feature.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.6 + (index * 0.1) }}
+                  viewport={{ once: true }}
+                  className="bg-provn-surface/50 backdrop-blur-sm border border-provn-border/30 rounded-xl p-6 text-center hover:bg-provn-surface/70 transition-all duration-300"
+                >
+                  <Icon className="w-8 h-8 text-provn-accent mx-auto mb-3" />
+                  <h3 className="font-semibold text-provn-text mb-2">{feature.title}</h3>
+                  <p className="text-sm text-provn-muted">{feature.desc}</p>
+                </motion.div>
+              )
+            })}
+          </motion.div>
+        </div>
+      </section>
+
       {/* Revenue Revolution */}
       <section className="py-32 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-provn-surface/5 to-transparent"></div>
