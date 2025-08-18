@@ -172,7 +172,7 @@ export default function TipModal({
         </div>
 
         <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
-          <NetworkStatus />
+          <NetworkStatus className="mb-4" />
 
           {/* Compact Balance */}
           <div className="flex items-center justify-between text-sm font-headline">

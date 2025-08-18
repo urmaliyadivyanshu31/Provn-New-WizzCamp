@@ -66,52 +66,100 @@ export function useOriginTipping() {
                           ('0x' + network.chainId.toString(16)) === '0x75b7b8b2'
                           
       if (!isOnBaseCAMP) {
-        // Try to switch to BaseCAMP network
-        console.log('🔄 Attempting to switch to BaseCAMP network...')
-        try {
-          await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0x75b7b8b2' }], // 123420001114 in hex
-          })
-          console.log('✅ Successfully switched to BaseCAMP network')
-        } catch (switchError: any) {
-          // If the network doesn't exist, add it
-          if (switchError.code === 4902) {
-            console.log('➕ BaseCAMP network not found, adding it...')
-            try {
+        // Mobile browser detection
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        console.log('🔄 Attempting to switch to BaseCAMP network...', { isMobile })
+        
+        if (isMobile) {
+          // For mobile, try adding network first (often works better)
+          try {
+            console.log('📱 Mobile detected: Trying to add network first...')
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0x75b7b8b2', // 123420001114 in hex
+                chainName: 'BaseCAMP',
+                nativeCurrency: {
+                  name: 'CAMP',
+                  symbol: 'CAMP',
+                  decimals: 18
+                },
+                rpcUrls: [
+                  'https://rpc.basecamp.t.raas.gelato.cloud',
+                  'https://rpc-campnetwork.xyz'
+                ],
+                blockExplorerUrls: ['https://basecamp.cloud.blockscout.com/']
+              }]
+            })
+            console.log('✅ Successfully added BaseCAMP network on mobile')
+          } catch (addError: any) {
+            // If network already exists, try to switch
+            if (addError.code === 4001 || addError.code === -32601 || addError.message?.includes('already exists')) {
+              console.log('🔄 Network exists, trying to switch...')
               await window.ethereum.request({
-                method: 'wallet_addEthereumChain',
-                params: [{
-                  chainId: '0x75b7b8b2', // 123420001114 in hex
-                  chainName: 'BaseCAMP',
-                  nativeCurrency: {
-                    name: 'CAMP',
-                    symbol: 'CAMP',
-                    decimals: 18
-                  },
-                  rpcUrls: [
-                    'https://rpc.basecamp.t.raas.gelato.cloud',
-                    'https://rpc-campnetwork.xyz'
-                  ],
-                  blockExplorerUrls: ['https://basecamp.cloud.blockscout.com/']
-                }]
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: '0x75b7b8b2' }]
               })
-              console.log('✅ Successfully added BaseCAMP network')
-            } catch (addError) {
-              console.error('❌ Failed to add BaseCAMP network:', addError)
-              throw new Error('Failed to add BaseCAMP network. Please add it manually in your wallet.')
+              console.log('✅ Successfully switched to BaseCAMP network on mobile')
+            } else {
+              throw addError;
             }
-          } else if (switchError.code === -32603 && switchError.message.includes('0x75b7b8b2')) {
-            // Handle case where wallet reports unrecognized chain but we're actually on BaseCAMP
-            console.log('⚠️ Wallet reports unrecognized chain ID but we are on BaseCAMP. Proceeding...')
-          } else {
-            console.error('❌ Network switch failed:', switchError)
-            throw new Error('Please switch to BaseCAMP network (Chain ID: 123420001114)')
+          }
+        } else {
+          // For desktop, try switch first then add if needed
+          try {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0x75b7b8b2' }], // 123420001114 in hex
+            })
+            console.log('✅ Successfully switched to BaseCAMP network')
+          } catch (switchError: any) {
+            // If the network doesn't exist, add it
+            if (switchError.code === 4902) {
+              console.log('➕ BaseCAMP network not found, adding it...')
+              try {
+                await window.ethereum.request({
+                  method: 'wallet_addEthereumChain',
+                  params: [{
+                    chainId: '0x75b7b8b2', // 123420001114 in hex
+                    chainName: 'BaseCAMP',
+                    nativeCurrency: {
+                      name: 'CAMP',
+                      symbol: 'CAMP',
+                      decimals: 18
+                    },
+                    rpcUrls: [
+                      'https://rpc.basecamp.t.raas.gelato.cloud',
+                      'https://rpc-campnetwork.xyz'
+                    ],
+                    blockExplorerUrls: ['https://basecamp.cloud.blockscout.com/']
+                  }]
+                })
+                console.log('✅ Successfully added BaseCAMP network')
+              } catch (addError) {
+                console.error('❌ Failed to add BaseCAMP network:', addError)
+                throw new Error('Failed to add BaseCAMP network. Please add it manually in your wallet.')
+              }
+            } else if (switchError.code === -32603 && switchError.message.includes('0x75b7b8b2')) {
+              // Handle case where wallet reports unrecognized chain but we're actually on BaseCAMP
+              console.log('⚠️ Wallet reports unrecognized chain ID but we are on BaseCAMP. Proceeding...')
+            } else {
+              console.error('❌ Network switch failed:', switchError)
+              if (switchError.code === 4001) {
+                throw new Error('Network switch cancelled by user')
+              } else if (switchError.code === -32603) {
+                throw new Error('Please manually switch to BaseCAMP network in your wallet')
+              } else {
+                throw new Error('Please switch to BaseCAMP network (Chain ID: 123420001114)')
+              }
+            }
           }
         }
         
-        // Wait a moment for the network switch to complete
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        // Wait longer on mobile for the network switch to complete
+        const waitTime = isMobile ? 2500 : 1000;
+        await new Promise(resolve => setTimeout(resolve, waitTime))
         
         // Verify we're now on the correct network
         const newNetwork = await provider.getNetwork()
