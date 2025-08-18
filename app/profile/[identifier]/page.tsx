@@ -197,7 +197,7 @@ export default function ProfilePage() {
                 {/* Avatar */}
                 <div className="relative">
                   <img
-                    src={profile.avatarUrl || '/placeholder-avatar.png'}
+                    src={profile.avatarUrl && profile.avatarUrl.trim() !== '' ? profile.avatarUrl : '/placeholder-avatar.png'}
                     alt={profile.handle}
                     className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-provn-bg object-cover bg-provn-surface"
                   />
@@ -357,14 +357,14 @@ export default function ProfilePage() {
                   >
                     {content.fileType.startsWith('image/') ? (
                       <img
-                        src={content.thumbnailUrl}
+                        src={content.thumbnailUrl || undefined}
                         alt={content.title}
                         className="w-full h-full object-cover"
                       />
                     ) : content.fileType.startsWith('video/') ? (
                       <div className="w-full h-full relative">
                         <video
-                          src={content.thumbnailUrl}
+                          src={content.thumbnailUrl || undefined}
                           className="w-full h-full object-cover"
                           muted
                         />

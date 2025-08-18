@@ -2,9 +2,10 @@
 
 import { motion, AnimatePresence } from "framer-motion"
 import { ExploreVideo } from "@/types/explore"
-import { X, Twitter, Instagram, Copy, ExternalLink } from "lucide-react"
+import { X, Twitter, Instagram, Copy, ExternalLink, Share2, Eye, Heart } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
+import { ProvnButton } from "@/components/provn/button"
 
 interface ShareModalProps {
   isOpen: boolean
@@ -18,7 +19,7 @@ export function ShareModal({ isOpen, onClose, video, onShare }: ShareModalProps)
 
   const videoUrl = `${window.location.origin}/video/${video.tokenId}`
   
-  const shareText = `Check out this amazing video by @${video.creator.handle} on Provn! 🎥✨\n\n"${video.title}"\n\n#Provn #IPNFT #Web3Creator`
+  const shareText = `Check out this amazing prov by @${video.creator.handle} on Provn! 🎥✨\n\n"${video.title}"\n\n#Provn #IPNFT #Web3Creator`
 
   const handleTwitterShare = () => {
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(videoUrl)}`
@@ -37,7 +38,7 @@ export function ShareModal({ isOpen, onClose, video, onShare }: ShareModalProps)
     try {
       await navigator.clipboard.writeText(videoUrl)
       setCopied(true)
-      toast.success('Link copied to clipboard!')
+      toast.success('Prov link copied successfully')
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
       toast.error('Failed to copy link')
@@ -58,12 +59,20 @@ export function ShareModal({ isOpen, onClose, video, onShare }: ShareModalProps)
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="bg-provn-surface border border-provn-border rounded-2xl max-w-md w-full"
+            className="bg-provn-surface border border-provn-border rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-provn-border">
-              <h2 className="text-lg font-bold text-provn-text">Share Video</h2>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-provn-accent/20 rounded-lg">
+                  <Share2 className="w-5 h-5 text-provn-accent" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-provn-text font-headline">Share Prov</h2>
+                  <p className="text-sm text-provn-muted font-headline">Share with your audience</p>
+                </div>
+              </div>
               <button
                 onClick={onClose}
                 className="p-2 hover:bg-provn-surface-2 rounded-lg transition-colors"
@@ -73,8 +82,8 @@ export function ShareModal({ isOpen, onClose, video, onShare }: ShareModalProps)
             </div>
 
             {/* Content */}
-            <div className="p-6 space-y-4">
-              {/* Video Preview */}
+            <div className="p-6 space-y-6">
+              {/* Video Preview Card */}
               <div className="flex gap-3 p-3 bg-provn-surface-2 rounded-lg">
                 {video.thumbnailUrl ? (
                   <img
@@ -84,80 +93,95 @@ export function ShareModal({ isOpen, onClose, video, onShare }: ShareModalProps)
                   />
                 ) : (
                   <div className="w-16 h-16 rounded-lg bg-provn-accent/20 flex items-center justify-center">
-                    <span className="text-provn-accent font-bold">#{video.tokenId}</span>
+                    <span className="text-provn-accent font-bold">#{video.tokenId.slice(-4)}</span>
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-provn-text truncate">{video.title}</h3>
-                  <p className="text-sm text-provn-muted">by @{video.creator.handle}</p>
-                  <p className="text-xs text-provn-muted mt-1">
-                    {video.metrics.views} views • {video.metrics.likes} likes
-                  </p>
+                  <h3 className="font-semibold text-provn-text truncate font-headline">{video.title}</h3>
+                  <p className="text-sm text-provn-muted font-headline">by @{video.creator.handle}</p>
+                  <div className="flex items-center gap-3 mt-1 text-xs text-provn-muted font-headline">
+                    <span className="flex items-center gap-1">
+                      <Eye className="w-3 h-3" />
+                      {video.metrics.views.toLocaleString()}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Heart className="w-3 h-3" />
+                      {video.metrics.likes.toLocaleString()}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Share Options */}
+              {/* Share Options - Redesigned to match elite website standards */}
               <div className="space-y-3">
-                {/* Twitter */}
-                <button
+                {/* Twitter - Clean and professional */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={handleTwitterShare}
-                  className="w-full flex items-center gap-3 p-4 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg transition-colors group"
+                  className="w-full flex items-center gap-4 p-4 bg-provn-surface-2 hover:bg-provn-surface border border-provn-border hover:border-provn-accent/30 rounded-xl transition-all duration-200 group"
                 >
-                  <div className="p-2 bg-blue-500 rounded-lg">
-                    <Twitter className="w-5 h-5 text-white" />
+                  <div className="flex-shrink-0 w-12 h-12 bg-[#1DA1F2] rounded-xl flex items-center justify-center group-hover:shadow-lg group-hover:shadow-[#1DA1F2]/25 transition-all duration-200">
+                    <Twitter className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1 text-left">
-                    <h4 className="font-semibold text-provn-text">Share on Twitter</h4>
-                    <p className="text-sm text-provn-muted">Post to your Twitter feed</p>
+                    <h4 className="font-semibold text-provn-text font-headline group-hover:text-provn-accent transition-colors">Twitter</h4>
+                    <p className="text-sm text-provn-muted font-headline">Share with your followers</p>
                   </div>
-                  <ExternalLink className="w-4 h-4 text-provn-muted group-hover:text-provn-text transition-colors" />
-                </button>
+                  <ExternalLink className="w-5 h-5 text-provn-muted group-hover:text-provn-accent transition-colors" />
+                </motion.button>
 
-                {/* Instagram */}
-                <button
+                {/* Instagram - Elegant gradient approach */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={handleInstagramShare}
-                  className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 hover:from-purple-500/20 hover:to-pink-500/20 border border-purple-500/20 rounded-lg transition-colors group"
+                  className="w-full flex items-center gap-4 p-4 bg-provn-surface-2 hover:bg-provn-surface border border-provn-border hover:border-provn-accent/30 rounded-xl transition-all duration-200 group"
                 >
-                  <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
-                    <Instagram className="w-5 h-5 text-white" />
+                  <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-[#E4405F] via-[#F56040] to-[#FFDC80] rounded-xl flex items-center justify-center group-hover:shadow-lg group-hover:shadow-[#E4405F]/25 transition-all duration-200">
+                    <Instagram className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1 text-left">
-                    <h4 className="font-semibold text-provn-text">Share on Instagram</h4>
-                    <p className="text-sm text-provn-muted">Copy link for your story</p>
+                    <h4 className="font-semibold text-provn-text font-headline group-hover:text-provn-accent transition-colors">Instagram</h4>
+                    <p className="text-sm text-provn-muted font-headline">Copy link for stories</p>
                   </div>
-                  <Copy className="w-4 h-4 text-provn-muted group-hover:text-provn-text transition-colors" />
-                </button>
+                  <Copy className="w-5 h-5 text-provn-muted group-hover:text-provn-accent transition-colors" />
+                </motion.button>
 
-                {/* Copy Link */}
-                <button
+                {/* Copy Link - Premium feel with provn brand colors */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={copyToClipboard}
-                  className="w-full flex items-center gap-3 p-4 bg-provn-surface-2 hover:bg-provn-border/30 border border-provn-border rounded-lg transition-colors group"
+                  className="w-full flex items-center gap-4 p-4 bg-provn-surface-2 hover:bg-provn-surface border border-provn-border hover:border-provn-accent/30 rounded-xl transition-all duration-200 group"
                 >
-                  <div className="p-2 bg-provn-accent rounded-lg">
-                    <Copy className="w-5 h-5 text-provn-bg" />
+                  <div className="flex-shrink-0 w-12 h-12 bg-provn-accent rounded-xl flex items-center justify-center group-hover:shadow-lg group-hover:shadow-provn-accent/25 transition-all duration-200">
+                    <Copy className="w-6 h-6 text-provn-bg" />
                   </div>
                   <div className="flex-1 text-left">
-                    <h4 className="font-semibold text-provn-text">Copy Link</h4>
-                    <p className="text-sm text-provn-muted">Share anywhere you want</p>
+                    <h4 className="font-semibold text-provn-text font-headline group-hover:text-provn-accent transition-colors">Copy Link</h4>
+                    <p className="text-sm text-provn-muted font-headline">Direct URL to prov</p>
                   </div>
-                  {copied && (
-                    <div className="text-green-500 text-sm font-medium">Copied!</div>
+                  {copied ? (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="flex items-center gap-1 text-provn-accent text-sm font-medium font-headline"
+                    >
+                      <div className="w-2 h-2 bg-provn-accent rounded-full"></div>
+                      Copied
+                    </motion.div>
+                  ) : (
+                    <div className="w-5 h-5"></div>
                   )}
-                </button>
+                </motion.button>
               </div>
 
-              {/* Link Preview */}
-              <div className="p-3 bg-provn-surface-2 rounded-lg">
-                <p className="text-xs text-provn-muted mb-1">Video URL:</p>
-                <p className="text-sm text-provn-text font-mono bg-provn-surface px-2 py-1 rounded break-all">
-                  {videoUrl}
-                </p>
-              </div>
-
-              {/* Share Stats */}
-              <div className="text-center">
-                <p className="text-sm text-provn-muted">
-                  This video has been shared <span className="font-semibold text-provn-text">{video.metrics.shares}</span> times
+              {/* Share Stats - Elegant and minimal */}
+              <div className="flex items-center justify-center gap-2 p-4 bg-provn-surface-2 rounded-xl border border-provn-border">
+                <div className="w-2 h-2 bg-provn-accent rounded-full animate-pulse"></div>
+                <p className="text-sm text-provn-muted font-headline">
+                  <span className="font-bold text-provn-text">{video.metrics.shares.toLocaleString()}</span> shares on Provn
                 </p>
               </div>
             </div>

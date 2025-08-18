@@ -205,7 +205,8 @@ function convertPlatformVideoToExploreVideo(platformVideo: VideoWithCreator): Ex
       status: 'verified' as const,
       type: 'original' as const,
       mintDate: platformVideo.mint_timestamp || platformVideo.uploaded_at,
-      platformOrigin: true // Mark as platform video
+      platformOrigin: true, // Mark as platform video
+      transactionHash: platformVideo.transaction_hash
     },
     licensing: {
       price: platformVideo.price_per_period || 10,

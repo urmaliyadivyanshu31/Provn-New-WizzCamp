@@ -14,7 +14,7 @@ interface VideoPlayerProps {
 export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false); // Start with sound ON
   const [progress, setProgress] = useState(0);
   const [showControls, setShowControls] = useState(false);
   const [videoSrc, setVideoSrc] = useState<string>("");
@@ -141,6 +141,9 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
   const handleVideoClick = (e: React.MouseEvent) => {
     // Don't toggle play/pause if clicking on overlay elements
     if ((e.target as HTMLElement).closest(".video-overlay")) return;
+    
+    // Don't toggle play/pause if clicking on audio control button
+    if ((e.target as HTMLElement).closest(".audio-control")) return;
 
     togglePlayPause();
     setShowControls(true);
@@ -148,12 +151,19 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
   };
 
   return (
-    <div className="relative w-full h-full flex items-start justify-center  bg-black overflow-hidden">
-      {/* Video Element */}
+    <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
+      {/* Video Element with Smart Fitting */}
       <video
         ref={videoRef}
-        className="w-fit h-[calc(100vh-100px)] max-w-[390px] object-contain cursor-pointer mt-3 rounded-sm"
-        src={videoSrc}
+        className="w-full h-full cursor-pointer"
+        style={{
+          // Smart fitting: contain for portrait videos, cover for landscape
+          objectFit: 'contain',
+          objectPosition: 'center',
+          maxHeight: '100vh',
+          maxWidth: '100vw'
+        }}
+        src={videoSrc || undefined}
         poster={posterSrc || undefined}
         muted={isMuted}
         loop
@@ -161,10 +171,27 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
         preload={isVisible ? "auto" : "none"}
         onClick={handleVideoClick}
         onLoadedData={() => {
-          // Set initial muted state
+          // Set initial muted state and auto-play with sound
           const videoElement = videoRef.current;
           if (videoElement) {
-            videoElement.muted = isMuted;
+            videoElement.muted = false; // Start with sound ON
+            setIsMuted(false);
+          }
+        }}
+        onLoadedMetadata={() => {
+          // Adjust fitting based on video aspect ratio
+          const videoElement = videoRef.current;
+          if (videoElement) {
+            const aspectRatio = videoElement.videoWidth / videoElement.videoHeight;
+            const screenAspectRatio = window.innerWidth / window.innerHeight;
+            
+            // Use contain for videos that don't match screen ratio well
+            // Use cover for videos that are close to screen ratio
+            if (Math.abs(aspectRatio - screenAspectRatio) > 0.3) {
+              videoElement.style.objectFit = 'contain';
+            } else {
+              videoElement.style.objectFit = 'cover';
+            }
           }
         }}
       />
@@ -188,7 +215,7 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
       {/* Audio Control */}
       <button
         onClick={(e) => toggleMute(e)}
-        className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm rounded-full p-2 hover:bg-black/70 transition-colors z-10"
+        className="audio-control absolute top-4 right-4 bg-black/50 backdrop-blur-sm rounded-full p-2 hover:bg-black/70 transition-colors z-10"
       >
         {isMuted ? (
           <VolumeX className="w-5 h-5 text-white" />

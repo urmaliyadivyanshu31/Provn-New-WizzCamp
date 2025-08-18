@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/lib/supabase'
 import { cookies } from 'next/headers'
 
 // GET - Fetch analytics data for a profile
@@ -17,8 +17,14 @@ export async function GET(
       )
     }
 
-    const cookieStore = cookies()
-    const supabase = await createClient(cookieStore)
+    // Use admin client to ensure full database access
+    const supabase = createAdminClient()
+    if (!supabase) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to create database client' },
+        { status: 500 }
+      )
+    }
 
     let profileAddress: string
 
@@ -59,7 +65,7 @@ export async function GET(
     // Get total views from platform_videos table
     const { data: videosData, error: videosDataError } = await supabase
       .from('platform_videos')
-      .select('views_count, likes_count, tips_count')
+      .select('views_count, likes_count, tips_count, tips_total_amount')
       .eq('creator_wallet', profileAddress)
 
     if (videosDataError) {
@@ -73,9 +79,10 @@ export async function GET(
     const totalViews = videosData?.reduce((sum, video) => sum + (video.views_count || 0), 0) || 0
     const totalLikes = videosData?.reduce((sum, video) => sum + (video.likes_count || 0), 0) || 0
     const totalTips = videosData?.reduce((sum, video) => sum + (video.tips_count || 0), 0) || 0
+    const totalTipsAmount = videosData?.reduce((sum, video) => sum + parseFloat(video.tips_total_amount || '0'), 0) || 0
 
-    // For now, set total earnings to 0 since it's not tracked in platform_videos
-    const totalEarnings = 0
+    // For now, set total earnings to tips amount since that's what we track
+    const totalEarnings = totalTipsAmount
 
     // Get total licenses (not available in current schema, set to 0)
     const licensesCount = 0
@@ -97,12 +104,12 @@ export async function GET(
     const videoCount = videosCount || 0
     const avgViewsPerVideo = videoCount > 0 ? Math.round(totalViews / videoCount) : 0
     const avgTipsPerVideo = videoCount > 0 ? Math.round(totalTips / videoCount) : 0
-    const avgEarningsPerVideo = 0 // Not tracked in current schema
+    const avgEarningsPerVideo = videoCount > 0 ? Math.round(totalEarnings / videoCount) : 0
 
     // Get top performing videos
     const { data: topVideos, error: topVideosError } = await supabase
       .from('platform_videos')
-      .select('id, title, uploaded_at, views_count, tips_count')
+      .select('id, title, uploaded_at, views_count, tips_count, tips_total_amount')
       .eq('creator_wallet', profileAddress)
       .order('views_count', { ascending: false })
       .limit(4)
@@ -126,6 +133,15 @@ export async function GET(
       licenses: '0' // Not tracked in current schema
     })) || []
 
+    console.log(`📊 Analytics for ${profileAddress}:`, {
+      videoCount,
+      totalViews,
+      totalLikes,
+      totalTips,
+      totalTipsAmount,
+      avgTipsPerVideo
+    })
+
     return NextResponse.json({
       success: true,
       data: {
@@ -134,7 +150,7 @@ export async function GET(
         views: totalViews,
         likes: totalLikes,
         tips: totalTips,
-        wCAMP: 0, // Not tracked in current schema
+        wCAMP: totalTipsAmount, // Use tips amount as wCAMP earnings
         licenses: 0, // Not tracked in current schema
         
         // Content performance

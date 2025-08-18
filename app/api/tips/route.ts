@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/lib/supabase'
 import { cookies } from 'next/headers'
 
 // POST - Record a new tip
 export async function POST(request: NextRequest) {
   try {
-    const { creatorAddress, amount, message, timestamp, transactionHash, blockNumber, gasUsed } = await request.json()
+    const { creatorAddress, videoId, amount, message, timestamp, transactionHash, tokenType } = await request.json()
 
     if (!creatorAddress || !amount || amount <= 0) {
       return NextResponse.json(
@@ -14,47 +14,87 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const cookieStore = cookies()
-    const supabase = await createClient(cookieStore)
-
-    // Record the tip in the database
-    const { data: tip, error } = await supabase
-      .from('video_tips')
-      .insert([{
-        recipient_wallet: creatorAddress.toLowerCase(),
-        amount: amount,
-        message: message || null,
-        transaction_hash: transactionHash || null,
-        block_number: blockNumber || null,
-        gas_used: gasUsed || null,
-        tipped_at: timestamp || new Date().toISOString()
-      }])
-
-    if (error) {
-      console.error('Error recording tip:', error)
+    // Use admin client to avoid schema cache issues
+    const supabase = createAdminClient()
+    if (!supabase) {
       return NextResponse.json(
-        { success: false, error: 'Failed to record tip' },
+        { success: false, error: 'Failed to create database client' },
         { status: 500 }
       )
     }
 
-    // Update the creator's total tips count in profiles table
-    const { error: updateError } = await supabase
+    // Look up the video_id UUID from the token_id in platform_videos table
+    let video_id = null;
+    let videoData = null;
+    if (videoId) {
+      try {
+        const { data: video, error: videoLookupError } = await supabase
+          .from('platform_videos')
+          .select('id, tips_count, tips_total_amount')
+          .eq('token_id', videoId)
+          .single()
+
+        if (videoLookupError) {
+          console.log(`ℹ️ Video lookup failed for token_id ${videoId}:`, videoLookupError.message)
+          // Don't fail the tip - just log it and continue without video association
+          video_id = null;
+        } else {
+          video_id = video.id
+          videoData = video
+          console.log(`✅ Found video for token_id ${videoId}: ${video_id}`)
+        }
+      } catch (error) {
+        console.log(`ℹ️ Video lookup error for token_id ${videoId}:`, error)
+        video_id = null;
+      }
+    }
+
+    // Look up recipient_id UUID from creator wallet address
+    const { data: recipientData, error: recipientLookupError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('wallet_address', creatorAddress.toLowerCase())
+      .single()
+
+    if (recipientLookupError) {
+      console.error('Error looking up recipient profile:', recipientLookupError)
+      return NextResponse.json(
+        { success: false, error: 'Creator profile not found' },
+        { status: 404 }
+      )
+    }
+
+    // Update the video's tip counts if a video was found
+    if (video_id && videoData) {
+      const newTipsCount = (videoData.tips_count || 0) + 1
+      const newTipsTotal = (videoData.tips_total_amount || 0) + parseFloat(amount)
+      
+      const { error: updateError } = await supabase
+        .from('platform_videos')
+        .update({
+          tips_count: newTipsCount,
+          tips_total_amount: newTipsTotal,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', video_id)
+
+      if (updateError) {
+        console.error('Error updating video tip counts:', updateError)
+        // Don't fail the tip - just log the error
+      } else {
+        console.log(`✅ Updated video tip counts: ${newTipsCount} tips, ${newTipsTotal} total`)
+      }
+    }
+
+    // Update the creator's profile timestamp
+    await supabase
       .from('profiles')
       .update({ 
         updated_at: new Date().toISOString()
       })
-      .eq('wallet_address', creatorAddress.toLowerCase())
+      .eq('id', recipientData.id)
 
-    if (updateError) {
-      console.error('Error updating creator profile:', updateError)
-    }
-
-    // Also update the platform_videos table to increment tips_count for all videos by this creator
-    // This will help with analytics and stats
-    // Note: We'll need to implement this via a database trigger or separate API call
-    // For now, we'll just log that we need to update the video stats
-    console.log(`💰 Tip recorded: ${amount} CAMP to ${creatorAddress}. Video stats update needed.`)
+    console.log(`💰 Tip recorded: ${amount} PROVN to ${creatorAddress}${videoId ? ` for video ${videoId}` : ''}`)
 
     return NextResponse.json({
       success: true,
@@ -63,7 +103,10 @@ export async function POST(request: NextRequest) {
         amount,
         message,
         transactionHash,
-        timestamp
+        timestamp,
+        videoId,
+        videoAssociated: !!video_id,
+        videoUpdated: !!video_id
       }
     })
 
@@ -76,7 +119,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET - Get tip history for a creator
+// GET - Get tip history for a creator (simplified since we don't have a tips table)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -91,28 +134,55 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const cookieStore = cookies()
-    const supabase = await createClient(cookieStore)
-
-    const { data: tips, error } = await supabase
-      .from('video_tips')
-      .select('*')
-      .eq('recipient_wallet', creatorAddress.toLowerCase())
-      .order('tipped_at', { ascending: false })
-      .range(offset, offset + limit - 1)
-
-    if (error) {
-      console.error('Error fetching tips:', error)
+    // Use admin client for GET as well
+    const supabase = createAdminClient()
+    if (!supabase) {
       return NextResponse.json(
-        { success: false, error: 'Failed to fetch tips' },
+        { success: false, error: 'Failed to create database client' },
         { status: 500 }
       )
     }
 
+    // Get videos by creator with tip information
+    const { data: videos, error } = await supabase
+      .from('platform_videos')
+      .select(`
+        id,
+        token_id,
+        title,
+        tips_count,
+        tips_total_amount,
+        created_at
+      `)
+      .eq('creator_wallet', creatorAddress.toLowerCase())
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) {
+      console.error('Error fetching videos:', error)
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch videos' },
+        { status: 500 }
+      )
+    }
+
+    // Convert to tip-like format for compatibility
+    const tips = videos?.map(video => ({
+      id: video.id,
+      video_id: video.id,
+      amount: video.tips_total_amount || 0,
+      tips_count: video.tips_count || 0,
+      created_at: video.created_at,
+      video: {
+        token_id: video.token_id,
+        title: video.title
+      }
+    })) || []
+
     return NextResponse.json({
       success: true,
-      tips: tips || [],
-      hasMore: tips && tips.length === limit
+      tips: tips,
+      hasMore: videos && videos.length === limit
     })
 
   } catch (error) {

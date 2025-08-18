@@ -176,10 +176,10 @@ export default function VideoPage() {
           <div className="bg-provn-surface rounded-lg overflow-hidden mb-6">
             <div className="aspect-video bg-black">
               <video 
-                src={videoSrc} 
+                src={videoSrc || undefined} 
                 controls 
                 className="w-full h-full"
-                poster={posterSrc}
+                poster={posterSrc || undefined}
                 crossOrigin="anonymous"
                 preload="metadata"
                 onError={(e) => {

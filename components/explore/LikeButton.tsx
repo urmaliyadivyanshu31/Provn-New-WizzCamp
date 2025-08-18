@@ -140,7 +140,7 @@ export function LikeButton({ isLiked, likeCount, onLike, isAuthenticated }: Like
           scale: isLiked ? [1, 1.1, 1] : 1,
         }}
         transition={{ duration: 0.3 }}
-        className="text-white text-xs font-medium"
+        className="text-white text-xs font-medium font-headline"
       >
         <AnimatedCounter 
           value={likeCount} 

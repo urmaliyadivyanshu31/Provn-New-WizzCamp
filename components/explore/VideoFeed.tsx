@@ -94,6 +94,9 @@ export function VideoFeed({
         setCurrentIndex((prev) => prev - 1);
       }
 
+      // Force close any open modals when navigating
+      window.dispatchEvent(new CustomEvent('forceCloseModals'));
+
       setTimeout(() => setIsScrolling(false), 500);
     },
     [currentIndex, videos.length, hasMore, isScrolling]
@@ -122,6 +125,9 @@ export function VideoFeed({
       } else if (deltaY < 0 && currentIndex > 0) {
         setCurrentIndex((prev) => prev - 1);
       }
+      
+      // Force close any open modals when navigating via touch
+      window.dispatchEvent(new CustomEvent('forceCloseModals'));
     }
   };
 
@@ -145,6 +151,9 @@ export function VideoFeed({
       } else if (direction === "up" && currentIndex > 0) {
         setCurrentIndex((prev) => prev - 1);
       }
+      
+      // Force close any open modals when navigating via keyboard
+      window.dispatchEvent(new CustomEvent('forceCloseModals'));
     };
 
     window.addEventListener("keyboardNavigation" as any, handleKeyboardNav);
@@ -252,8 +261,8 @@ export function VideoFeed({
     return (
       <div className="flex items-center justify-center h-screen bg-black text-white">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">No videos available</h2>
-          <p className="text-gray-400">Check back later for new content!</p>
+          <h2 className="text-2xl font-bold mb-2 font-headline">No provs available</h2>
+          <p className="text-gray-400 font-headline">Check back later for new content!</p>
         </div>
       </div>
     );

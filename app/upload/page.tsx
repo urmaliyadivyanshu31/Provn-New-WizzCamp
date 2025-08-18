@@ -681,7 +681,7 @@ export default function UploadPage() {
                 <div className="space-y-4">
                   <div className="aspect-video bg-black rounded-xl overflow-hidden">
                     <video
-                      src={preview}
+                      src={preview || undefined}
                       controls
                       className="w-full h-full object-contain"
                     />
@@ -795,7 +795,7 @@ export default function UploadPage() {
 
                 <div className="ml-7 space-y-2">
                   <p className="text-provn-muted text-sm">
-                    License Price: Free (0 wCAMP)
+                    License Price: Free (0 PROVN)
                   </p>
                   <p className="text-provn-muted text-xs">
                     This video will be minted as a free IP-NFT on the BaseCAMP

@@ -20,6 +20,7 @@ export interface ExploreVideo {
     mintDate: string
     parentId?: string
     platformOrigin?: boolean // true = uploaded via Provn platform, false = external blockchain video
+    transactionHash?: string // Blockchain transaction hash for the IP-NFT minting
   }
   licensing: {
     price: number // in wCAMP

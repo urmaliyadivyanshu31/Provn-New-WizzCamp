@@ -515,12 +515,7 @@ export default function ProfilePage() {
                                   </div>
                                   <div className="text-sm text-provn-muted font-headline">Tips</div>
                                 </div>
-                                <div className="bg-provn-surface rounded-lg p-4 text-center">
-                                  <div className="text-2xl font-bold text-provn-text font-headline">
-                                    {videoStats?.blockchainOnly.toLocaleString() || analytics?.licenses.toLocaleString()}
-                                  </div>
-                                  <div className="text-sm text-provn-muted font-headline">IP-NFTs</div>
-                                </div>
+                                
                               </div>
 
                               {/* Content Performance & Revenue */}
@@ -549,7 +544,7 @@ export default function ProfilePage() {
                                     <div className="flex justify-between">
                                       <span className="text-provn-muted font-headline">Earnings per Video</span>
                                       <span className="text-provn-text font-headline font-semibold">
-                                        {analytics.avgEarningsPerVideo} wCAMP
+                                        {analytics.avgEarningsPerVideo} PROVN
                                       </span>
                                     </div>
                                   </div>
@@ -573,16 +568,16 @@ export default function ProfilePage() {
                                     <div className="flex justify-between pt-2 border-t border-provn-border/30">
                                       <span className="text-provn-text font-headline font-semibold">Total Tips Received</span>
                                       <span className="text-provn-accent font-headline font-semibold">
-                                        {analytics.tips} wCAMP
+                                        {analytics.tips}
                                       </span>
                                     </div>
                                   </div>
                                 </div>
                               </div>
 
-                              {/* Top Performing Videos */}
+                              {/* Top Performing Provs */}
                               <div className="bg-provn-surface rounded-lg p-6">
-                                <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Top Performing Videos</h3>
+                                <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Top Performing Provs</h3>
                                 <div className="space-y-3">
                                   {analytics.topVideos.length > 0 ? (
                                     analytics.topVideos.map((video, index) => (
@@ -602,7 +597,7 @@ export default function ProfilePage() {
                                     ))
                                   ) : (
                                     <div className="text-center py-8 text-provn-muted font-headline">
-                                      No videos yet
+                                      No provs yet
                                     </div>
                                   )}
                                 </div>

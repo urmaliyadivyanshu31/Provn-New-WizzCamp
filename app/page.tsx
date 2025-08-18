@@ -75,7 +75,7 @@ const LiveMetrics = ({ creatorsCount, videosCount }: { creatorsCount: number, vi
   const metrics = [
     { label: "Active Creators", value: creatorsCount.toString(), icon: Users },
     { label: "Total Earnings", value: "$2.3M", icon: DollarSign },
-    { label: "Videos Protected", value: videosCount.toString(), icon: CheckCircle },
+    { label: "Provs Protected", value: videosCount.toString(), icon: CheckCircle },
     { label: "Zero Platform Fees", value: "100%", icon: CheckCircle }
   ]
 
@@ -166,7 +166,7 @@ export default function HomePage() {
       {/* Hero Section - Creator Focused */}
       <motion.section 
         ref={heroRef}
-        className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 overflow-hidden"
+        className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 overflow-hidden pt-20 md:pt-16"
         style={{ opacity: headerOpacity }}
       >
         {/* Background Elements */}
@@ -255,7 +255,7 @@ export default function HomePage() {
               </div>
               <div className="text-center">
                 <div className="text-4xl font-bold text-provn-text font-headline">{platformData.videosCount}+</div>
-                <div className="text-sm text-provn-muted mt-1">Videos Protected</div>
+                <div className="text-sm text-provn-muted mt-1">Provs Protected</div>
               </div>
             </motion.div>
           </motion.div>

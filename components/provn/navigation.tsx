@@ -256,7 +256,7 @@ export function Navigation({ currentPage }: NavigationProps) {
         >
           <div className="px-4 py-6 space-y-4">
             <MobileNavLink href="/explore" onClick={() => setIsMenuOpen(false)}>
-              Explore Videos
+              Explore Provs
             </MobileNavLink>
             <MobileNavLink href="/upload" onClick={() => setIsMenuOpen(false)}>
               Create Content

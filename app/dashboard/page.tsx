@@ -267,7 +267,7 @@ export default function LeaderboardPage() {
                       <div className="flex items-center gap-4">
                         <div className="text-lg font-bold text-provn-accent">#{index + 1}</div>
                         <img
-                          src={creator.avatar_url || '/diverse-profile-avatars.png'}
+                          src={creator.avatar_url && creator.avatar_url.trim() !== '' ? creator.avatar_url : '/diverse-profile-avatars.png'}
                           alt={creator.display_name || creator.handle}
                           className="w-10 h-10 rounded-full object-cover"
                         />
@@ -396,7 +396,7 @@ export default function LeaderboardPage() {
                           {/* Avatar */}
                           <div className="relative flex-shrink-0">
                             <img
-                              src={creator.avatar_url || '/diverse-profile-avatars.png'}
+                              src={creator.avatar_url && creator.avatar_url.trim() !== '' ? creator.avatar_url : '/diverse-profile-avatars.png'}
                               alt={creator.display_name || creator.handle}
                               className="w-12 h-12 rounded-full object-cover border border-provn-border"
                             />
@@ -436,9 +436,9 @@ export default function LeaderboardPage() {
                             
                             <div className="text-center">
                               <div className="font-semibold text-provn-text">
-                                {formatNumber(creator.total_earnings)}
+                                {formatNumber(creator.total_tips)}
                               </div>
-                              <div className="text-xs text-provn-muted">wCAMP</div>
+                              <div className="text-xs text-provn-muted">Tips</div>
                             </div>
                           </div>
 
@@ -472,9 +472,9 @@ export default function LeaderboardPage() {
                             </div>
                             <div>
                               <div className="font-semibold text-provn-text">
-                                {formatNumber(creator.total_earnings)}
+                                {formatNumber(creator.total_tips)}
                               </div>
-                              <div className="text-xs text-provn-muted">wCAMP</div>
+                              <div className="text-xs text-provn-muted">Tips</div>
                             </div>
                           </div>
                         </div>

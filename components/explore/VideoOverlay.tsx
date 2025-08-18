@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ExploreVideo, ShareOptions } from "@/types/explore"
-import { Share2, DollarSign, Info, Eye, MessageCircle } from "lucide-react"
+import { Share2, DollarSign, Info, Eye, MessageCircle, UserPlus, UserCheck } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { TipModal } from "./TipModal"
+import TipModal from "./TipModal"
 import { ShareModal } from "./ShareModal"
 import { LikeButton } from "./LikeButton"
+import { useFollow } from "@/hooks/useFollow"
 
 interface VideoOverlayProps {
   video: ExploreVideo
@@ -25,6 +26,14 @@ export function VideoOverlay({
 }: VideoOverlayProps) {
   const [showTipModal, setShowTipModal] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
+  
+  // Follow functionality for the creator
+  const { 
+    isFollowing, 
+    followers,
+    followUser, 
+    unfollowUser 
+  } = useFollow(video.creator.walletAddress)
 
   const formatCount = (count: number): string => {
     if (count >= 1000000) {
@@ -44,6 +53,30 @@ export function VideoOverlay({
     setShowShareModal(false)
   }
 
+  // Reset modals when video changes to prevent persistence issue
+  useEffect(() => {
+    // Immediately close all modals when video changes
+    setShowShareModal(false)
+    setShowTipModal(false)
+  }, [video.tokenId])
+
+  // Additional cleanup on component mount to ensure clean state
+  useEffect(() => {
+    setShowShareModal(false)
+    setShowTipModal(false)
+  }, [])
+
+  // Listen for force close events from navigation
+  useEffect(() => {
+    const handleForceClose = () => {
+      setShowShareModal(false)
+      setShowTipModal(false)
+    }
+
+    window.addEventListener('forceCloseModals', handleForceClose)
+    return () => window.removeEventListener('forceCloseModals', handleForceClose)
+  }, [])
+
   return (
     <>
       <div className="video-overlay absolute inset-0 pointer-events-none">
@@ -51,9 +84,9 @@ export function VideoOverlay({
         <div className="absolute bottom-20 left-4 max-w-[65%] pointer-events-auto">
           {/* Creator Info */}
           <div className="mb-4">
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-start gap-3 mb-3">
               {/* Creator Avatar */}
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 {video.creator.avatarUrl ? (
                   <img
                     src={video.creator.avatarUrl}
@@ -76,22 +109,57 @@ export function VideoOverlay({
                 )}
               </div>
 
-              {/* Creator Name and Handle */}
-              <div>
-                <h3 className="text-white font-bold text-lg leading-tight">
-                  {video.creator.displayName || video.creator.handle}
-                </h3>
-                <p className="text-white/80 text-sm">@{video.creator.handle}</p>
+              {/* Creator Name, Handle and Follow Button Container */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <button
+                    onClick={() => window.location.href = `/u/${video.creator.handle}`}
+                    className="text-white font-bold text-lg leading-tight truncate hover:text-provn-accent transition-colors cursor-pointer font-headline"
+                  >
+                    {video.creator.displayName || video.creator.handle}
+                  </button>
+                  
+                  {/* Follow Button - Integrated next to name */}
+                  {isAuthenticated && (
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={isFollowing ? unfollowUser : followUser}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 flex-shrink-0 font-headline ${
+                        isFollowing
+                          ? 'bg-white/20 text-white border border-white/30 hover:bg-white/30'
+                          : 'bg-white text-black hover:bg-white/90'
+                      }`}
+                    >
+                      {isFollowing ? (
+                        <>
+                          <UserCheck className="w-3 h-3 mr-1 inline" />
+                          Following
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="w-3 h-3 mr-1 inline" />
+                          Follow
+                        </>
+                      )}
+                    </motion.button>
+                  )}
+                </div>
+                <button
+                  onClick={() => window.location.href = `/u/${video.creator.handle}`}
+                  className="text-white/80 text-sm hover:text-white transition-colors cursor-pointer text-left font-headline"
+                >
+                  @{video.creator.handle}
+                </button>
               </div>
             </div>
 
             {/* Video Title */}
-            <h2 className="text-white font-semibold text-lg mb-2 leading-tight">
+            <h2 className="text-white font-semibold text-lg mb-2 leading-tight font-headline">
               {video.title}
             </h2>
 
             {/* Description */}
-            <p className="text-white/90 text-sm leading-relaxed mb-2 line-clamp-3">
+            <p className="text-white/90 text-sm leading-relaxed mb-2 line-clamp-3 font-headline">
               {video.description}
             </p>
 
@@ -100,33 +168,33 @@ export function VideoOverlay({
               {video.tags.slice(0, 3).map((tag, index) => (
                 <span
                   key={index}
-                  className="text-white/80 text-sm bg-black/30 px-2 py-1 rounded-full"
+                  className="text-white/80 text-sm bg-black/30 px-2 py-1 rounded-full font-headline"
                 >
                   #{tag}
                 </span>
               ))}
               {video.tags.length > 3 && (
-                <span className="text-white/60 text-sm">
+                <span className="text-white/60 text-sm font-headline">
                   +{video.tags.length - 3} more
                 </span>
               )}
             </div>
 
             {/* View Count */}
-            <div className="flex items-center gap-4 text-white/80 text-sm">
+            <div className="flex items-center gap-4 text-white/80 text-sm font-headline">
               <div className="flex items-center gap-1">
                 <Eye className="w-4 h-4" />
                 <span>{formatCount(video.metrics.views)} views</span>
               </div>
               
               {video.ipInfo.type === 'original' && (
-                <div className="bg-green-500/20 text-green-400 px-2 py-1 rounded-full text-xs font-medium">
+                <div className="bg-green-500/20 text-green-400 px-2 py-1 rounded-full text-xs font-medium font-headline">
                   Original
                 </div>
               )}
               
               {video.ipInfo.type === 'derivative' && (
-                <div className="bg-purple-500/20 text-purple-400 px-2 py-1 rounded-full text-xs font-medium">
+                <div className="bg-purple-500/20 text-purple-400 px-2 py-1 rounded-full text-xs font-medium font-headline">
                   Remix
                 </div>
               )}
@@ -153,7 +221,7 @@ export function VideoOverlay({
             <div className="p-3 rounded-full bg-black/30 backdrop-blur-sm border-2 border-white/30 hover:bg-black/50 transition-colors">
               <Share2 className="w-6 h-6 text-white" />
             </div>
-            <span className="text-white text-xs font-medium">
+            <span className="text-white text-xs font-medium font-headline">
               {formatCount(video.metrics.shares)}
             </span>
           </motion.button>
@@ -170,7 +238,7 @@ export function VideoOverlay({
             <div className="p-3 rounded-full bg-gradient-to-br from-yellow-500/20 to-orange-500/20 backdrop-blur-sm border-2 border-yellow-500/50 hover:from-yellow-500/30 hover:to-orange-500/30 transition-colors">
               <DollarSign className="w-6 h-6 text-yellow-400" />
             </div>
-            <span className="text-white text-xs font-medium">
+            <span className="text-white text-xs font-medium font-headline">
               {formatCount(video.metrics.tips)}
             </span>
           </motion.button>
@@ -184,7 +252,7 @@ export function VideoOverlay({
             <div className="p-3 rounded-full bg-black/30 backdrop-blur-sm border-2 border-white/30 hover:bg-black/50 transition-colors">
               <Info className="w-6 h-6 text-white" />
             </div>
-            <span className="text-white text-xs font-medium">Details</span>
+            <span className="text-white text-xs font-medium font-headline">Details</span>
           </motion.button>
         </div>
 
@@ -192,9 +260,9 @@ export function VideoOverlay({
         {video.licensing.price > 0 && (
           <div className="absolute top-20 right-4 pointer-events-auto">
             <div className="bg-green-500/20 backdrop-blur-sm border border-green-500/50 rounded-lg px-3 py-2">
-              <div className="text-green-400 text-xs font-medium text-center">
+              <div className="text-green-400 text-xs font-medium text-center font-headline">
                 <div>Remix License</div>
-                <div className="font-bold">{video.licensing.price} wCAMP</div>
+                <div className="font-bold">{video.licensing.price} PROVN</div>
               </div>
             </div>
           </div>
@@ -205,8 +273,9 @@ export function VideoOverlay({
       <TipModal
         isOpen={showTipModal}
         onClose={() => setShowTipModal(false)}
-        video={video}
-        isAuthenticated={isAuthenticated}
+        creatorAddress={video.creator.walletAddress}
+        creatorName={video.creator.displayName || video.creator.handle}
+        videoId={video.tokenId}
       />
 
       {/* Share Modal */}

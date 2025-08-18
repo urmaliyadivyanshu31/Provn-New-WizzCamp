@@ -493,7 +493,7 @@ export default function DerivativeUploadPage() {
               ) : (
                 <div className="space-y-4">
                   <div className="aspect-video bg-black rounded-xl overflow-hidden">
-                    <video src={uploadedFile.preview} controls className="w-full h-full object-contain" />
+                    <video src={uploadedFile.preview || undefined} controls className="w-full h-full object-contain" />
                   </div>
                   <div className="flex items-center justify-between">
                     <div>

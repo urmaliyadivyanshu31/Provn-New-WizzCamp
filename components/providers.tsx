@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { CampProvider } from "@campnetwork/origin/react";
 import { Toaster } from 'sonner';
 import { VideoModalProvider } from '@/contexts/VideoModalContext';
+import { FollowStateProvider } from '@/contexts/FollowStateContext';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
@@ -83,10 +84,12 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
           allowAnalytics={false}
         >
-          <VideoModalProvider>
-            {children}
-            <Toaster position="top-right" richColors />
-          </VideoModalProvider>
+          <FollowStateProvider>
+            <VideoModalProvider>
+              {children}
+              <Toaster position="top-right" richColors />
+            </VideoModalProvider>
+          </FollowStateProvider>
         </CampProvider>
     </QueryClientProvider>
   );
