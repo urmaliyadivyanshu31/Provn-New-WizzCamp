@@ -1,7 +1,7 @@
 import { errorToast } from '@/lib/toast';
 
 export const BASE_CAMP_CHAIN_ID = "123420001114";
-export const BASE_CAMP_CHAIN_ID_HEX = "0x75b7b8b2";
+export const BASE_CAMP_CHAIN_ID_HEX = "0x1cbc67c35a";
 
 export const BASECAMP_NETWORK_CONFIG = {
   chainId: BASE_CAMP_CHAIN_ID_HEX,

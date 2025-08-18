@@ -63,7 +63,7 @@ export function useOriginTipping() {
       // Check if we're already on BaseCAMP (handling potential detection issues)
       const isOnBaseCAMP = currentChainId === targetChainId || 
                           network.chainId.toString() === '123420001114' ||
-                          ('0x' + network.chainId.toString(16)) === '0x75b7b8b2'
+                          ('0x' + network.chainId.toString(16)) === '0x1cbc67c35a'
                           
       if (!isOnBaseCAMP) {
         // Mobile browser detection
@@ -78,7 +78,7 @@ export function useOriginTipping() {
             await window.ethereum.request({
               method: 'wallet_addEthereumChain',
               params: [{
-                chainId: '0x75b7b8b2', // 123420001114 in hex
+                chainId: '0x1cbc67c35a', // 123420001114 in hex
                 chainName: 'BaseCAMP',
                 nativeCurrency: {
                   name: 'CAMP',
@@ -99,7 +99,7 @@ export function useOriginTipping() {
               console.log('🔄 Network exists, trying to switch...')
               await window.ethereum.request({
                 method: 'wallet_switchEthereumChain',
-                params: [{ chainId: '0x75b7b8b2' }]
+                params: [{ chainId: '0x1cbc67c35a' }]
               })
               console.log('✅ Successfully switched to BaseCAMP network on mobile')
             } else {
@@ -111,7 +111,7 @@ export function useOriginTipping() {
           try {
             await window.ethereum.request({
               method: 'wallet_switchEthereumChain',
-              params: [{ chainId: '0x75b7b8b2' }], // 123420001114 in hex
+              params: [{ chainId: '0x1cbc67c35a' }], // 123420001114 in hex
             })
             console.log('✅ Successfully switched to BaseCAMP network')
           } catch (switchError: any) {
@@ -122,7 +122,7 @@ export function useOriginTipping() {
                 await window.ethereum.request({
                   method: 'wallet_addEthereumChain',
                   params: [{
-                    chainId: '0x75b7b8b2', // 123420001114 in hex
+                    chainId: '0x1cbc67c35a', // 123420001114 in hex
                     chainName: 'BaseCAMP',
                     nativeCurrency: {
                       name: 'CAMP',
@@ -141,7 +141,7 @@ export function useOriginTipping() {
                 console.error('❌ Failed to add BaseCAMP network:', addError)
                 throw new Error('Failed to add BaseCAMP network. Please add it manually in your wallet.')
               }
-            } else if (switchError.code === -32603 && switchError.message.includes('0x75b7b8b2')) {
+            } else if (switchError.code === -32603 && switchError.message.includes('0x1cbc67c35a')) {
               // Handle case where wallet reports unrecognized chain but we're actually on BaseCAMP
               console.log('⚠️ Wallet reports unrecognized chain ID but we are on BaseCAMP. Proceeding...')
             } else {
@@ -170,14 +170,14 @@ export function useOriginTipping() {
           chainId: newNetwork.chainId.toString(),
           chainIdHex: '0x' + newNetwork.chainId.toString(16),
           expectedChainId: '123420001114',
-          expectedChainIdHex: '0x75b7b8b2',
+          expectedChainIdHex: '0x1cbc67c35a',
           isCorrectNetwork: newCurrentChainId === newTargetChainId
         })
         
         // Be more lenient with network verification
         const isOnBaseCampAfterSwitch = newCurrentChainId === newTargetChainId || 
                                       newNetwork.chainId.toString() === '123420001114' ||
-                                      ('0x' + newNetwork.chainId.toString(16)) === '0x75b7b8b2'
+                                      ('0x' + newNetwork.chainId.toString(16)) === '0x1cbc67c35a'
         
         if (!isOnBaseCampAfterSwitch) {
           console.warn('⚠️ Network verification failed, but proceeding with transaction attempt...')
