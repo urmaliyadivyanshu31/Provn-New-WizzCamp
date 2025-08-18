@@ -245,9 +245,9 @@ export function Navigation({ currentPage }: NavigationProps) {
         </div>
         {/* CampModal for wallet connection/disconnection */}
         <div className="fixed inset-0 z-[9999] pointer-events-none">
-          <div className="w-full h-full">
+          {/* <div className="w-full h-full">
             <CampModal />
-          </div>
+          </div> */}
         </div>
         {/* Mobile Menu */}
         <motion.div
@@ -359,7 +359,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                   <CampModal />
                 </div>
                 {/* Test button to manually trigger modal */}
-                <button
+                {/* <button
                   onClick={() => {
                     console.log("🔍 Mobile: Testing direct modal trigger");
                     try {
@@ -371,7 +371,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                   className="w-full mt-2 p-2 text-xs bg-red-500 text-white rounded"
                 >
                   Test Modal
-                </button>
+                </button> */}
               </div>
             </div>
           </div>
