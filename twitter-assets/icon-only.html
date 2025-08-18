@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Provn Icon Only</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .icon-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .icon {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            background: linear-gradient(135deg, #ff6d01, #e56100);
+            border-radius: 48px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 25px 50px rgba(255, 109, 1, 0.3);
+        }
+        
+        .icon::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            width: 280px;
+            height: 280px;
+            background: rgba(255, 109, 1, 0.3);
+            border-radius: 48px;
+            filter: blur(24px);
+            z-index: -1;
+        }
+        
+        .inner-square {
+            width: 140px;
+            height: 140px;
+            background: #0a0a0a;
+            border-radius: 24px;
+            transform: rotate(12deg);
+        }
+    </style>
+</head>
+<body>
+    <div class="icon-container">
+        <div class="icon">
+            <div class="inner-square"></div>
+        </div>
+    </div>
+</body>
+</html>
