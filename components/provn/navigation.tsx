@@ -64,6 +64,23 @@ export function Navigation({ currentPage }: NavigationProps) {
   const { authenticated } = useAuthState();
   const { openModal, closeModal } = useModal();
   const { profile, loading, error } = useProfile(walletAddress || undefined);
+  
+  // Debug modal state
+  useEffect(() => {
+    console.log("🔍 Navigation: Modal hooks initialized:", { openModal, closeModal });
+  }, [openModal, closeModal]);
+  
+  // Debug authentication state
+  useEffect(() => {
+    console.log("🔍 Navigation: Auth state:", { 
+      isAuthenticated, 
+      authenticated, 
+      walletAddress,
+      hasOpenModal: typeof openModal === 'function',
+      hasCloseModal: typeof closeModal === 'function'
+    });
+  }, [isAuthenticated, authenticated, walletAddress, openModal, closeModal]);
+  
   useEffect(() => {
     console.log("🔍 Navigation: Wallet address:", authenticated);
   }, [authenticated]);
@@ -226,13 +243,11 @@ export function Navigation({ currentPage }: NavigationProps) {
             </motion.div>
           </div>
         </div>
-        <div
-          className="fixed bottom hidden z-[-10]"
-          onClick={() => {
-            return;
-          }}
-        >
-          <CampModal />
+        {/* CampModal for wallet connection/disconnection */}
+        <div className="fixed inset-0 z-[9999] pointer-events-none">
+          <div className="w-full h-full">
+            <CampModal />
+          </div>
         </div>
         {/* Mobile Menu */}
         <motion.div
@@ -271,39 +286,62 @@ export function Navigation({ currentPage }: NavigationProps) {
             {/* Mobile Wallet Connection */}
             <div className="pt-4 border-t border-provn-border/30">
               {authenticated ? (
-                <motion.button
-                  onClick={() => {
-                    if (profile) {
-                      // Profile exists, navigate to it
-                      window.location.href = `/u/${profile.handle}`;
-                    } else {
-                      // No profile, show create profile modal
-                      setShowCreateProfile(true);
-                    }
-                    setIsMenuOpen(false);
-                  }}
-                  className="flex items-center gap-3 p-4 rounded-xl bg-provn-surface/50 border border-provn-border/50 w-full text-left"
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <div className="w-10 h-10 bg-provn-accent rounded-full flex items-center justify-center">
-                    <User className="w-5 h-5 text-provn-bg" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-provn-text">
-                      {profile ? "View Profile" : "Create Profile"}
+                <>
+                  <motion.button
+                    onClick={() => {
+                      if (profile) {
+                        // Profile exists, navigate to it
+                        window.location.href = `/u/${profile.handle}`;
+                      } else {
+                        // No profile, show create profile modal
+                        setShowCreateProfile(true);
+                      }
+                      setIsMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 p-4 rounded-xl bg-provn-surface/50 border border-provn-border/50 w-full text-left mb-3"
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <div className="w-10 h-10 bg-provn-accent rounded-full flex items-center justify-center">
+                      <User className="w-5 h-5 text-provn-bg" />
                     </div>
-                    <div className="text-sm text-provn-muted">
-                      {walletAddress
-                        ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(
-                            -4
-                          )}`
-                        : "Wallet"}
+                    <div>
+                      <div className="font-medium text-provn-text">
+                        {profile ? "View Profile" : "Create Profile"}
+                      </div>
+                      <div className="text-sm text-provn-muted">
+                        {walletAddress
+                          ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(
+                              -4
+                            )}`
+                          : "Wallet"}
+                      </div>
                     </div>
-                  </div>
-                </motion.button>
+                  </motion.button>
+                  
+                  {/* Wallet Management Button */}
+                  <motion.button
+                    onClick={() => {
+                      console.log("🔍 Mobile: Opening wallet management modal");
+                      try {
+                        openModal();
+                        setIsMenuOpen(false);
+                      } catch (error) {
+                        console.error("🔍 Mobile: Error opening wallet modal:", error);
+                        // Fallback: try to show modal directly
+                        console.log("🔍 Mobile: Trying fallback modal approach");
+                      }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 p-4 rounded-xl bg-provn-surface/30 border border-provn-border/30 text-provn-muted hover:bg-provn-surface/50 hover:border-provn-border/50 hover:text-provn-text transition-all duration-200 cursor-pointer"
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Wallet className="w-4 h-4" />
+                    Manage Wallet
+                  </motion.button>
+                </>
               ) : (
                 <motion.button
                   onClick={() => {
+                    console.log("🔍 Mobile: Opening connect wallet modal");
                     openModal();
                     setIsMenuOpen(false);
                   }}
@@ -314,6 +352,27 @@ export function Navigation({ currentPage }: NavigationProps) {
                   Connect Wallet
                 </motion.button>
               )}
+              
+              {/* Fallback: Direct CampModal for mobile */}
+              <div className="mt-4 w-full">
+                <div className="w-full">
+                  <CampModal />
+                </div>
+                {/* Test button to manually trigger modal */}
+                <button
+                  onClick={() => {
+                    console.log("🔍 Mobile: Testing direct modal trigger");
+                    try {
+                      openModal();
+                    } catch (error) {
+                      console.error("🔍 Mobile: Error opening modal:", error);
+                    }
+                  }}
+                  className="w-full mt-2 p-2 text-xs bg-red-500 text-white rounded"
+                >
+                  Test Modal
+                </button>
+              </div>
             </div>
           </div>
         </motion.div>
