@@ -15,7 +15,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Camp Network](https://img.shields.io/badge/powered%20by-Camp%20Network-ff6d01.svg)](https://camp.network)
 
-**Live Platform**: [provn-beta.vercel.app](https://provn-new-wizz-camp.vercel.app) | **Demo**: [Watch Video](https://provn-beta.vercel.app/explore)
+**Live Platform**: [provn.fun](https://provn.fun) | **Demo**: [Watch Video]
 
 ---
 
@@ -391,20 +391,9 @@ git push origin feature/amazing-feature
 
 ## ▲ Support & Community
 
-### Documentation
-- **Technical Docs**: [docs.provn.com](https://docs.provn.com)
-- **API Reference**: [api.provn.com](https://api.provn.com)
-- **Tutorials**: [learn.provn.com](https://learn.provn.com)
-
 ### Community Channels
-- **Discord**: [discord.gg/provn](https://discord.gg/provn)
-- **Twitter**: [@ProvnPlatform](https://twitter.com/ProvnPlatform)
-- **GitHub Discussions**: [GitHub Community](https://github.com/provn-platform/discussions)
-
-### Support
-- **Bug Reports**: [GitHub Issues](https://github.com/provn-platform/provn-beta/issues)
-- **Feature Requests**: [GitHub Discussions](https://github.com/provn-platform/discussions)
-- **Security Issues**: security@provn.com
+- **Twitter**: [@ProvnPlatform](https://twitter.com/provndotfun)
+- **GitHub Discussions**: [GitHub Community]
 
 ## ■ License & Legal
 
