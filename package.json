@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/validate-env.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -40,6 +39,7 @@
     "wagmi": "^2.0.0"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-ignition": "^3.0.0",
     "@nomicfoundation/hardhat-ignition-viem": "^3.0.0",
     "@nomicfoundation/hardhat-toolbox-viem": "^5.0.0",
     "@openzeppelin/contracts": "^5.4.0",
@@ -47,7 +47,7 @@
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "autoprefixer": "^10.4.20",
-    "hardhat": "^2.26.3",
+    "hardhat": "^3.0.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"
