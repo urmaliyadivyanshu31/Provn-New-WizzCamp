@@ -114,47 +114,29 @@ export function useVideoMinting() {
     },
     parentId: string
   ) => {
-    // Enhanced connection recovery with retries
-    console.log('🔍 Checking wallet connection...')
-    
-    try {
-      await recoverProvider()
-    } catch (err) {
-      console.warn('First connection attempt failed, retrying...', err)
-      try {
-        // Wait a bit and try again
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        await recoverProvider()
-      } catch (retryErr) {
-        console.error('Connection retry failed:', retryErr)
-        setError('Failed to connect to wallet. Please try refreshing the page and connecting again.')
-        return null
-      }
-    }
-
-    // Validate connection state with retries
-    let connectionAttempts = 0
-    const maxAttempts = 3
-    
-    while ((!origin || !jwt || !address) && connectionAttempts < maxAttempts) {
-      connectionAttempts++
-      console.log(`🔄 Connection attempt ${connectionAttempts}/${maxAttempts}...`)
-      
-      try {
-        await recoverProvider()
-        await new Promise(resolve => setTimeout(resolve, 500)) // Give time for state to update
-      } catch (err) {
-        console.warn(`Connection attempt ${connectionAttempts} failed:`, err)
-      }
-    }
-
-    if (!origin || !jwt) {
-      setError('Wallet connection lost. Please reconnect your wallet and try again.')
+    // Check basic connection requirements first
+    if (!isConnected || !origin || !address) {
+      setError('Please connect your wallet first')
       return null
     }
-    
-    if (!address) {
-      setError('Wallet address not found. Please ensure your wallet is connected to BaseCAMP network.')
+
+    // Try to recover the provider connection if needed
+    try {
+      if (recoverProvider) {
+        console.log('🔍 Ensuring wallet connection...')
+        await recoverProvider()
+        // Give the connection some time to fully establish
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
+    } catch (err) {
+      console.warn('Provider recovery failed:', err)
+      setError('Failed to establish wallet connection. Please try reconnecting your wallet.')
+      return null
+    }
+
+    // Verify we have all required connection components
+    if (!origin || !address || !jwt) {
+      setError('Wallet connection incomplete. Please disconnect and reconnect your wallet.')
       return null
     }
     
@@ -226,6 +208,7 @@ export function useVideoMinting() {
         origin: !!origin,
         jwt: !!jwt,
         address,
+        isConnected,
         fileSize: file.size,
         fileType: file.type,
         ipfsUrl,
@@ -239,19 +222,45 @@ export function useVideoMinting() {
         parentTokenId: parentTokenId.toString()
       });
       
-      const tokenId = await origin.mintFile(
-        file,
-        {
-          ...validatedMetadata,
-          animation_url: ipfsUrl, // Use animation_url for videos instead of image
-          owner: address,
-          price: validPrice.toString(), // Use validated price
-          mimeType: file.type,
-          size: file.size,
-        },
-        licenseTerms,
-        parentTokenId
-      )
+      // Final wallet connection check before minting
+      if (!isConnected || !origin || !address) {
+        setError('Wallet disconnected. Please reconnect and try again.')
+        return null
+      }
+      
+      // Try minting with proper error handling for wallet connection issues
+      let tokenId
+      try {
+        tokenId = await origin.mintFile(
+          file,
+          {
+            ...validatedMetadata,
+            animation_url: ipfsUrl, // Use animation_url for videos instead of image
+            owner: address,
+            price: validPrice.toString(), // Use validated price
+            mimeType: file.type,
+            size: file.size,
+          },
+          licenseTerms,
+          parentTokenId
+        )
+      } catch (mintError: any) {
+        console.error('Minting error details:', mintError)
+        
+        if (mintError.message?.includes('WalletClient not connected')) {
+          setError('Wallet connection lost during minting. Please disconnect your wallet, refresh the page, reconnect, and try again.')
+          return null
+        } else if (mintError.message?.includes('User rejected')) {
+          setError('Transaction was rejected by user.')
+          return null
+        } else if (mintError.message?.includes('insufficient funds')) {
+          setError('Insufficient funds to complete the transaction.')
+          return null
+        } else {
+          setError(`Minting failed: ${mintError.message || 'Unknown error'}`)
+          return null
+        }
+      }
 
       setSuccess(`🎉 IP-NFT minted successfully on BaseCAMP! Token ID: ${tokenId}`)
       return { tokenId, ipfsUrl }

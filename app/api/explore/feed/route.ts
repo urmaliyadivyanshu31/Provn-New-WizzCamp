@@ -36,9 +36,21 @@ const MOCK_VIDEOS = [
       views: 45720,
       likes: 3892,
       tips: 127,
-      shares: 256
+      shares: 256,
+      remixes: 12
     },
-    isLiked: false
+    remixing: {
+      enabled: true,
+      permissionLevel: 'advanced',
+      template: 'remix',
+      requiresAttribution: true,
+      allowCommercialUse: true,
+      allowDerivatives: true,
+      customSettings: undefined,
+      message: 'Feel free to create amazing remixes with this dance routine!'
+    },
+    isLiked: false,
+    canRemix: true
   },
   {
     tokenId: "1002", 
@@ -71,9 +83,21 @@ const MOCK_VIDEOS = [
       views: 23456,
       likes: 1892,
       tips: 89,
-      shares: 143
+      shares: 143,
+      remixes: 7
     },
-    isLiked: false
+    remixing: {
+      enabled: true,
+      permissionLevel: 'basic',
+      template: 'repost',
+      requiresAttribution: true,
+      allowCommercialUse: false,
+      allowDerivatives: false,
+      customSettings: undefined,
+      message: 'Perfect for cooking tutorials and educational content!'
+    },
+    isLiked: false,
+    canRemix: true
   },
   {
     tokenId: "1003",
@@ -106,9 +130,21 @@ const MOCK_VIDEOS = [
       views: 67890,
       likes: 5234,
       tips: 203,
-      shares: 445
+      shares: 445,
+      remixes: 23
     },
-    isLiked: false
+    remixing: {
+      enabled: true,
+      permissionLevel: 'advanced',
+      template: 'remix',
+      requiresAttribution: true,
+      allowCommercialUse: true,
+      allowDerivatives: true,
+      customSettings: undefined,
+      message: 'Create your own digital art masterpieces using my techniques!'
+    },
+    isLiked: false,
+    canRemix: true
   },
   {
     tokenId: "1004",
@@ -142,9 +178,21 @@ const MOCK_VIDEOS = [
       views: 34567,
       likes: 2987,
       tips: 156,
-      shares: 289
+      shares: 289,
+      remixes: 18
     },
-    isLiked: false
+    remixing: {
+      enabled: true,
+      permissionLevel: 'custom',
+      template: 'reaction',
+      requiresAttribution: true,
+      allowCommercialUse: false,
+      allowDerivatives: true,
+      customSettings: { allowSampling: true, maxSampleLength: 30 },
+      message: 'Perfect for reaction videos and music reviews!'
+    },
+    isLiked: false,
+    canRemix: true
   },
   {
     tokenId: "1005",
@@ -177,9 +225,21 @@ const MOCK_VIDEOS = [
       views: 89123,
       likes: 7234,
       tips: 298,
-      shares: 567
+      shares: 567,
+      remixes: 31
     },
-    isLiked: false
+    remixing: {
+      enabled: true,
+      permissionLevel: 'advanced',
+      template: 'remix',
+      requiresAttribution: true,
+      allowCommercialUse: false,
+      allowDerivatives: true,
+      customSettings: undefined,
+      message: 'Great for sports tutorials and trick breakdowns!'
+    },
+    isLiked: false,
+    canRemix: true
   }
 ]
 
@@ -214,13 +274,25 @@ function convertPlatformVideoToExploreVideo(platformVideo: VideoWithCreator): Ex
       royalty: platformVideo.royalty_percentage || 5,
       paymentToken: platformVideo.payment_token_address || "0x1aE9c40eCd2DD6ad5858E5430A556d7aff28A44b"
     },
+    remixing: {
+      enabled: platformVideo.remixing_enabled ?? true,
+      permissionLevel: (platformVideo.remixing_permission_level as any) || 'basic',
+      template: (platformVideo.remixing_template as any) || undefined,
+      requiresAttribution: platformVideo.remixing_requires_attribution ?? true,
+      allowCommercialUse: platformVideo.remixing_allow_commercial ?? false,
+      allowDerivatives: platformVideo.remixing_allow_derivatives ?? true,
+      customSettings: platformVideo.remixing_custom_settings,
+      message: platformVideo.remixing_message
+    },
     metrics: {
       views: platformVideo.views_count,
       likes: platformVideo.likes_count,
       tips: platformVideo.tips_count,
-      shares: platformVideo.shares_count
+      shares: platformVideo.shares_count,
+      remixes: platformVideo.remixes_count || 0
     },
-    isLiked: false // Will be set based on user context
+    isLiked: false, // Will be set based on user context
+    canRemix: platformVideo.remixing_enabled ?? true
   }
 }
 
@@ -254,13 +326,25 @@ function convertBlockchainVideoToExploreVideo(processedVideo: any): ExploreVideo
       royalty: 5,
       paymentToken: "0x1aE9c40eCd2DD6ad5858E5430A556d7aff28A44b"
     },
+    remixing: {
+      enabled: true,
+      permissionLevel: 'basic',
+      template: undefined,
+      requiresAttribution: true,
+      allowCommercialUse: false,
+      allowDerivatives: true,
+      customSettings: undefined,
+      message: undefined
+    },
     metrics: {
       views: Math.floor(Math.random() * 100000) + 1000,
       likes: Math.floor(Math.random() * 5000) + 100,
       tips: Math.floor(Math.random() * 500) + 10,
-      shares: Math.floor(Math.random() * 1000) + 50
+      shares: Math.floor(Math.random() * 1000) + 50,
+      remixes: 0
     },
-    isLiked: false
+    isLiked: false,
+    canRemix: true
   }
 }
 

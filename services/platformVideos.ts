@@ -47,6 +47,16 @@ export interface PlatformVideo {
   payment_token_address?: string
   commercial_rights: boolean
   derivative_rights: boolean
+  // Remixing fields
+  remixing_enabled: boolean
+  remixing_permission_level: 'none' | 'basic' | 'advanced' | 'custom'
+  remixing_template?: string
+  remixing_requires_attribution: boolean
+  remixing_allow_commercial: boolean
+  remixing_allow_derivatives: boolean
+  remixing_custom_settings?: any
+  remixing_message?: string
+  remixes_count: number
   views_count: number
   likes_count: number
   shares_count: number
@@ -150,6 +160,15 @@ export class PlatformVideoService {
     paymentTokenAddress?: string
     commercialRights?: boolean
     derivativeRights?: boolean
+    // Remixing parameters
+    remixingEnabled?: boolean
+    remixingPermissionLevel?: 'none' | 'basic' | 'advanced' | 'custom'
+    remixingTemplate?: string
+    remixingRequiresAttribution?: boolean
+    remixingAllowCommercial?: boolean
+    remixingAllowDerivatives?: boolean
+    remixingCustomSettings?: any
+    remixingMessage?: string
   }) {
     try {
       // First, get the creator's profile
@@ -182,6 +201,16 @@ export class PlatformVideoService {
           payment_token_address: videoData.paymentTokenAddress,
           commercial_rights: videoData.commercialRights ?? true,
           derivative_rights: videoData.derivativeRights ?? false,
+          // Remixing configuration
+          remixing_enabled: videoData.remixingEnabled ?? true,
+          remixing_permission_level: videoData.remixingPermissionLevel ?? 'basic',
+          remixing_template: videoData.remixingTemplate,
+          remixing_requires_attribution: videoData.remixingRequiresAttribution ?? true,
+          remixing_allow_commercial: videoData.remixingAllowCommercial ?? false,
+          remixing_allow_derivatives: videoData.remixingAllowDerivatives ?? true,
+          remixing_custom_settings: videoData.remixingCustomSettings,
+          remixing_message: videoData.remixingMessage,
+          remixes_count: 0,
           upload_status: 'ready',
           moderation_status: 'pending',
           visibility: 'public',

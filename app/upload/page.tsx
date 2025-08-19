@@ -9,6 +9,8 @@ import { ProvnCard, ProvnCardContent } from "@/components/provn/card";
 import { ProvnBadge } from "@/components/provn/badge";
 import { Navigation } from "@/components/provn/navigation";
 import { CampModal } from "@campnetwork/origin/react";
+import { RemixingSettings } from "@/components/upload/RemixingSettings";
+import { RemixingConfiguration } from "@/types/remixing";
 import {
   Video,
   Loader2,
@@ -16,6 +18,7 @@ import {
   Copy,
   Share2,
   ExternalLink,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -64,6 +67,14 @@ export default function UploadPage() {
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [allowRemixing, setAllowRemixing] = useState(true);
+  const [remixingConfig, setRemixingConfig] = useState<RemixingConfiguration>({
+    enabled: true,
+    permissionLevel: 'basic',
+    requiresAttribution: true,
+    allowCommercialUse: false,
+    allowDerivatives: true
+  });
+  const [showRemixingSettings, setShowRemixingSettings] = useState(false);
   const [mintResult, setMintResult] = useState<MintResult | null>(null);
 
   const metadata: VideoMetadata = {
@@ -119,6 +130,11 @@ export default function UploadPage() {
         handleFileSelect(fakeEvent);
       }
     }
+  };
+
+  const handleRemixingConfigSave = (config: RemixingConfiguration) => {
+    setRemixingConfig(config);
+    toast.success('Remixing settings updated!');
   };
 
   const handleMint = async () => {
@@ -209,6 +225,7 @@ export default function UploadPage() {
                     royalty: license.royalty,
                     paymentToken: license.paymentToken,
                   },
+                  remixing: remixingConfig,
                   mintTimestamp: new Date().toISOString(),
                 };
 
@@ -777,21 +794,39 @@ export default function UploadPage() {
               </div>
 
               <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    id="allow-remixing"
-                    checked={allowRemixing}
-                    onChange={(e) => setAllowRemixing(e.target.checked)}
-                    className="w-4 h-4 text-provn-accent bg-provn-surface-2 border-provn-border rounded focus:ring-provn-accent focus:ring-2"
-                  />
-                  <label
-                    htmlFor="allow-remixing"
-                    className="text-provn-text font-medium"
-                  >
-                    Allow Remixing
-                  </label>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      id="allow-remixing"
+                      checked={remixingConfig.enabled}
+                      onChange={(e) => setRemixingConfig(prev => ({ ...prev, enabled: e.target.checked }))}
+                      className="w-4 h-4 text-provn-accent bg-provn-surface-2 border-provn-border rounded focus:ring-provn-accent focus:ring-2"
+                    />
+                    <label
+                      htmlFor="allow-remixing"
+                      className="text-provn-text font-medium"
+                    >
+                      Allow Licensing
+                    </label>
+                  </div>
+                  {remixingConfig.enabled && (
+                    <ProvnButton
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowRemixingSettings(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Configure
+                    </ProvnButton>
+                  )}
                 </div>
+                {remixingConfig.enabled && remixingConfig.template && (
+                  <div className="ml-7 text-sm text-provn-muted">
+                    <p>License Type: <span className="capitalize text-provn-accent font-medium">{remixingConfig.template}</span></p>
+                  </div>
+                )}
 
                 <div className="ml-7 space-y-2">
                   <p className="text-provn-muted text-sm">
@@ -875,6 +910,14 @@ export default function UploadPage() {
 
       {/* CampModal for Origin SDK wallet connection */}
       {/* <CampModal /> */}
+
+      {/* Remixing Settings Modal */}
+      <RemixingSettings
+        isOpen={showRemixingSettings}
+        onClose={() => setShowRemixingSettings(false)}
+        onSave={handleRemixingConfigSave}
+        initialConfig={remixingConfig}
+      />
     </div>
   );
 }

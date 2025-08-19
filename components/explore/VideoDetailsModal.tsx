@@ -225,27 +225,64 @@ export function VideoDetailsModal({ video, isOpen, onClose, isAuthenticated }: V
                 </h3>
                 
                 {/* License Info */}
-                <div className="bg-provn-surface-2 rounded-lg p-4">
-                  <h4 className="font-semibold text-provn-text mb-4 font-headline">Remix License Details</h4>
-                  <div className="grid grid-cols-2 gap-4">
+                {video.remixing.enabled ? (
+                  <div className="bg-provn-surface-2 rounded-lg p-4 space-y-4">
                     <div>
-                      <p className="text-sm text-provn-muted font-headline">Price per period</p>
-                      <p className="font-bold text-provn-text font-headline">0.1 CAMP</p>
+                      <h4 className="font-semibold text-provn-text mb-2 font-headline">Available License Types</h4>
+                      <p className="text-sm text-provn-muted font-headline">
+                        This creator offers {video.remixing.permissionLevel} licensing for their content.
+                      </p>
                     </div>
-                    <div>
-                      <p className="text-sm text-provn-muted font-headline">Duration</p>
-                      <p className="font-bold text-provn-text font-headline">{Math.floor(video.licensing.duration / 86400)} days</p>
+                    
+                    {video.remixing.template && (
+                      <div className="bg-provn-surface rounded-lg p-3">
+                        <h5 className="font-medium text-provn-text mb-2 font-headline capitalize">
+                          {video.remixing.template} License Available
+                        </h5>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-provn-muted font-headline">Price per period</span>
+                            <p className="font-bold text-provn-text font-headline">0.1 CAMP</p>
+                          </div>
+                          <div>
+                            <span className="text-provn-muted font-headline">Duration</span>
+                            <p className="font-bold text-provn-text font-headline">30 days</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="flex flex-wrap gap-2 text-sm">
+                      {video.remixing.requiresAttribution && (
+                        <span className="bg-blue-500/10 text-blue-600 px-3 py-1 rounded-full font-headline">
+                          Attribution Required
+                        </span>
+                      )}
+                      {video.remixing.allowCommercialUse && (
+                        <span className="bg-green-500/10 text-green-600 px-3 py-1 rounded-full font-headline">
+                          Commercial Use OK
+                        </span>
+                      )}
+                      {video.remixing.allowDerivatives && (
+                        <span className="bg-purple-500/10 text-purple-600 px-3 py-1 rounded-full font-headline">
+                          Modifications Allowed
+                        </span>
+                      )}
                     </div>
-                    <div>
-                      <p className="text-sm text-provn-muted font-headline">Royalty</p>
-                      <p className="font-bold text-provn-text font-headline">{video.licensing.royalty}%</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-provn-muted font-headline">Payment Token</p>
-                      <p className="font-bold text-provn-text font-headline">CAMP</p>
-                    </div>
+                    
+                    {video.remixing.message && (
+                      <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+                        <p className="text-sm text-provn-text font-headline">
+                          <strong>Creator's Note:</strong> {video.remixing.message}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                </div>
+                ) : (
+                  <div className="bg-provn-surface-2 rounded-lg p-4 text-center">
+                    <p className="text-provn-muted font-headline">Licensing not available for this content.</p>
+                  </div>
+                )}
 
                 {/* License Purchase */}
                 <div className="bg-gradient-to-br from-provn-accent/5 to-provn-success/5 border border-provn-accent/20 rounded-lg p-6">

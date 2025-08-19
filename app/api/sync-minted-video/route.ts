@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
       thumbnailUrl,
       metadataUri,
       license,
+      remixing,
       blockNumber,
       mintTimestamp
     } = body
@@ -194,7 +195,16 @@ export async function POST(request: NextRequest) {
       royaltyPercentage: license?.royalty ? parseInt(license.royalty) : undefined,
       paymentTokenAddress: license?.paymentToken,
       commercialRights: true,
-      derivativeRights: false
+      derivativeRights: false,
+      // Remixing configuration
+      remixingEnabled: remixing?.enabled ?? true,
+      remixingPermissionLevel: remixing?.permissionLevel || 'basic',
+      remixingTemplate: remixing?.template,
+      remixingRequiresAttribution: remixing?.requiresAttribution ?? true,
+      remixingAllowCommercial: remixing?.allowCommercialUse ?? false,
+      remixingAllowDerivatives: remixing?.allowDerivatives ?? true,
+      remixingCustomSettings: remixing?.customSettings,
+      remixingMessage: remixing?.message
     })
 
     const duration = Date.now() - startTime

@@ -1,3 +1,5 @@
+import { RemixingConfiguration } from './remixing'
+
 export interface ExploreVideo {
   tokenId: string
   title: string
@@ -28,14 +30,17 @@ export interface ExploreVideo {
     royalty: number
     paymentToken: string
   }
+  remixing: RemixingConfiguration
   metrics: {
     views: number
     likes: number
     tips: number
     shares: number
+    remixes?: number
   }
   isLiked?: boolean
   hasAccess?: boolean
+  canRemix?: boolean
 }
 
 export interface VideoInteraction {

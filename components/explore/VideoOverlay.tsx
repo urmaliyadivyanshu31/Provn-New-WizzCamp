@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react"
 import { ExploreVideo, ShareOptions } from "@/types/explore"
-import { Share2, DollarSign, Info, Eye, MessageCircle, UserPlus, UserCheck } from "lucide-react"
+import { Share2, DollarSign, Info, Eye, MessageCircle, UserPlus, UserCheck, ShoppingBag } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import TipModal from "./TipModal"
 import { ShareModal } from "./ShareModal"
+import { RemixingModal } from "./RemixingModal"
 import { LikeButton } from "./LikeButton"
 import { useFollow } from "@/hooks/useFollow"
 
@@ -26,6 +27,7 @@ export function VideoOverlay({
 }: VideoOverlayProps) {
   const [showTipModal, setShowTipModal] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [showRemixingModal, setShowRemixingModal] = useState(false)
   
   // Follow functionality for the creator
   const { 
@@ -243,6 +245,23 @@ export function VideoOverlay({
             </span>
           </motion.button>
 
+          {/* License Button - Only show if remixing is enabled */}
+          {video.remixing.enabled && (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowRemixingModal(true)}
+              disabled={!isAuthenticated}
+              className={`flex flex-col items-center gap-1 ${
+                !isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              <div className="p-3 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 backdrop-blur-sm border-2 border-purple-500/50 hover:from-purple-500/30 hover:to-blue-500/30 transition-colors">
+                <ShoppingBag className="w-6 h-6 text-purple-400" />
+              </div>
+              <span className="text-white text-xs font-medium font-headline">License</span>
+            </motion.button>
+          )}
+
           {/* Details Button */}
           <motion.button
             whileTap={{ scale: 0.9 }}
@@ -284,6 +303,14 @@ export function VideoOverlay({
         onClose={() => setShowShareModal(false)}
         video={video}
         onShare={handleShareSelect}
+      />
+
+      {/* Remixing/License Modal */}
+      <RemixingModal
+        isOpen={showRemixingModal}
+        onClose={() => setShowRemixingModal(false)}
+        video={video}
+        isAuthenticated={isAuthenticated}
       />
     </>
   )
