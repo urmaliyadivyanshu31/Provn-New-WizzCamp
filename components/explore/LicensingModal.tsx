@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, 
@@ -61,6 +61,7 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
   const { walletAddress } = useAuth();
   const { buyLicense, getLicenseTerms, loading, error, clearError } = useOriginLicensing();
   const [licenseTerms, setLicenseTerms] = useState<any>(null);
+  const [termsLoading, setTermsLoading] = useState(false);
   const [periods, setPeriods] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
@@ -75,45 +76,99 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
   const isOwnVideo = walletAddress && video.creator.walletAddress && 
     walletAddress.toLowerCase() === video.creator.walletAddress.toLowerCase();
 
+  // Debug logging (only when modal opens)
+  useEffect(() => {
+    if (isOpen) {
+      console.log('📺 LicensingModal opened:', {
+        remixingEnabled: video.remixing?.enabled,
+        isOwnVideo,
+        walletAddress,
+        creatorWallet: video.creator.walletAddress,
+        tokenId: video.tokenId,
+        tokenIdType: typeof video.tokenId,
+        tokenIdLength: video.tokenId?.length,
+        isNumeric: /^\d+$/.test(video.tokenId?.toString() || ''),
+        videoObject: {
+          tokenId: video.tokenId,
+          title: video.title,
+          ipInfo: video.ipInfo
+        }
+      });
+    }
+  }, [isOpen, video.remixing?.enabled, isOwnVideo, walletAddress, video.creator.walletAddress, video.tokenId]);
+
   // Don't render modal if remixing is disabled or user owns the video
   if (!video.remixing?.enabled || isOwnVideo) {
+    console.log('❌ LicensingModal: Not rendering - remixing disabled or own video');
     return null;
   }
   
-  // Reset states and fetch license terms from Origin SDK
+  // Reset states when modal opens or video changes
   useEffect(() => {
     if (isOpen) {
       // Reset states when modal opens
       setPurchaseSuccess(false);
       setTransactionStep(null);
       clearError();
-      
-      // Fetch license terms
-      if (video.tokenId) {
-        getLicenseTerms(video.tokenId).then(terms => {
-          if (terms) {
-            setLicenseTerms(terms);
-          }
-        });
-      }
+    } else {
+      // Reset license terms when modal closes
+      setLicenseTerms(null);
+      setTermsLoading(false);
     }
-  }, [isOpen, video.tokenId, getLicenseTerms, clearError]);
+  }, [isOpen, clearError]);
+  
+  // Fetch license terms only when needed
+  useEffect(() => {
+    if (isOpen && video.tokenId && !termsLoading && !licenseTerms) {
+      console.log('🔍 Fetching license terms for tokenId:', video.tokenId);
+      setTermsLoading(true);
+      getLicenseTerms(video.tokenId).then(terms => {
+        if (terms) {
+          setLicenseTerms(terms);
+          console.log('✅ License terms fetched successfully');
+        }
+        setTermsLoading(false);
+      }).catch(error => {
+        console.error('❌ Failed to fetch license terms:', error);
+        setTermsLoading(false);
+      });
+    }
+  }, [isOpen, video.tokenId, termsLoading, licenseTerms, getLicenseTerms]);
 
-  // Use licensing terms from Origin SDK or fallback to video data
-  const actualPrice = licenseTerms ? Number(licenseTerms.price) / (10**18) : video.licensing.price; // Convert from Wei to CAMP
-  const actualDuration = licenseTerms ? licenseTerms.duration : video.licensing.duration;
-  const licensePricePerPeriod = actualPrice * periods;
+  // Use licensing terms from Origin SDK or fallback to video data (memoized)
+  const { actualPrice, actualDuration, licensePricePerPeriod } = useMemo(() => {
+    const price = licenseTerms ? Number(licenseTerms.price) / (10**18) : video.licensing.price;
+    const duration = licenseTerms ? licenseTerms.duration : video.licensing.duration;
+    const totalPrice = price * periods;
+    
+    return {
+      actualPrice: price,
+      actualDuration: duration,
+      licensePricePerPeriod: totalPrice
+    };
+  }, [licenseTerms, video.licensing.price, video.licensing.duration, periods]);
 
-  const formatCAMP = (amount: number) => {
+  const formatCAMP = useCallback((amount: number) => {
     // Handle free content
     if (amount === 0) return "Free";
     // Ensure proper decimal formatting for CAMP tokens
     return `${amount.toFixed(amount < 1 ? 2 : 1)} CAMP`;
-  };
+  }, []);
 
   const handlePurchase = useCallback(async () => {
-    if (!isAuthenticated) return;
+    console.log('🎬 LicensingModal: handlePurchase called', {
+      isAuthenticated,
+      tokenId: video.tokenId,
+      periods,
+      price: licensePricePerPeriod
+    });
+    
+    if (!isAuthenticated) {
+      console.log('❌ LicensingModal: Not authenticated, returning early');
+      return;
+    }
 
+    console.log('🚀 LicensingModal: Starting purchase process...');
     setIsProcessing(true);
     setPurchaseSuccess(false);
     clearError();
@@ -125,8 +180,16 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
     try {
       setTransactionStep('Confirming payment...');
       
+      console.log('🔄 LicensingModal: Calling buyLicense with:', {
+        tokenId: video.tokenId,
+        periods,
+        type: typeof video.tokenId
+      });
+      
       // Use Origin SDK to purchase license
       const result = await buyLicense(video.tokenId, periods);
+      
+      console.log('✅ LicensingModal: buyLicense result:', result);
       
       if (result.success) {
         setTransactionStep('Purchase successful!');
@@ -166,8 +229,12 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+      <div 
+        key="licensing-modal-backdrop"
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4"
+      >
         <motion.div
+          key="licensing-modal-content"
           initial={{ scale: 0.95, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -302,7 +369,17 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
                 {purchaseSuccess ? 'Close' : 'Cancel'}
               </button>
               <button
-                onClick={handlePurchase}
+                onClick={(e) => {
+                  console.log('💆 Purchase button clicked!', {
+                    isAuthenticated,
+                    isProcessing,
+                    purchaseSuccess,
+                    disabled: !isAuthenticated || isProcessing || purchaseSuccess
+                  });
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handlePurchase();
+                }}
                 disabled={!isAuthenticated || isProcessing || purchaseSuccess}
                 className={`flex-1 font-medium py-2.5 px-4 rounded-lg transition-all font-headline touch-manipulation min-h-[40px] active:scale-[0.98] flex items-center justify-center gap-2 ${
                   purchaseSuccess 
@@ -401,6 +478,7 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
       {/* Success Modal */}
       {successData && (
         <LicenseSuccessModal
+          key="license-success-modal"
           isOpen={showSuccessModal}
           onClose={() => {
             setShowSuccessModal(false);

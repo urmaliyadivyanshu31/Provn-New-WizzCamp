@@ -20,24 +20,46 @@ const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: Vi
   const [videoSrc, setVideoSrc] = useState<string>("");
   const [posterSrc, setPosterSrc] = useState<string>("");
 
-  // Auto-play/pause based on active state
+  // Auto-play/pause based on active state with better error handling
   useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement) return;
 
+    // Cancel any pending play requests to prevent interruption errors
+    const abortController = new AbortController();
+
     if (isActive && isVisible) {
-      videoElement
-        .play()
-        .then(() => {
-          setIsPlaying(true);
-        })
-        .catch((error) => {
-          console.warn("Auto-play failed:", error);
-          setIsPlaying(false);
-        });
+      // Add a small delay to prevent rapid play/pause cycles
+      const timer = setTimeout(() => {
+        if (!abortController.signal.aborted && videoElement) {
+          videoElement
+            .play()
+            .then(() => {
+              if (!abortController.signal.aborted) {
+                setIsPlaying(true);
+              }
+            })
+            .catch((error) => {
+              // Only log non-abort errors
+              if (error.name !== 'AbortError' && !abortController.signal.aborted) {
+                console.warn("Auto-play failed:", error.name, error.message);
+              }
+              setIsPlaying(false);
+            });
+        }
+      }, 100);
+
+      return () => {
+        clearTimeout(timer);
+        abortController.abort();
+      };
     } else {
       videoElement.pause();
       setIsPlaying(false);
+      
+      return () => {
+        abortController.abort();
+      };
     }
   }, [isActive, isVisible]);
 
@@ -121,8 +143,17 @@ const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: Vi
       videoElement.pause();
       setIsPlaying(false);
     } else {
-      videoElement.play();
-      setIsPlaying(true);
+      videoElement.play()
+        .then(() => {
+          setIsPlaying(true);
+        })
+        .catch((error) => {
+          // Silently handle play errors (common in rapid interactions)
+          if (error.name !== 'AbortError') {
+            console.warn("Manual play failed:", error.name);
+          }
+          setIsPlaying(false);
+        });
     }
   }, [isPlaying]);
 

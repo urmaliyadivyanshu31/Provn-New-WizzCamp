@@ -315,7 +315,7 @@ export function VideoFeed({
 
           return (
             <VirtualVideoItem
-              key={video.tokenId}
+              key={`${video.tokenId}-${actualIndex}`}
               video={updatedVideo}
               index={actualIndex}
               currentIndex={currentIndex}

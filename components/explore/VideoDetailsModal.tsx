@@ -140,52 +140,7 @@ export function VideoDetailsModal({ video, isOpen, onClose, isAuthenticated }: V
               </div>
             </div>
 
-            {/* Compact Stats */}
-            {/* <div>
-              <label className="block text-sm font-headline text-provn-text mb-2">
-                Performance Stats
-              </label>
-              <div className="bg-provn-surface-2 rounded-lg p-3">
-                <div className="grid grid-cols-4 gap-3 text-center">
-                  <div>
-                    <div className="flex items-center justify-center gap-1 text-provn-muted mb-0.5">
-                      <Eye className="w-3 h-3" />
-                    </div>
-                    <div className="font-bold text-provn-text text-sm font-headline">
-                      {video.metrics.views > 999 ? `${(video.metrics.views/1000).toFixed(1)}K` : video.metrics.views}
-                    </div>
-                    <div className="text-xs text-provn-muted font-headline">Views</div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-center gap-1 text-provn-muted mb-0.5">
-                      <Heart className="w-3 h-3" />
-                    </div>
-                    <div className="font-bold text-provn-text text-sm font-headline">
-                      {video.metrics.likes > 999 ? `${(video.metrics.likes/1000).toFixed(1)}K` : video.metrics.likes}
-                    </div>
-                    <div className="text-xs text-provn-muted font-headline">Likes</div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-center gap-1 text-provn-muted mb-0.5">
-                      <Share2 className="w-3 h-3" />
-                    </div>
-                    <div className="font-bold text-provn-text text-sm font-headline">
-                      {video.metrics.shares > 999 ? `${(video.metrics.shares/1000).toFixed(1)}K` : video.metrics.shares}
-                    </div>
-                    <div className="text-xs text-provn-muted font-headline">Shares</div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-center gap-1 text-provn-muted mb-0.5">
-                      <DollarSign className="w-3 h-3" />
-                    </div>
-                    <div className="font-bold text-provn-text text-sm font-headline">
-                      {video.metrics.tips > 999 ? `${(video.metrics.tips/1000).toFixed(1)}K` : video.metrics.tips}
-                    </div>
-                    <div className="text-xs text-provn-muted font-headline">Tips</div>
-                  </div>
-                </div>
-              </div>
-            </div> */}
+
 
             {/* IP-NFT Details */}
             <div>
@@ -242,12 +197,20 @@ export function VideoDetailsModal({ video, isOpen, onClose, isAuthenticated }: V
                     <div className="w-6 h-6 rounded-full bg-provn-accent/20 flex items-center justify-center">
                       <User className="w-3 h-3 text-provn-accent" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <div className="text-xs font-medium text-provn-text font-headline">
                         {video.creator.displayName}
                       </div>
-                      <div className="text-xs text-provn-muted font-headline">
-                        {formatAddress(video.creator.walletAddress)}
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-provn-muted font-headline">
+                          {formatAddress(video.creator.walletAddress)}
+                        </span>
+                        <button
+                          onClick={() => copyToClipboard(video.creator.walletAddress, 'Creator address')}
+                          className="p-0.5 hover:bg-provn-surface rounded transition-colors"
+                        >
+                          <Copy className="w-3 h-3 text-provn-muted hover:text-provn-accent" />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -320,8 +283,7 @@ export function VideoDetailsModal({ video, isOpen, onClose, isAuthenticated }: V
 
             {/* Footer */}
             <div className="text-center pt-2 border-t border-provn-border">
-              <p className="text-xs text-provn-muted font-headline flex items-center justify-center gap-1">
-
+              <p className="text-xs text-provn-muted font-headline">
                 Powered by Origin SDK • BaseCAMP Network
               </p>
             </div>

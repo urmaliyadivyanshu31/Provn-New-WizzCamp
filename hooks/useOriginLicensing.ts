@@ -17,6 +17,7 @@ interface PurchaseResult {
 export function useOriginLicensing() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [termsCache, setTermsCache] = useState<Record<string, LicenseTerms>>({})
   const { origin, isAuthenticated, walletAddress } = useAuth()
   const { data: walletClient } = useWalletClient()
   const { address } = useAccount()
@@ -40,7 +41,8 @@ export function useOriginLicensing() {
   ])
   
   const MARKETPLACE_CONTRACT = '0xBe611BFBDcb45C5E8C3E81a3ec36CBee31E52981'
-  const IP_NFT_CONTRACT = '0xF90733b9eCDa3b49C250B2C3E3E42c96fC93324E' // From the transaction details
+  // Use the correct IP-NFT contract address where videos are actually minted
+  const IP_NFT_CONTRACT = '0x5a3f832b47b948dA27aE788E96A0CD7BB0dCd1c1'
   
   // Set up wallet client for Origin SDK
   useEffect(() => {
@@ -71,20 +73,47 @@ export function useOriginLicensing() {
       return { success: false, error: 'Number of periods must be greater than 0' }
     }
 
+    // Validate tokenId before proceeding
+    if (!tokenId || typeof tokenId !== 'string') {
+      setError('Invalid token ID provided')
+      return { success: false, error: 'Invalid token ID provided' }
+    }
+    
+    // Check if tokenId is a valid number
+    const tokenIdNum = tokenId.trim()
+    if (!/^\d+$/.test(tokenIdNum)) {
+      console.error('❌ Invalid tokenId format:', {
+        tokenId,
+        type: typeof tokenId,
+        length: tokenId.length,
+        isNumeric: /^\d+$/.test(tokenIdNum)
+      })
+      setError(`Invalid token ID format: ${tokenId}. Must be a numeric string.`)
+      return { success: false, error: 'Invalid token ID format' }
+    }
+
     setLoading(true)
     setError(null)
 
     try {
       console.log('💳 Purchasing license:', {
-        tokenId,
+        tokenId: tokenIdNum,
+        tokenIdOriginal: tokenId,
         periods,
-        wallet: walletAddress
+        wallet: walletAddress,
+        tokenIdBigInt: BigInt(tokenIdNum).toString()
       })
 
       // Get license terms from Origin Protocol with fallback
       let terms
       try {
-        terms = await origin.getTerms(BigInt(tokenId))
+        const tokenBigInt = BigInt(tokenIdNum)
+        console.log('🔢 Converting tokenId to BigInt:', {
+          original: tokenId,
+          cleaned: tokenIdNum,
+          bigInt: tokenBigInt.toString()
+        })
+        terms = await origin.getTerms(tokenBigInt)
         console.log('📋 License terms from Origin SDK:', terms)
       } catch (termsError) {
         console.warn('⚠️ Failed to get terms from Origin SDK, trying direct contract call:', termsError)
@@ -96,7 +125,7 @@ export function useOriginLicensing() {
               address: IP_NFT_CONTRACT as `0x${string}`,
               abi: ipNftABI,
               functionName: 'getTerms',
-              args: [BigInt(tokenId)]
+              args: [BigInt(tokenIdNum)]
             })
             
             terms = {
@@ -130,7 +159,7 @@ export function useOriginLicensing() {
           // Try buyAccessSmart first
           console.log('🔄 Attempting Origin SDK buyAccessSmart...')
           if (typeof origin.buyAccessSmart === 'function') {
-            result = await origin.buyAccessSmart(BigInt(tokenId), periods)
+            result = await origin.buyAccessSmart(BigInt(tokenIdNum), periods)
             console.log('✅ buyAccessSmart successful:', result)
           } else {
             throw new Error('buyAccessSmart not available')
@@ -150,7 +179,7 @@ export function useOriginLicensing() {
             const txData = encodeFunctionData({
               abi: marketplaceABI,
               functionName: 'buyAccess',
-              args: [walletAddress as `0x${string}`, BigInt(tokenId), periods]
+              args: [walletAddress as `0x${string}`, BigInt(tokenIdNum), periods]
             })
             
             console.log('📝 Transaction data prepared:', {
@@ -158,7 +187,8 @@ export function useOriginLicensing() {
               data: txData,
               value: totalCost.toString(),
               buyer: walletAddress,
-              tokenId,
+              tokenId: tokenIdNum,
+              tokenIdBigInt: BigInt(tokenIdNum).toString(),
               periods
             })
             
@@ -194,19 +224,19 @@ export function useOriginLicensing() {
 
       toast.success(`Successfully purchased ${periods} period(s) license!`)
       
-      // Track purchase in our backend
-      try {
-        await fetch('/api/licenses', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tokenId,
-            periods,
-            totalCost: totalCost.toString(),
-            purchaser: walletAddress,
-            timestamp: new Date().toISOString()
+              // Track purchase in our backend
+        try {
+          await fetch('/api/licenses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tokenId: tokenIdNum,
+              periods,
+              totalCost: totalCost.toString(),
+              purchaser: walletAddress,
+              timestamp: new Date().toISOString()
+            })
           })
-        })
       } catch (trackingError) {
         console.warn('⚠️ Failed to track purchase in backend:', trackingError)
         // Don't fail the entire transaction for tracking errors
@@ -269,14 +299,42 @@ export function useOriginLicensing() {
   }
 
   const getLicenseTerms = async (tokenId: string): Promise<LicenseTerms | null> => {
+    // Validate tokenId
+    if (!tokenId || typeof tokenId !== 'string') {
+      console.error('❌ Invalid tokenId in getLicenseTerms:', tokenId)
+      return null
+    }
+    
+    const tokenIdNum = tokenId.trim()
+    if (!/^\d+$/.test(tokenIdNum)) {
+      console.error('❌ Invalid tokenId format in getLicenseTerms:', {
+        tokenId,
+        cleaned: tokenIdNum,
+        isNumeric: /^\d+$/.test(tokenIdNum)
+      })
+      return null
+    }
+    
+    // Check cache first
+    if (termsCache[tokenIdNum]) {
+      console.log('📋 Using cached terms for tokenId:', tokenIdNum);
+      return termsCache[tokenIdNum];
+    }
+    
     try {
       let terms
       
       // Try Origin SDK first
       if (origin) {
         try {
-          terms = await origin.getTerms(BigInt(tokenId))
-          console.log('📋 Terms from Origin SDK:', terms)
+          const tokenBigInt = BigInt(tokenIdNum)
+          console.log('🔢 getLicenseTerms converting tokenId:', {
+            original: tokenId,
+            cleaned: tokenIdNum,
+            bigInt: tokenBigInt.toString()
+          })
+          terms = await origin.getTerms(tokenBigInt)
+          console.log('📋 Terms fetched from Origin SDK for tokenId:', tokenIdNum, terms)
         } catch (sdkError) {
           console.warn('⚠️ Origin SDK getTerms failed:', sdkError)
           throw sdkError
@@ -285,12 +343,17 @@ export function useOriginLicensing() {
         throw new Error('Origin SDK not available')
       }
       
-      return {
+      const licenseTerms = {
         price: terms.price,
         duration: terms.duration,
         royaltyBps: terms.royaltyBps,
         paymentToken: terms.paymentToken
-      }
+      };
+      
+      // Cache the result
+      setTermsCache(prev => ({ ...prev, [tokenIdNum]: licenseTerms }));
+      
+      return licenseTerms
     } catch (error) {
       console.warn('⚠️ Failed to get license terms from SDK, trying direct contract...')
       
@@ -301,15 +364,20 @@ export function useOriginLicensing() {
             address: IP_NFT_CONTRACT as `0x${string}`,
             abi: ipNftABI,
             functionName: 'getTerms',
-            args: [BigInt(tokenId)]
+            args: [BigInt(tokenIdNum)]
           })
           
-          return {
+          const licenseTerms = {
             price: result[0],
             duration: Number(result[1]),
             royaltyBps: Number(result[2]),
             paymentToken: result[3]
-          }
+          };
+          
+          // Cache the result
+          setTermsCache(prev => ({ ...prev, [tokenIdNum]: licenseTerms }));
+          
+          return licenseTerms
         } catch (directError) {
           console.error('❌ Direct IP-NFT contract getTerms failed:', directError)
         }
