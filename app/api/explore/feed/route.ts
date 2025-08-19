@@ -269,13 +269,13 @@ function convertPlatformVideoToExploreVideo(platformVideo: VideoWithCreator): Ex
       transactionHash: platformVideo.transaction_hash
     },
     licensing: {
-      price: platformVideo.price_per_period || 10,
+      price: platformVideo.price_per_period ?? 0, // Use actual price or 0 if not set
       duration: platformVideo.license_duration || 2629800,
       royalty: platformVideo.royalty_percentage || 5,
       paymentToken: platformVideo.payment_token_address || "0x1aE9c40eCd2DD6ad5858E5430A556d7aff28A44b"
     },
     remixing: {
-      enabled: platformVideo.remixing_enabled ?? true,
+      enabled: platformVideo.remixing_enabled ?? true, // Default to true if not explicitly set
       permissionLevel: (platformVideo.remixing_permission_level as any) || 'basic',
       template: (platformVideo.remixing_template as any) || undefined,
       requiresAttribution: platformVideo.remixing_requires_attribution ?? true,
@@ -292,7 +292,7 @@ function convertPlatformVideoToExploreVideo(platformVideo: VideoWithCreator): Ex
       remixes: platformVideo.remixes_count || 0
     },
     isLiked: false, // Will be set based on user context
-    canRemix: platformVideo.remixing_enabled ?? true
+    canRemix: platformVideo.remixing_enabled ?? true // Default to true if not explicitly set
   }
 }
 
@@ -321,13 +321,13 @@ function convertBlockchainVideoToExploreVideo(processedVideo: any): ExploreVideo
       platformOrigin: false // Mark as external blockchain video
     },
     licensing: {
-      price: parseFloat(processedVideo.metadata.license_terms?.price_per_period || '10'),
+      price: parseFloat(processedVideo.metadata.license_terms?.price_per_period || '0'), // Use actual price or 0
       duration: 2629800, // 30 days in seconds
       royalty: 5,
       paymentToken: "0x1aE9c40eCd2DD6ad5858E5430A556d7aff28A44b"
     },
     remixing: {
-      enabled: true,
+      enabled: parseFloat(processedVideo.metadata.license_terms?.price_per_period || '0') > 0, // Only enabled if has price
       permissionLevel: 'basic',
       template: undefined,
       requiresAttribution: true,
@@ -344,7 +344,7 @@ function convertBlockchainVideoToExploreVideo(processedVideo: any): ExploreVideo
       remixes: 0
     },
     isLiked: false,
-    canRemix: true
+    canRemix: parseFloat(processedVideo.metadata.license_terms?.price_per_period || '0') > 0
   }
 }
 

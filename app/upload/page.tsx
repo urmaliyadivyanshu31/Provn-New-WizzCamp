@@ -72,7 +72,9 @@ export default function UploadPage() {
     permissionLevel: 'basic',
     requiresAttribution: true,
     allowCommercialUse: false,
-    allowDerivatives: true
+    allowDerivatives: true,
+    price: 0,
+    duration: 2592000 // Default: 30 days in seconds
   });
   const [showRemixingSettings, setShowRemixingSettings] = useState(false);
   const [mintResult, setMintResult] = useState<MintResult | null>(null);
@@ -82,11 +84,12 @@ export default function UploadPage() {
     description: "",
   };
 
+  // Generate license terms from remixing configuration
   const license: LicenseTerms = {
-    price: "0",
-    duration: "2629800",
-    royalty: "0",
-    paymentToken: "0x0000000000000000000000000000000000000000",
+    price: (remixingConfig.price || 0).toString(),
+    duration: (remixingConfig.duration || 2592000).toString(),
+    royalty: "0", // TODO: Add royalty support if needed
+    paymentToken: "0x0000000000000000000000000000000000000000", // ETH/Native token
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -830,10 +833,10 @@ export default function UploadPage() {
 
                 <div className="ml-7 space-y-2">
                   <p className="text-provn-muted text-sm">
-                    License Price: Free (0 PROVN)
+                    License Price: {remixingConfig.template ? `${remixingConfig.price || 0} CAMP` : 'Free (0 CAMP)'}
                   </p>
                   <p className="text-provn-muted text-xs">
-                    This video will be minted as a free IP-NFT on the BaseCAMP
+                    This video will be minted as a {remixingConfig.template ? 'licensed' : 'free'} IP-NFT on the BaseCAMP
                     network.
                   </p>
                 </div>

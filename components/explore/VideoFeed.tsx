@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { VideoPlayer } from "./VideoPlayer";
 import { VideoOverlay } from "./VideoOverlay";
 import { ExploreVideo } from "@/types/explore";
 import { useVideoInteractions } from "@/hooks/useVideoInteractions";
+import { useVideoFeed } from "@/hooks/useVideoFeed";
+import { trackVideoEvent } from "@/components/analytics/GoogleAnalytics";
 import { Loader2 } from "lucide-react";
+import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
 
 interface VideoFeedProps {
   onVideoDetails: (video: ExploreVideo) => void;
@@ -18,88 +21,99 @@ export function VideoFeed({
   isAuthenticated,
   dataSource = "platform",
 }: VideoFeedProps) {
-  // Fake video data for development/demo
-  const [videos, setVideos] = useState<ExploreVideo[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [hasMore, setHasMore] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isScrolling, setIsScrolling] = useState(false);
+  const [renderBuffer] = useState(3); // Number of videos to render around current index
+  const [scrollProgress, setScrollProgress] = useState(0); // For smooth scroll animation
+  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+  
+  // Get user wallet from localStorage for personalized content
+  const userWallet = typeof window !== 'undefined' ? localStorage.getItem('userWallet') : null;
+  
+  // Use React Query for data fetching with caching
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetching,
+    isLoading,
+    error
+  } = useVideoFeed({
+    dataSource,
+    userWallet: userWallet || undefined
+  });
+  
+  // Flatten paginated data into single array
+  const videos = useMemo(() => {
+    return data?.pages?.flatMap(page => page.videos) || [];
+  }, [data]);
 
   const { likeVideo, viewVideo, shareVideo } = useVideoInteractions();
 
-  useEffect(() => {
-    fetchVideos(0, dataSource);
-  }, [dataSource]);
+  // Memoize video interactions to prevent unnecessary re-renders
+  const memoizedInteractions = useMemo(() => ({
+    likeVideo,
+    viewVideo, 
+    shareVideo
+  }), [likeVideo, viewVideo, shareVideo]);
 
-  const fetchVideos = async (page: number = 0, source: string = dataSource) => {
-    try {
-      setLoading(true);
-
-      // Build query parameters
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: "10",
-        source,
-      });
-
-      const userWallet = localStorage.getItem("userWallet");
-      if (userWallet) {
-        params.append("userWallet", userWallet);
-      }
-
-      const response = await fetch(`/api/explore/feed?${params}`);
-      const data = await response.json();
-
-      if (data.success) {
-        if (page === 0) {
-          setVideos(data.videos);
-        } else {
-          setVideos((prev) => [...prev, ...data.videos]);
-        }
-        setHasMore(data.hasMore);
-
-        console.log(
-          "📺 VideoFeed: Loaded videos from",
-          data.source || "unknown",
-          {
-            count: data.videos.length,
-            page,
-            hasMore: data.hasMore,
-          }
-        );
-      }
-    } catch (error) {
-      console.error("Failed to fetch videos:", error);
-    } finally {
-      setLoading(false);
+  // Auto-fetch next page when approaching end
+  const loadMoreVideos = useCallback(() => {
+    if (hasNextPage && !isFetching) {
+      fetchNextPage();
     }
-  };
+  }, [hasNextPage, isFetching, fetchNextPage]);
 
-  // Handle scroll/swipe navigation
+  // Handle smooth scroll navigation with better sensitivity
   const handleScroll = useCallback(
     (e: React.WheelEvent) => {
+      e.preventDefault();
+      
+      // Only handle scroll if not already scrolling
       if (isScrolling) return;
-
-      setIsScrolling(true);
-
-      const delta = e.deltaY;
-      if (delta > 50 && currentIndex < videos.length - 1) {
-        setCurrentIndex((prev) => prev + 1);
-        // Load more videos when near the end
-        if (currentIndex >= videos.length - 3 && hasMore) {
-          fetchVideos(Math.floor(videos.length / 10), dataSource);
-        }
-      } else if (delta < -50 && currentIndex > 0) {
-        setCurrentIndex((prev) => prev - 1);
+      
+      // More conservative scroll sensitivity
+      const scrollDelta = e.deltaY / 300; // Reduced sensitivity (was /100)
+      const newProgress = Math.max(-1, Math.min(1, scrollProgress + scrollDelta));
+      
+      setScrollProgress(newProgress);
+      
+      // Clear previous timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
       }
-
-      // Force close any open modals when navigating
-      window.dispatchEvent(new CustomEvent('forceCloseModals'));
-
-      setTimeout(() => setIsScrolling(false), 500);
+      
+      // Higher threshold for video change (was 0.5, now 0.8)
+      if (Math.abs(newProgress) >= 0.8) {
+        setIsScrolling(true);
+        
+        if (newProgress > 0 && currentIndex < videos.length - 1) {
+          setCurrentIndex((prev) => prev + 1);
+          // Load more videos when near the end
+          if (currentIndex >= videos.length - 3) {
+            loadMoreVideos();
+          }
+        } else if (newProgress < 0 && currentIndex > 0) {
+          setCurrentIndex((prev) => prev - 1);
+        }
+        
+        // Force close any open modals when navigating
+        window.dispatchEvent(new CustomEvent('forceCloseModals'));
+        
+        // Reset scroll progress after transition
+        setTimeout(() => {
+          setScrollProgress(0);
+          setIsScrolling(false);
+        }, 400);
+      } else {
+        // Reset scroll progress if no action taken after a longer delay
+        scrollTimeoutRef.current = setTimeout(() => {
+          setScrollProgress(0);
+        }, 300); // Increased from 150ms to 300ms
+      }
     },
-    [currentIndex, videos.length, hasMore, isScrolling]
+    [currentIndex, videos.length, isScrolling, scrollProgress, loadMoreVideos]
   );
 
   // Handle touch gestures for mobile
@@ -119,8 +133,8 @@ export function VideoFeed({
     if (Math.abs(deltaY) > 50 && deltaTime < 1000) {
       if (deltaY > 0 && currentIndex < videos.length - 1) {
         setCurrentIndex((prev) => prev + 1);
-        if (currentIndex >= videos.length - 3 && hasMore) {
-          fetchVideos(Math.floor(videos.length / 10), dataSource);
+        if (currentIndex >= videos.length - 3) {
+          loadMoreVideos();
         }
       } else if (deltaY < 0 && currentIndex > 0) {
         setCurrentIndex((prev) => prev - 1);
@@ -145,8 +159,8 @@ export function VideoFeed({
       const direction = e.detail.direction;
       if (direction === "down" && currentIndex < videos.length - 1) {
         setCurrentIndex((prev) => prev + 1);
-        if (currentIndex >= videos.length - 3 && hasMore) {
-          fetchVideos(Math.floor(videos.length / 10), dataSource);
+        if (currentIndex >= videos.length - 3) {
+          loadMoreVideos();
         }
       } else if (direction === "up" && currentIndex > 0) {
         setCurrentIndex((prev) => prev - 1);
@@ -162,7 +176,9 @@ export function VideoFeed({
         "keyboardNavigation" as any,
         handleKeyboardNav
       );
-  }, [currentIndex, videos.length, hasMore]);
+  }, [currentIndex, videos.length, hasNextPage]);
+
+  const [videoStates, setVideoStates] = useState<Record<string, { isLiked?: boolean; likeCount?: number }>>({});
 
   const handleLike = async (videoId: string) => {
     if (!isAuthenticated) return;
@@ -171,66 +187,59 @@ export function VideoFeed({
     const currentVideo = videos.find((v) => v.tokenId === videoId);
     if (!currentVideo) return;
 
-    // Optimistic update - immediately update the UI
-    const newLikeCount = currentVideo.isLiked
-      ? currentVideo.metrics.likes - 1
-      : currentVideo.metrics.likes + 1;
-    const newIsLiked = !currentVideo.isLiked;
+    // Get current state (with local updates if any)
+    const currentState = videoStates[videoId] || {};
+    const currentIsLiked = currentState.isLiked ?? currentVideo.isLiked;
+    const currentLikeCount = currentState.likeCount ?? currentVideo.metrics.likes;
 
-    setVideos((prev) =>
-      prev.map((video) =>
-        video.tokenId === videoId
-          ? {
-              ...video,
-              isLiked: newIsLiked,
-              metrics: {
-                ...video.metrics,
-                likes: newLikeCount,
-              },
-            }
-          : video
-      )
-    );
+    // Optimistic update - immediately update the UI
+    const newLikeCount = currentIsLiked ? currentLikeCount - 1 : currentLikeCount + 1;
+    const newIsLiked = !currentIsLiked;
+
+    // Update local state immediately for responsive UI
+    setVideoStates(prev => ({
+      ...prev,
+      [videoId]: {
+        isLiked: newIsLiked,
+        likeCount: newLikeCount
+      }
+    }));
+
+    // Track like event
+    trackVideoEvent(newIsLiked ? 'like' : 'unlike', videoId, {
+      like_count: newLikeCount
+    });
 
     // Make the API call in the background
     try {
       const success = await likeVideo(videoId, true);
       if (!success) {
-        // Revert the optimistic update if the API call failed
-        setVideos((prev) =>
-          prev.map((video) =>
-            video.tokenId === videoId
-              ? {
-                  ...video,
-                  isLiked: currentVideo.isLiked,
-                  metrics: {
-                    ...video.metrics,
-                    likes: currentVideo.metrics.likes,
-                  },
-                }
-              : video
-          )
-        );
-        // You could show a toast error here
-        console.error("Failed to like video, reverting UI update");
+        console.error("Failed to like video");
+        // Revert optimistic update
+        setVideoStates(prev => ({
+          ...prev,
+          [videoId]: {
+            isLiked: currentIsLiked,
+            likeCount: currentLikeCount
+          }
+        }));
+        
+        // Track failed like
+        trackVideoEvent('like_failed', videoId);
       }
     } catch (error) {
-      // Revert the optimistic update if there's an error
-      setVideos((prev) =>
-        prev.map((video) =>
-          video.tokenId === videoId
-            ? {
-                ...video,
-                isLiked: currentVideo.isLiked,
-                metrics: {
-                  ...video.metrics,
-                  likes: currentVideo.metrics.likes,
-                },
-              }
-            : video
-        )
-      );
       console.error("Error liking video:", error);
+      // Revert optimistic update
+      setVideoStates(prev => ({
+        ...prev,
+        [videoId]: {
+          isLiked: currentIsLiked,
+          likeCount: currentLikeCount
+        }
+      }));
+      
+      // Track error
+      trackVideoEvent('like_error', videoId);
     }
   };
 
@@ -240,16 +249,22 @@ export function VideoFeed({
   ) => {
     // Since explore feed uses platform videos, pass isPlatformVideo=true
     await shareVideo(video.tokenId, platform, true);
-    setVideos((prev) =>
-      prev.map((v) =>
-        v.tokenId === video.tokenId
-          ? { ...v, metrics: { ...v.metrics, shares: v.metrics.shares + 1 } }
-          : v
-      )
-    );
+    // TODO: Implement optimistic updates for shares with React Query mutations
   };
 
-  if (loading && videos.length === 0) {
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-black text-white">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2 font-headline">Failed to load videos</h2>
+          <p className="text-gray-400 font-headline">Please try again later</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading && videos.length === 0) {
     return (
       <div className="flex items-center justify-center h-screen bg-black">
         <Loader2 className="w-8 h-8 animate-spin text-white" />
@@ -271,45 +286,51 @@ export function VideoFeed({
   return (
     <div
       ref={containerRef}
-      className="relative h-screen w-full overflow-hidden touch-pan-y select-none"
+      className="relative h-screen w-full overflow-hidden select-none"
       onWheel={handleScroll}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       style={{
         WebkitTouchCallout: "none",
         WebkitUserSelect: "none",
-        touchAction: "pan-y",
+        touchAction: "none", // Disable browser touch actions for custom handling
       }}
     >
-      {videos.map((video, index) => (
-        <div
-          key={video.tokenId}
-          className={`absolute inset-0 transition-transform duration-300 ease-out video-item ${
-            index === currentIndex
-              ? "translate-y-0"
-              : index < currentIndex
-              ? "-translate-y-full"
-              : "translate-y-full"
-          }`}
-        >
-          <VideoPlayer
-            video={video}
-            isActive={index === currentIndex}
-            isVisible={Math.abs(index - currentIndex) <= 1}
-          />
+      {videos
+        .slice(Math.max(0, currentIndex - renderBuffer), currentIndex + renderBuffer + 1)
+        .map((video, relativeIndex) => {
+          const actualIndex = Math.max(0, currentIndex - renderBuffer) + relativeIndex;
+          const isVisible = Math.abs(actualIndex - currentIndex) <= 1;
+          
+          // Apply local state updates to video
+          const videoState = videoStates[video.tokenId] || {};
+          const updatedVideo = {
+            ...video,
+            isLiked: videoState.isLiked ?? video.isLiked,
+            metrics: {
+              ...video.metrics,
+              likes: videoState.likeCount ?? video.metrics.likes
+            }
+          };
 
-          <VideoOverlay
-            video={video}
-            isAuthenticated={isAuthenticated}
-            onLike={() => handleLike(video.tokenId)}
-            onShare={handleShare}
-            onDetails={() => onVideoDetails(video)}
-          />
-        </div>
-      ))}
+          return (
+            <VirtualVideoItem
+              key={video.tokenId}
+              video={updatedVideo}
+              index={actualIndex}
+              currentIndex={currentIndex}
+              isAuthenticated={isAuthenticated}
+              isVisible={isVisible}
+              scrollProgress={scrollProgress}
+              onLike={async () => await handleLike(video.tokenId)}
+              onShare={handleShare}
+              onDetails={() => onVideoDetails(video)}
+            />
+          );
+        })}
 
       {/* Loading indicator for infinite scroll */}
-      {loading && videos.length > 0 && (
+      {isFetching && videos.length > 0 && (
         <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2">
           <Loader2 className="w-6 h-6 animate-spin text-white" />
         </div>
@@ -334,3 +355,83 @@ export function VideoFeed({
     </div>
   );
 }
+
+// Memoized virtual video item component for performance
+const VirtualVideoItem = React.memo(({
+  video,
+  index,
+  currentIndex,
+  isAuthenticated,
+  isVisible,
+  scrollProgress,
+  onLike,
+  onShare,
+  onDetails
+}: {
+  video: ExploreVideo;
+  index: number;
+  currentIndex: number;
+  isAuthenticated: boolean;
+  isVisible: boolean;
+  scrollProgress?: number;
+  onLike: () => Promise<void>;
+  onShare: (video: ExploreVideo, platform: "twitter" | "instagram") => void;
+  onDetails: () => void;
+}) => {
+  const { elementRef, isIntersecting } = useIntersectionObserver({
+    threshold: 0.5,
+    rootMargin: '50px'
+  });
+
+  // Calculate smooth transform based on scroll progress with dampening
+  const getTransform = () => {
+    const progress = scrollProgress || 0;
+    // Apply easing to make scroll feel less sensitive
+    const easedProgress = progress * Math.abs(progress); // Quadratic easing
+    
+    if (index === currentIndex) {
+      // Current video moves based on scroll progress
+      return `translateY(${-easedProgress * 80}%)`; // Reduced from 100% to 80%
+    } else if (index === currentIndex - 1) {
+      // Previous video
+      return `translateY(${-100 + (-easedProgress * 80)}%)`;
+    } else if (index === currentIndex + 1) {
+      // Next video
+      return `translateY(${100 + (-easedProgress * 80)}%)`;
+    } else if (index < currentIndex) {
+      return 'translateY(-100%)';
+    } else {
+      return 'translateY(100%)';
+    }
+  };
+
+  return (
+    <div
+      ref={elementRef}
+      className="absolute inset-0 video-item"
+      style={{
+        transform: getTransform(),
+        transition: Math.abs(scrollProgress || 0) < 0.1 ? 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
+      }}
+    >
+      {(isVisible || isIntersecting) && (
+        <>
+          <VideoPlayer
+            video={video}
+            isActive={index === currentIndex}
+            isVisible={isVisible}
+          />
+          <VideoOverlay
+            video={video}
+            isAuthenticated={isAuthenticated}
+            onLike={onLike}
+            onShare={onShare}
+            onDetails={onDetails}
+          />
+        </>
+      )}
+    </div>
+  );
+});
+
+VirtualVideoItem.displayName = 'VirtualVideoItem';

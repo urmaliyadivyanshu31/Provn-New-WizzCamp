@@ -1,14 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { ExploreVideo, ShareOptions } from "@/types/explore"
-import { Share2, DollarSign, Info, Eye, MessageCircle, UserPlus, UserCheck, ShoppingBag } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+import React, { useState, useEffect, memo } from "react"
+import { ExploreVideo } from "@/types/explore"
+import { Share2, DollarSign, Info, Eye, UserPlus, UserCheck, ShoppingBag } from "lucide-react"
+import { motion } from "framer-motion"
 import TipModal from "./TipModal"
 import { ShareModal } from "./ShareModal"
-import { RemixingModal } from "./RemixingModal"
+import { LicensingModal } from "./LicensingModal"
 import { LikeButton } from "./LikeButton"
 import { useFollow } from "@/hooks/useFollow"
+import { useAuth } from "@campnetwork/origin/react"
 
 interface VideoOverlayProps {
   video: ExploreVideo
@@ -18,21 +19,25 @@ interface VideoOverlayProps {
   onDetails: () => void
 }
 
-export function VideoOverlay({ 
+const VideoOverlay = memo(function VideoOverlay({ 
   video, 
   isAuthenticated, 
   onLike, 
   onShare, 
   onDetails 
 }: VideoOverlayProps) {
+  const { walletAddress } = useAuth()
   const [showTipModal, setShowTipModal] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
-  const [showRemixingModal, setShowRemixingModal] = useState(false)
+  const [showLicensingModal, setShowLicensingModal] = useState(false)
+  
+  // Check if current user is the video creator
+  const isOwnVideo = walletAddress && video.creator.walletAddress && 
+    walletAddress.toLowerCase() === video.creator.walletAddress.toLowerCase()
   
   // Follow functionality for the creator
   const { 
     isFollowing, 
-    followers,
     followUser, 
     unfollowUser 
   } = useFollow(video.creator.walletAddress)
@@ -60,12 +65,14 @@ export function VideoOverlay({
     // Immediately close all modals when video changes
     setShowShareModal(false)
     setShowTipModal(false)
+    setShowLicensingModal(false)
   }, [video.tokenId])
 
   // Additional cleanup on component mount to ensure clean state
   useEffect(() => {
     setShowShareModal(false)
     setShowTipModal(false)
+    setShowLicensingModal(false)
   }, [])
 
   // Listen for force close events from navigation
@@ -73,6 +80,7 @@ export function VideoOverlay({
     const handleForceClose = () => {
       setShowShareModal(false)
       setShowTipModal(false)
+      setShowLicensingModal(false)
     }
 
     window.addEventListener('forceCloseModals', handleForceClose)
@@ -121,8 +129,8 @@ export function VideoOverlay({
                     {video.creator.displayName || video.creator.handle}
                   </button>
                   
-                  {/* Follow Button - Integrated next to name */}
-                  {isAuthenticated && (
+                  {/* Follow Button - Integrated next to name - Hide for own videos */}
+                  {isAuthenticated && !isOwnVideo && (
                     <motion.button
                       whileTap={{ scale: 0.95 }}
                       onClick={isFollowing ? unfollowUser : followUser}
@@ -228,28 +236,30 @@ export function VideoOverlay({
             </span>
           </motion.button>
 
-          {/* Tip Button */}
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setShowTipModal(true)}
-            disabled={!isAuthenticated}
-            className={`flex flex-col items-center gap-1 ${
-              !isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            <div className="p-3 rounded-full bg-gradient-to-br from-yellow-500/20 to-orange-500/20 backdrop-blur-sm border-2 border-yellow-500/50 hover:from-yellow-500/30 hover:to-orange-500/30 transition-colors">
-              <DollarSign className="w-6 h-6 text-yellow-400" />
-            </div>
-            <span className="text-white text-xs font-medium font-headline">
-              {formatCount(video.metrics.tips)}
-            </span>
-          </motion.button>
+          {/* Tip Button - Hide for own videos */}
+          {!isOwnVideo && (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowTipModal(true)}
+              disabled={!isAuthenticated}
+              className={`flex flex-col items-center gap-1 ${
+                !isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              <div className="p-3 rounded-full bg-gradient-to-br from-yellow-500/20 to-orange-500/20 backdrop-blur-sm border-2 border-yellow-500/50 hover:from-yellow-500/30 hover:to-orange-500/30 transition-colors">
+                <DollarSign className="w-6 h-6 text-yellow-400" />
+              </div>
+              <span className="text-white text-xs font-medium font-headline">
+                {formatCount(video.metrics.tips)}
+              </span>
+            </motion.button>
+          )}
 
-          {/* License Button - Only show if remixing is enabled */}
+          {/* License Button - Show if remixing is enabled */}
           {video.remixing.enabled && (
             <motion.button
               whileTap={{ scale: 0.9 }}
-              onClick={() => setShowRemixingModal(true)}
+              onClick={() => setShowLicensingModal(true)}
               disabled={!isAuthenticated}
               className={`flex flex-col items-center gap-1 ${
                 !isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''
@@ -275,17 +285,6 @@ export function VideoOverlay({
           </motion.button>
         </div>
 
-        {/* License Info Badge */}
-        {video.licensing.price > 0 && (
-          <div className="absolute top-20 right-4 pointer-events-auto">
-            <div className="bg-green-500/20 backdrop-blur-sm border border-green-500/50 rounded-lg px-3 py-2">
-              <div className="text-green-400 text-xs font-medium text-center font-headline">
-                <div>Remix License</div>
-                <div className="font-bold">{video.licensing.price} PROVN</div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Tip Modal */}
@@ -305,13 +304,15 @@ export function VideoOverlay({
         onShare={handleShareSelect}
       />
 
-      {/* Remixing/License Modal */}
-      <RemixingModal
-        isOpen={showRemixingModal}
-        onClose={() => setShowRemixingModal(false)}
+      {/* Licensing Modal */}
+      <LicensingModal
+        isOpen={showLicensingModal}
+        onClose={() => setShowLicensingModal(false)}
         video={video}
         isAuthenticated={isAuthenticated}
       />
     </>
   )
-}
+});
+
+export { VideoOverlay };

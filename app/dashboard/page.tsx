@@ -181,7 +181,7 @@ export default function LeaderboardPage() {
               </div>
               
               {/* Stats Skeleton */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="grid font-headline grid-cols-1 md:grid-cols-4 gap-6">
                 {[...Array(4)].map((_, i) => (
                   <div key={i} className="h-24 bg-provn-surface rounded-xl animate-pulse"></div>
                 ))}
@@ -203,7 +203,7 @@ export default function LeaderboardPage() {
   const topThree = leaderboardData?.leaderboard.slice(0, 3) || []
 
   return (
-    <div className="min-h-screen bg-provn-bg">
+    <div className="min-h-screen font-headline bg-provn-bg">
       <Navigation currentPage="dashboard" />
 
       {/* Hero Section - Clean and Simple */}

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 
 import Providers from "@/components/providers"
+import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics"
 
 const inter = Inter({
   display: "swap",
@@ -73,6 +74,7 @@ export default function RootLayout({
         `}</style>
       </head>
       <body className="bg-provn-bg text-provn-text antialiased" suppressHydrationWarning={true}>
+        <GoogleAnalytics />
         <Providers>
           {children}
         </Providers>

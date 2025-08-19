@@ -17,6 +17,8 @@ export interface RemixingConfiguration {
   allowCommercialUse: boolean
   allowDerivatives: boolean
   message?: string
+  price?: number // License price in CAMP tokens
+  duration?: number // License duration in seconds (from Origin SDK)
 }
 
 export interface CustomRemixingSettings {

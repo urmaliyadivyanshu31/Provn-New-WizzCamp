@@ -6,9 +6,37 @@ import { CampProvider } from "@campnetwork/origin/react";
 import { Toaster } from 'sonner';
 import { VideoModalProvider } from '@/contexts/VideoModalContext';
 import { FollowStateProvider } from '@/contexts/FollowStateContext';
+import { useServiceWorker } from '@/hooks/useServiceWorker';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
+  // Register service worker for performance optimizations
+  useServiceWorker();
+  
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        // Cache for 5 minutes, then refetch in background
+        staleTime: 5 * 60 * 1000,
+        // Keep in cache for 10 minutes total
+        gcTime: 10 * 60 * 1000,
+        // Retry failed requests 3 times with exponential backoff
+        retry: 3,
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+        // Don't refetch on window focus for video feeds (expensive)
+        refetchOnWindowFocus: false,
+        // Don't refetch on reconnect for explore videos
+        refetchOnReconnect: false,
+        // Use network-first for video data
+        networkMode: 'online',
+      },
+      mutations: {
+        // Retry mutations with exponential backoff
+        retry: 2,
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+        networkMode: 'online',
+      },
+    },
+  }));
   const [isConfigReady, setIsConfigReady] = useState(false);
 
   useEffect(() => {

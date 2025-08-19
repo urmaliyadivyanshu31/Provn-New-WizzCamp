@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, memo, useCallback } from "react";
 import { ExploreVideo } from "@/types/explore";
 import { Play, Pause, VolumeX, Volume2 } from "lucide-react";
 import { ipfsGateway } from "@/lib/ipfs-gateway";
@@ -11,7 +11,7 @@ interface VideoPlayerProps {
   isVisible: boolean;
 }
 
-export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
+const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false); // Start with sound ON
@@ -113,7 +113,7 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
       window.removeEventListener("videoTogglePlayPause", handleSpacebarToggle);
   }, [isActive, isPlaying]);
 
-  const togglePlayPause = () => {
+  const togglePlayPause = useCallback(() => {
     const videoElement = videoRef.current;
     if (!videoElement) return;
 
@@ -124,9 +124,9 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
       videoElement.play();
       setIsPlaying(true);
     }
-  };
+  }, [isPlaying]);
 
-  const toggleMute = (e?: React.MouseEvent) => {
+  const toggleMute = useCallback((e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();
     }
@@ -136,32 +136,41 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
 
     videoElement.muted = !videoElement.muted;
     setIsMuted(videoElement.muted);
-  };
+  }, []);
 
-  const handleVideoClick = (e: React.MouseEvent) => {
+  const handleVideoClick = useCallback((e: React.MouseEvent) => {
     // Don't toggle play/pause if clicking on overlay elements
     if ((e.target as HTMLElement).closest(".video-overlay")) return;
     
     // Don't toggle play/pause if clicking on audio control button
     if ((e.target as HTMLElement).closest(".audio-control")) return;
+    
+    // Don't toggle if clicking on control buttons
+    if ((e.target as HTMLElement).closest("button")) return;
 
+    // Toggle play/pause for any click on the video
+    e.preventDefault();
+    e.stopPropagation();
     togglePlayPause();
     setShowControls(true);
     setTimeout(() => setShowControls(false), 2000);
-  };
+  }, [togglePlayPause]);
 
   return (
     <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
       {/* Video Element with Smart Fitting */}
       <video
         ref={videoRef}
-        className="w-full h-full cursor-pointer"
+        className="w-full h-full"
         style={{
           // Smart fitting: contain for portrait videos, cover for landscape
           objectFit: 'contain',
           objectPosition: 'center',
           maxHeight: '100vh',
-          maxWidth: '100vw'
+          maxWidth: '100vw',
+          cursor: 'pointer',
+          // Ensure video is clickable
+          pointerEvents: 'auto'
         }}
         src={videoSrc || undefined}
         poster={posterSrc || undefined}
@@ -169,7 +178,6 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
         loop
         playsInline
         preload={isVisible ? "auto" : "none"}
-        onClick={handleVideoClick}
         onLoadedData={() => {
           // Set initial muted state and auto-play with sound
           const videoElement = videoRef.current;
@@ -196,16 +204,26 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
         }}
       />
 
+      {/* Clickable overlay for play/pause */}
+      <div 
+        className="absolute inset-0" 
+        onClick={handleVideoClick}
+        style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+      />
+
       {/* Video Controls Overlay */}
       <div
-        className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${
+        className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 pointer-events-none ${
           showControls || !isPlaying ? "opacity-100" : "opacity-0"
         }`}
       >
         {!isPlaying && (
           <button
-            onClick={togglePlayPause}
-            className="bg-black/50 backdrop-blur-sm rounded-full p-4 hover:bg-black/70 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePlayPause();
+            }}
+            className="bg-black/50 backdrop-blur-sm rounded-full p-4 hover:bg-black/70 transition-colors pointer-events-auto"
           >
             <Play className="w-8 h-8 text-white ml-1" />
           </button>
@@ -256,4 +274,6 @@ export function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
       )}
     </div>
   );
-}
+});
+
+export { VideoPlayer };
