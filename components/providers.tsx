@@ -3,10 +3,55 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { CampProvider } from "@campnetwork/origin/react";
+import { createConfig, WagmiProvider } from 'wagmi';
+import { http } from 'viem';
+import { injected } from 'wagmi/connectors';
+import { defineChain } from 'viem';
 import { Toaster } from 'sonner';
 import { VideoModalProvider } from '@/contexts/VideoModalContext';
 import { FollowStateProvider } from '@/contexts/FollowStateContext';
 import { useServiceWorker } from '@/hooks/useServiceWorker';
+
+// Define BaseCAMP chain with correct configuration
+const baseCamp = defineChain({
+  id: 123420001114,
+  name: 'BaseCAMP',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'CAMP',
+    symbol: 'CAMP',
+  },
+  rpcUrls: {
+    default: {
+      http: ['https://rpc.basecamp.t.raas.gelato.cloud', 'https://rpc-campnetwork.xyz'],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: 'BaseCAMP Explorer',
+      url: 'https://basecamp.cloud.blockscout.com',
+    },
+  },
+  contracts: {
+    // Add Origin Protocol contracts
+    marketplace: {
+      address: '0xBe611BFBDcb45C5E8C3E81a3ec36CBee31E52981',
+    },
+  },
+});
+
+// Wagmi configuration for BaseCAMP network
+const config = createConfig({
+  chains: [baseCamp],
+  connectors: [
+    injected({
+      target: 'metaMask',
+    }),
+  ],
+  transports: {
+    [baseCamp.id]: http('https://rpc.basecamp.t.raas.gelato.cloud'),
+  },
+});
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   // Register service worker for performance optimizations
@@ -107,6 +152,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <WagmiProvider config={config} reconnectOnMount={true}>
         <CampProvider 
           clientId={process.env.NEXT_PUBLIC_CAMP_NETWORK_CLIENT_ID || '9123887d-94f0-4427-a2f7-cd04d16c1fc3'}
           redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
@@ -119,6 +165,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
             </VideoModalProvider>
           </FollowStateProvider>
         </CampProvider>
+      </WagmiProvider>
     </QueryClientProvider>
   );
 } 

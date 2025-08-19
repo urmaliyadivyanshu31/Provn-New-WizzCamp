@@ -17,6 +17,7 @@ import { ExploreVideo } from "@/types/explore";
 import { trackLicenseEvent } from "@/components/analytics/GoogleAnalytics";
 import { useOriginLicensing } from "@/hooks/useOriginLicensing";
 import { useAuth } from "@campnetwork/origin/react";
+import { LicenseSuccessModal } from "@/components/explore/LicenseSuccessModal";
 
 interface LicensingModalProps {
   isOpen: boolean;
@@ -58,10 +59,17 @@ const LICENSE_OPTIONS = [
 
 export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: LicensingModalProps) {
   const { walletAddress } = useAuth();
-  const { buyLicense, getLicenseTerms, loading } = useOriginLicensing();
+  const { buyLicense, getLicenseTerms, loading, error, clearError } = useOriginLicensing();
   const [licenseTerms, setLicenseTerms] = useState<any>(null);
   const [periods, setPeriods] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [purchaseSuccess, setPurchaseSuccess] = useState(false);
+  const [transactionStep, setTransactionStep] = useState<string | null>(null);
+  const [successData, setSuccessData] = useState<{
+    transactionHash: string;
+    expiryDate?: Date;
+  } | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   
   // Check if current user is the video creator
   const isOwnVideo = walletAddress && video.creator.walletAddress && 
@@ -72,16 +80,24 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
     return null;
   }
   
-  // Fetch license terms from Origin SDK
+  // Reset states and fetch license terms from Origin SDK
   useEffect(() => {
-    if (isOpen && video.tokenId) {
-      getLicenseTerms(video.tokenId).then(terms => {
-        if (terms) {
-          setLicenseTerms(terms);
-        }
-      });
+    if (isOpen) {
+      // Reset states when modal opens
+      setPurchaseSuccess(false);
+      setTransactionStep(null);
+      clearError();
+      
+      // Fetch license terms
+      if (video.tokenId) {
+        getLicenseTerms(video.tokenId).then(terms => {
+          if (terms) {
+            setLicenseTerms(terms);
+          }
+        });
+      }
     }
-  }, [isOpen, video.tokenId, getLicenseTerms]);
+  }, [isOpen, video.tokenId, getLicenseTerms, clearError]);
 
   // Use licensing terms from Origin SDK or fallback to video data
   const actualPrice = licenseTerms ? Number(licenseTerms.price) / (10**18) : video.licensing.price; // Convert from Wei to CAMP
@@ -99,30 +115,52 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
     if (!isAuthenticated) return;
 
     setIsProcessing(true);
+    setPurchaseSuccess(false);
+    clearError();
+    setTransactionStep('Preparing transaction...');
 
     // Track license purchase attempt
     trackLicenseEvent('purchase_attempt', video.tokenId, licensePricePerPeriod, actualDuration);
 
     try {
-      // Use Origin SDK to purchase license
-      const success = await buyLicense(video.tokenId, periods);
+      setTransactionStep('Confirming payment...');
       
-      if (success) {
+      // Use Origin SDK to purchase license
+      const result = await buyLicense(video.tokenId, periods);
+      
+      if (result.success) {
+        setTransactionStep('Purchase successful!');
+        setPurchaseSuccess(true);
+        
+        // Set success data and show success modal
+        if (result.transactionHash) {
+          setSuccessData({
+            transactionHash: result.transactionHash,
+            expiryDate: result.expiryDate
+          });
+          setShowSuccessModal(true);
+        }
+        
         // Track successful purchase
         trackLicenseEvent('purchase_success', video.tokenId, licensePricePerPeriod, actualDuration);
         
-        // Show success and close modal
-        onClose();
+        // Auto-close modal after success delay if no success modal
+        if (!result.transactionHash) {
+          setTimeout(() => {
+            onClose();
+          }, 2000);
+        }
       }
     } catch (error) {
       console.error("License purchase failed:", error);
+      setTransactionStep(null);
       
       // Track failed purchase
       trackLicenseEvent('purchase_failed', video.tokenId, licensePricePerPeriod, actualDuration);
     } finally {
       setIsProcessing(false);
     }
-  }, [isAuthenticated, video.tokenId, periods, licensePricePerPeriod, actualDuration, buyLicense, onClose]);
+  }, [isAuthenticated, video.tokenId, periods, licensePricePerPeriod, actualDuration, buyLicense, onClose, clearError]);
 
   if (!isOpen) return null;
 
@@ -256,21 +294,33 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
 
             {/* Action Buttons */}
             <div className="flex gap-2 pt-1 sm:pt-2">
-              <button
+                <button
                 onClick={onClose}
-                className="px-3 sm:px-4 py-2.5 text-sm text-provn-muted hover:text-provn-text transition-colors font-headline touch-manipulation"
+                disabled={isProcessing}
+                className="px-3 sm:px-4 py-2.5 text-sm text-provn-muted hover:text-provn-text transition-colors font-headline touch-manipulation disabled:opacity-50"
               >
-                Cancel
+                {purchaseSuccess ? 'Close' : 'Cancel'}
               </button>
               <button
                 onClick={handlePurchase}
-                disabled={!isAuthenticated || isProcessing}
-                className="flex-1 bg-provn-accent hover:bg-provn-accent-press disabled:bg-provn-muted disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-lg transition-all font-headline touch-manipulation min-h-[40px] active:scale-[0.98] flex items-center justify-center gap-2"
+                disabled={!isAuthenticated || isProcessing || purchaseSuccess}
+                className={`flex-1 font-medium py-2.5 px-4 rounded-lg transition-all font-headline touch-manipulation min-h-[40px] active:scale-[0.98] flex items-center justify-center gap-2 ${
+                  purchaseSuccess 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-provn-accent hover:bg-provn-accent-press disabled:bg-provn-muted disabled:cursor-not-allowed text-white'
+                }`}
               >
-                {isProcessing ? (
+                {purchaseSuccess ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    License Purchased!
+                  </>
+                ) : isProcessing ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Processing...
+                    {transactionStep?.includes('Preparing') ? 'Preparing...' : 
+                     transactionStep?.includes('Confirming') ? 'Confirm in Wallet...' : 
+                     'Processing...'}
                   </>
                 ) : (
                   <>
@@ -280,6 +330,54 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
                 )}
               </button>
             </div>
+
+            {/* Error Display */}
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <div className="flex items-start gap-2 text-red-400">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <span className="text-xs font-headline">{error}</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <button
+                        onClick={clearError}
+                        className="text-xs text-red-300 hover:text-red-200 underline"
+                      >
+                        Dismiss
+                      </button>
+                      {!isProcessing && (
+                        <button
+                          onClick={handlePurchase}
+                          className="text-xs text-red-300 hover:text-red-200 underline"
+                        >
+                          Retry
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Success Display */}
+            {purchaseSuccess && (
+              <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <div className="flex items-center gap-2 text-green-400">
+                  <Check className="w-4 h-4" />
+                  <span className="text-xs font-headline">License purchased successfully! You can now use this content.</span>
+                </div>
+              </div>
+            )}
+
+            {/* Transaction Status */}
+            {isProcessing && transactionStep && (
+              <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <div className="flex items-center gap-2 text-blue-400">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-xs font-headline">{transactionStep}</span>
+                </div>
+              </div>
+            )}
 
             {!isAuthenticated && (
               <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
@@ -299,6 +397,25 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
           </div>
         </motion.div>
       </div>
+      
+      {/* Success Modal */}
+      {successData && (
+        <LicenseSuccessModal
+          isOpen={showSuccessModal}
+          onClose={() => {
+            setShowSuccessModal(false);
+            onClose(); // Close the main licensing modal too
+          }}
+          transactionHash={successData.transactionHash}
+          tokenId={video.tokenId}
+          periods={periods}
+          totalCost={(licensePricePerPeriod * (10**18)).toString()}
+          licenseType={video.remixing?.template || 'Basic License'}
+          expiryDate={successData.expiryDate}
+          creatorName={video.creator.displayName}
+          contentTitle={video.title}
+        />
+      )}
     </AnimatePresence>
   );
 }
