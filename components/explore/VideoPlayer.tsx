@@ -410,11 +410,11 @@ const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: Vi
       )}
 
       {/* Fast Gateway Indicator */}
-      {loadingState === 'ready' && isBuffered && (
+      {/* {loadingState === 'ready' && isBuffered && (
         <div className="absolute top-2 left-2 bg-green-500/20 text-green-400 px-2 py-1 rounded-lg text-xs font-medium">
           ⚡ Instant Load
         </div>
-      )}
+      )} */}
     </div>
   );
 });
