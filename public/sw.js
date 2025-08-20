@@ -24,12 +24,11 @@ const API_CACHE_CONFIG = {
 };
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker');
-  
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching static assets');
-      return cache.addAll(STATIC_ASSETS);
+      return cache.addAll(STATIC_ASSETS).catch(() => {
+        // Silently handle missing assets
+      });
     })
   );
   
@@ -38,7 +37,6 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker');
   
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -49,7 +47,6 @@ self.addEventListener('activate', (event) => {
             cacheName !== DYNAMIC_CACHE_NAME &&
             cacheName !== CACHE_NAME
           ) {
-            console.log('[SW] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -106,17 +103,17 @@ async function handleApiRequest(request) {
       const cachedResponse = await cache.match(request);
       
       if (cachedResponse) {
-        console.log('[SW] Serving cached API response');
         // Fetch fresh data in background
         fetch(request).then((response) => {
-          if (response.ok) {
+          if (response.ok && response.status !== 206) {
+            // Don't cache partial responses (206)
             cache.put(request, response.clone());
           }
         });
         return cachedResponse;
       }
     } catch (error) {
-      console.warn('[SW] Cache lookup failed:', error);
+      // Silently handle cache lookup failures
     }
   }
   
@@ -124,14 +121,15 @@ async function handleApiRequest(request) {
   try {
     const response = await fetch(request);
     
-    if (response.ok) {
+    if (response.ok && response.status !== 206) {
+      // Don't cache partial responses (206) as they're not supported
       const cache = await caches.open(DYNAMIC_CACHE_NAME);
       cache.put(request, response.clone());
     }
     
     return response;
   } catch (error) {
-    console.warn('[SW] Network request failed:', error);
+    // Handle network failures silently
     
     // Try to serve from cache as fallback
     const cache = await caches.open(DYNAMIC_CACHE_NAME);
@@ -159,14 +157,13 @@ async function handleMediaRequest(request) {
     const cachedResponse = await cache.match(request);
     
     if (cachedResponse) {
-      console.log('[SW] Serving cached media');
       return cachedResponse;
     }
     
     const response = await fetch(request);
     
-    if (response.ok) {
-      // Only cache smaller media files to avoid storage issues
+    if (response.ok && response.status !== 206) {
+      // Don't cache partial responses (206) and only cache smaller media files
       const contentLength = response.headers.get('content-length');
       if (!contentLength || parseInt(contentLength) < 50 * 1024 * 1024) { // 50MB limit
         cache.put(request, response.clone());
@@ -175,7 +172,7 @@ async function handleMediaRequest(request) {
     
     return response;
   } catch (error) {
-    console.warn('[SW] Media request failed:', error);
+    // Handle media request failures silently
     return fetch(request);
   }
 }
@@ -192,13 +189,14 @@ async function handleStaticRequest(request) {
     
     const response = await fetch(request);
     
-    if (response.ok) {
+    if (response.ok && response.status !== 206) {
+      // Don't cache partial responses (206)
       cache.put(request, response.clone());
     }
     
     return response;
   } catch (error) {
-    console.warn('[SW] Static request failed:', error);
+    // Handle static request failures silently
     return fetch(request);
   }
 }
@@ -241,5 +239,4 @@ self.addEventListener('sync', (event) => {
 
 async function syncVideoInteractions() {
   // Handle offline video interactions (likes, views, etc.)
-  console.log('[SW] Syncing video interactions');
 }

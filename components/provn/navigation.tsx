@@ -11,6 +11,7 @@ import {
 import { Menu, X, Wallet, User } from "lucide-react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { CreateProfileModal } from "./create-profile-modal";
+import { ProfileCardModal } from "@/components/profile/ProfileCardModal";
 import { useProfile } from "@/hooks/useProfile";
 
 interface NavigationProps {
@@ -55,10 +56,12 @@ const ProvnLogo = ({ isScrolled }: { isScrolled: boolean }) => {
   );
 };
 
+
 export function Navigation({ currentPage }: NavigationProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [showCreateProfile, setShowCreateProfile] = useState(false);
+  const [showProfileCard, setShowProfileCard] = useState(false);
   const { scrollY } = useScroll();
   const { isAuthenticated, walletAddress } = useAuth();
   const { authenticated } = useAuthState();
@@ -152,21 +155,56 @@ export function Navigation({ currentPage }: NavigationProps) {
 
             {/* Desktop Navigation */}
             <motion.div
-              className="hidden md:flex items-center gap-8"
+              className="hidden md:flex items-center gap-8 font-headline"
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
             >
-              <NavLink href="/explore" currentPage={currentPage} page="explore">
+              <NavLink 
+                href={isAuthenticated && profile ? "/explore" : "#"} 
+                currentPage={currentPage} 
+                page="explore"
+                onClick={!isAuthenticated || !profile ? (e) => {
+                  e?.preventDefault()
+                  if (!isAuthenticated) {
+                    openModal()
+                  } else if (!profile) {
+                    setShowCreateProfile(true)
+                  }
+                } : undefined}
+                disabled={!isAuthenticated || !profile}
+              >
                 Explore
               </NavLink>
-              <NavLink href="/upload" currentPage={currentPage} page="upload">
+              <NavLink 
+                href={isAuthenticated && profile ? "/upload" : "#"} 
+                currentPage={currentPage} 
+                page="upload"
+                onClick={!isAuthenticated || !profile ? (e) => {
+                  e?.preventDefault()
+                  if (!isAuthenticated) {
+                    openModal()
+                  } else if (!profile) {
+                    setShowCreateProfile(true)
+                  }
+                } : undefined}
+                disabled={!isAuthenticated || !profile}
+              >
                 Create
               </NavLink>
               <NavLink
-                href="/dashboard"
+                href={isAuthenticated && profile ? "/dashboard" : "#"}
                 currentPage={currentPage}
                 page="dashboard"
+                onClick={!isAuthenticated || !profile ? (e) => {
+                  e?.preventDefault()
+                  if (!isAuthenticated) {
+                    openModal()
+                  } else if (!profile) {
+                    setShowCreateProfile(true)
+                  }
+                } : undefined}
+                disabled={!isAuthenticated || !profile}
               >
                 Leaderboard
               </NavLink>
@@ -176,14 +214,15 @@ export function Navigation({ currentPage }: NavigationProps) {
                 <>
                   <motion.button
                     onClick={() => {
+                      console.log('🎯 Navigation: View Profile clicked', { profile: profile?.handle, showProfileCard })
                       if (profile) {
-                        window.location.href = `/u/${profile.handle}`;
+                        setShowProfileCard(true);
                       } else {
                         // No profile, show create profile modal
                         setShowCreateProfile(true);
                       }
                     }}
-                    className="relative px-4 py-2 rounded-lg font-medium transition-all duration-200 text-provn-muted hover:text-provn-text hover:bg-provn-surface/30 flex items-center gap-2"
+                    className="relative px-4 py-2 rounded-lg font-medium transition-all duration-200 text-provn-muted hover:text-provn-text hover:bg-provn-surface/30 flex items-center gap-2 font-headline"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -192,7 +231,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                   </motion.button>
                   <motion.button
                     onClick={openModal}
-                    className="relative px-4 py-2 rounded-lg font-medium transition-all duration-200 text-provn-muted hover:text-provn-text hover:bg-provn-surface/30 flex items-center gap-2"
+                    className="relative px-4 py-2 rounded-lg font-medium transition-all duration-200 text-provn-muted hover:text-provn-text hover:bg-provn-surface/30 flex items-center gap-2 font-headline"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -270,35 +309,69 @@ export function Navigation({ currentPage }: NavigationProps) {
           id="mobile-menu"
         >
           <div className="px-4 py-6 space-y-4">
-            <MobileNavLink href="/explore" onClick={() => setIsMenuOpen(false)}>
+            <MobileNavLink 
+              href={isAuthenticated && profile ? "/explore" : "#"} 
+              onClick={!isAuthenticated || !profile ? (e) => {
+                e?.preventDefault()
+                if (!isAuthenticated) {
+                  openModal()
+                } else if (!profile) {
+                  setShowCreateProfile(true)
+                }
+                setIsMenuOpen(false)
+              } : () => setIsMenuOpen(false)}
+              disabled={!isAuthenticated || !profile}
+            >
               Explore Provs
             </MobileNavLink>
-            <MobileNavLink href="/upload" onClick={() => setIsMenuOpen(false)}>
+            <MobileNavLink 
+              href={isAuthenticated && profile ? "/upload" : "#"} 
+              onClick={!isAuthenticated || !profile ? (e) => {
+                e?.preventDefault()
+                if (!isAuthenticated) {
+                  openModal()
+                } else if (!profile) {
+                  setShowCreateProfile(true)
+                }
+                setIsMenuOpen(false)
+              } : () => setIsMenuOpen(false)}
+              disabled={!isAuthenticated || !profile}
+            >
               Create Content
             </MobileNavLink>
             <MobileNavLink
-              href="/dashboard"
-              onClick={() => setIsMenuOpen(false)}
+              href={isAuthenticated && profile ? "/dashboard" : "#"}
+              onClick={!isAuthenticated || !profile ? (e) => {
+                e?.preventDefault()
+                if (!isAuthenticated) {
+                  openModal()
+                } else if (!profile) {
+                  setShowCreateProfile(true)
+                }
+                setIsMenuOpen(false)
+              } : () => setIsMenuOpen(false)}
+              disabled={!isAuthenticated || !profile}
             >
               Leaderboard
             </MobileNavLink>
 
             {/* Mobile Wallet Connection */}
-            <div className="pt-4 border-t border-provn-border/30">
+            <div className="pt-4 border-t border-provn-border/30 font-headline">
               {authenticated ? (
                 <>
                   <motion.button
                     onClick={() => {
+                      console.log('🎯 Mobile Navigation: View Profile clicked', { profile: profile?.handle, showProfileCard })
                       if (profile) {
-                        // Profile exists, navigate to it
-                        window.location.href = `/u/${profile.handle}`;
+                        // Profile exists, show profile card modal
+                        setShowProfileCard(true);
                       } else {
                         // No profile, show create profile modal
                         setShowCreateProfile(true);
                       }
                       setIsMenuOpen(false);
                     }}
-                    className="flex items-center gap-3 p-4 rounded-xl bg-provn-surface/50 border border-provn-border/50 w-full text-left mb-3"
+                    className="flex items-center gap-3 p-4 rounded-xl bg-provn-surface/50 border border-provn-border/50 w-full text-left mb-3 font-headline"
                     whileTap={{ scale: 0.98 }}
                   >
                     <div className="w-10 h-10 bg-provn-accent rounded-full flex items-center justify-center">
@@ -331,7 +404,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                         console.log("🔍 Mobile: Trying fallback modal approach");
                       }
                     }}
-                    className="w-full flex items-center justify-center gap-2 p-4 rounded-xl bg-provn-surface/30 border border-provn-border/30 text-provn-muted hover:bg-provn-surface/50 hover:border-provn-border/50 hover:text-provn-text transition-all duration-200 cursor-pointer"
+                    className="w-full flex items-center justify-center gap-2 p-4 rounded-xl bg-provn-surface/30 border border-provn-border/30 text-provn-muted hover:bg-provn-surface/50 hover:border-provn-border/50 hover:text-provn-text transition-all duration-200 cursor-pointer font-headline"
                     whileTap={{ scale: 0.98 }}
                   >
                     <Wallet className="w-4 h-4" />
@@ -345,7 +418,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                     openModal();
                     setIsMenuOpen(false);
                   }}
-                  className="w-full flex items-center justify-center gap-2 p-4 rounded-xl bg-provn-surface/50 border border-provn-border/50 text-provn-text hover:bg-provn-surface hover:border-provn-border transition-all duration-200 cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 p-4 rounded-xl bg-provn-surface/50 border border-provn-border/50 text-provn-text hover:bg-provn-surface hover:border-provn-border transition-all duration-200 cursor-pointer font-headline"
                   whileTap={{ scale: 0.98 }}
                 >
                   <Wallet className="w-4 h-4" />
@@ -388,6 +461,15 @@ export function Navigation({ currentPage }: NavigationProps) {
           window.location.href = `/u/${handle}`;
         }}
       />
+
+      {/* Profile Card Modal */}
+      {profile && (
+        <ProfileCardModal
+          isOpen={showProfileCard}
+          onClose={() => setShowProfileCard(false)}
+          profile={profile}
+        />
+      )}
     </>
   );
 }
@@ -398,32 +480,50 @@ const NavLink = ({
   children,
   currentPage,
   page,
+  onClick,
+  disabled = false,
 }: {
   href: string;
   children: React.ReactNode;
   currentPage?: string;
   page: string;
+  onClick?: (e: React.MouseEvent) => void;
+  disabled?: boolean;
 }) => {
   const isActive = currentPage === page;
 
   return (
     <motion.a
-      href={href}
+      href={disabled ? "#" : href}
+      onClick={onClick}
       className={`relative px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-        isActive
-          ? "text-provn-accent bg-provn-accent/10"
-          : "text-provn-muted hover:text-provn-text hover:bg-provn-surface/30"
+        disabled
+          ? "text-provn-muted/50 cursor-not-allowed"
+          : isActive
+            ? "text-provn-accent bg-provn-accent/10"
+            : "text-provn-muted hover:text-provn-text hover:bg-provn-surface/30"
       }`}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={disabled ? {} : { scale: 1.05 }}
+      whileTap={disabled ? {} : { scale: 0.95 }}
       aria-current={isActive ? "page" : undefined}
+      aria-disabled={disabled}
     >
       {children}
-      {isActive && (
-        <motion.div
-          className="absolute -bottom-1 left-0 right-0 h-0.5 bg-provn-accent rounded-full"
-          layoutId="activeNavIndicator"
-        />
+      {!disabled && (
+        <>
+          {/* Lock icon for disabled state */}
+          {disabled && (
+            <div className="absolute top-1 right-1 w-3 h-3 bg-provn-muted/30 rounded-full flex items-center justify-center">
+              <div className="w-1.5 h-1.5 border border-provn-muted/50 rounded-full"></div>
+            </div>
+          )}
+          {isActive && (
+            <motion.div
+              className="absolute -bottom-1 left-0 right-0 h-0.5 bg-provn-accent rounded-full"
+              layoutId="activeNavIndicator"
+            />
+          )}
+        </>
       )}
     </motion.a>
   );
@@ -434,17 +534,24 @@ const MobileNavLink = ({
   href,
   children,
   onClick,
+  disabled = false,
 }: {
   href: string;
   children: React.ReactNode;
-  onClick: () => void;
+  onClick: (e?: React.MouseEvent) => void;
+  disabled?: boolean;
 }) => {
   return (
     <motion.a
-      href={href}
+      href={disabled ? "#" : href}
       onClick={onClick}
-      className="block px-4 py-3 text-provn-text hover:text-provn-accent hover:bg-provn-surface/30 rounded-lg transition-all duration-200 font-medium"
-      whileTap={{ scale: 0.98 }}
+      className={`block px-4 py-3 rounded-lg transition-all duration-200 font-medium ${
+        disabled
+          ? "text-provn-muted/50 cursor-not-allowed"
+          : "text-provn-text hover:text-provn-accent hover:bg-provn-surface/30"
+      }`}
+      whileTap={disabled ? {} : { scale: 0.98 }}
+      aria-disabled={disabled}
     >
       {children}
     </motion.a>

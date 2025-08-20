@@ -2,7 +2,7 @@ import { lazy, Suspense, ComponentType } from 'react';
 import { Loader2 } from 'lucide-react';
 
 // Lazy load heavy modal components
-const TipModalLazy = lazy(() => import('./TipModal'));
+const TipModalLazy = lazy(() => import('./TipModal')); // Default export
 const ShareModalLazy = lazy(() => import('./ShareModal').then(module => ({ default: module.ShareModal })));
 const LicensingModalLazy = lazy(() => import('./LicensingModal').then(module => ({ default: module.LicensingModal })));
 const VideoDetailsModalLazy = lazy(() => import('./VideoDetailsModal').then(module => ({ default: module.VideoDetailsModal })));

@@ -75,6 +75,50 @@ class Logger {
       console.log(`✅ ${message}`, data)
     }
   }
+
+  // Performance tracking methods
+  time(label: string): void {
+    if (this.shouldLog('DEBUG') && typeof window !== 'undefined') {
+      performance.mark(`${label}-start`)
+    }
+  }
+
+  timeEnd(label: string): void {
+    if (this.shouldLog('DEBUG') && typeof window !== 'undefined') {
+      try {
+        performance.mark(`${label}-end`)
+        performance.measure(label, `${label}-start`, `${label}-end`)
+        const measure = performance.getEntriesByName(label)[0]
+        this.debug(`⏱️ ${label}: ${measure.duration.toFixed(2)}ms`)
+        
+        // Clean up marks to prevent memory leaks
+        performance.clearMarks(`${label}-start`)
+        performance.clearMarks(`${label}-end`)
+        performance.clearMeasures(label)
+      } catch (e) {
+        // Silently fail if performance API isn't available
+      }
+    }
+  }
+
+  // Group methods for organized logging
+  group(label: string): void {
+    if (this.shouldLog('DEBUG')) {
+      console.group(label)
+    }
+  }
+
+  groupEnd(): void {
+    if (this.shouldLog('DEBUG')) {
+      console.groupEnd()
+    }
+  }
 }
 
 export const logger = new Logger()
+
+// Performance tracking utilities
+export const perf = {
+  start: (label: string) => logger.time(label),
+  end: (label: string) => logger.timeEnd(label)
+}

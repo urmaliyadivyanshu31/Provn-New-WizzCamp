@@ -46,7 +46,7 @@ export function NetworkStatus({ className = "" }: NetworkStatusProps) {
         return
       }
       
-      const provider = createProvider()
+      const provider = await createProvider()
       const network = await provider.getNetwork()
       const chainId = network.chainId.toString()
       
@@ -55,7 +55,6 @@ export function NetworkStatus({ className = "" }: NetworkStatusProps) {
       
     } catch (err) {
       setError("Failed to check network")
-      console.error("Network check error:", err)
     } finally {
       setIsLoading(false)
     }

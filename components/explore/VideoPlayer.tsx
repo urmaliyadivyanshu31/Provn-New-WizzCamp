@@ -40,8 +40,8 @@ const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: Vi
               }
             })
             .catch((error) => {
-              // Only log non-abort errors
-              if (error.name !== 'AbortError' && !abortController.signal.aborted) {
+              // Only log non-abort errors and avoid spamming console
+              if (error.name !== 'AbortError' && !abortController.signal.aborted && error.name !== 'NotSupportedError') {
                 console.warn("Auto-play failed:", error.name, error.message);
               }
               setIsPlaying(false);
@@ -149,7 +149,7 @@ const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: Vi
         })
         .catch((error) => {
           // Silently handle play errors (common in rapid interactions)
-          if (error.name !== 'AbortError') {
+          if (error.name !== 'AbortError' && error.name !== 'NotSupportedError') {
             console.warn("Manual play failed:", error.name);
           }
           setIsPlaying(false);

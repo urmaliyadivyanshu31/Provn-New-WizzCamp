@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { logger } from '@/lib/logger';
 
 export function useServiceWorker() {
   useEffect(() => {
@@ -9,17 +10,17 @@ export function useServiceWorker() {
             scope: '/',
           });
 
-          console.log('✅ Service Worker registered successfully:', registration);
+          logger.info('Service Worker registered successfully');
 
           // Listen for updates
           registration.addEventListener('updatefound', () => {
-            console.log('🔄 Service Worker update found');
+            logger.info('Service Worker update found');
             const newWorker = registration.installing;
             
             if (newWorker) {
               newWorker.addEventListener('statechange', () => {
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  console.log('🆕 New Service Worker available');
+                  logger.info('New Service Worker available');
                   // Could show a toast here asking user to refresh
                 }
               });
@@ -28,11 +29,11 @@ export function useServiceWorker() {
 
           // Handle messages from service worker
           navigator.serviceWorker.addEventListener('message', (event) => {
-            console.log('📨 Message from Service Worker:', event.data);
+            logger.debug('Message from Service Worker', { data: event.data });
           });
 
         } catch (error) {
-          console.error('❌ Service Worker registration failed:', error);
+          logger.error('Service Worker registration failed', { error });
         }
       };
 
@@ -42,7 +43,7 @@ export function useServiceWorker() {
       // Register background sync for offline interactions
       if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
         navigator.serviceWorker.ready.then((registration) => {
-          console.log('🔄 Background sync available');
+          logger.info('Background sync available');
           // Could register sync events here
         });
       }

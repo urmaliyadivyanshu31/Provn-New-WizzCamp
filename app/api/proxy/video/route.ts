@@ -18,10 +18,10 @@ const CORS_FRIENDLY_GATEWAYS = [
 ]
 
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const url = searchParams.get('url')
+  
   try {
-    const { searchParams } = new URL(request.url)
-    const url = searchParams.get('url')
-    
     if (!url) {
       return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 })
     }
@@ -50,21 +50,88 @@ export async function GET(request: NextRequest) {
 
     console.log('🌐 Proxying video request:', url)
 
+    // Build headers for IPFS request
+    const requestHeaders: Record<string, string> = {
+      'User-Agent': 'Provn-Video-Proxy/1.0',
+      'Accept': 'video/*, application/octet-stream, */*',
+    }
+
+    // Only add Range header if client requested it
+    const rangeHeader = request.headers.get('range')
+    if (rangeHeader) {
+      requestHeaders['Range'] = rangeHeader
+    }
+
     // Fetch from IPFS gateway with proper headers
     const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Provn-Video-Proxy/1.0',
-        'Accept': 'video/*, application/octet-stream, */*',
-        'Range': request.headers.get('range') || 'bytes=0-',
-      },
+      headers: requestHeaders,
       signal: AbortSignal.timeout(30000) // 30 second timeout
     })
 
     if (!response.ok) {
       console.error('❌ Failed to fetch from IPFS gateway:', response.status, response.statusText)
+      console.error('❌ Failed URL:', url)
+      
+      // Try alternative gateways before giving up
+      const alternativeGateways = [
+        'https://ipfs.io',
+        'https://cloudflare-ipfs.com',
+        'https://gateway.pinata.cloud'
+      ]
+      
+      for (const gateway of alternativeGateways) {
+        if (!url.startsWith(gateway)) {
+          try {
+            const hash = url.match(/\/ipfs\/([a-zA-Z0-9]+)/)?.[1]
+            if (hash) {
+              const altUrl = `${gateway}/ipfs/${hash}`
+              console.log('🔄 Trying alternative gateway:', gateway)
+              
+              const altResponse = await fetch(altUrl, {
+                headers: requestHeaders,
+                signal: AbortSignal.timeout(15000) // Shorter timeout for fallbacks
+              })
+              
+              if (altResponse.ok) {
+                console.log('✅ Alternative gateway succeeded:', gateway)
+                // Continue with the successful response
+                const data = await altResponse.arrayBuffer()
+                
+                const contentType = altResponse.headers.get('content-type') || 'video/mp4'
+                const contentLength = altResponse.headers.get('content-length')
+                const acceptRanges = altResponse.headers.get('accept-ranges') || 'bytes'
+                const contentRange = altResponse.headers.get('content-range')
+
+                const responseHeaders: Record<string, string> = {
+                  'Content-Type': contentType,
+                  'Accept-Ranges': acceptRanges,
+                  'Access-Control-Allow-Origin': '*',
+                  'Access-Control-Allow-Methods': 'GET, OPTIONS, HEAD',
+                  'Access-Control-Allow-Headers': 'Range, Content-Type, Authorization',
+                  'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
+                  'Cache-Control': 'public, max-age=600',
+                  'Cross-Origin-Resource-Policy': 'cross-origin'
+                }
+
+                if (contentLength) responseHeaders['Content-Length'] = contentLength
+                if (contentRange) responseHeaders['Content-Range'] = contentRange
+
+                return new NextResponse(data, {
+                  status: altResponse.status,
+                  headers: responseHeaders
+                })
+              }
+            }
+          } catch (altError) {
+            console.warn('❌ Alternative gateway failed:', gateway, altError)
+            continue
+          }
+        }
+      }
+      
       return NextResponse.json({ 
-        error: `Gateway error: ${response.status} ${response.statusText}` 
-      }, { status: response.status })
+        error: `All gateways failed. Original error: ${response.status} ${response.statusText}` 
+      }, { status: 502 }) // Bad Gateway instead of original error
     }
 
     // Get response data
@@ -118,6 +185,7 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ Proxy error:', error)
+    console.error('❌ Failed URL:', url)
     
     if (error instanceof Error && error.name === 'AbortError') {
       return NextResponse.json({ error: 'Request timeout' }, { status: 408 })
@@ -125,7 +193,8 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({ 
       error: 'Failed to proxy video content',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
+      url: url // Include the URL in the error response for debugging
     }, { status: 500 })
   }
 }

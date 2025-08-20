@@ -44,7 +44,7 @@ export function useOriginTipping() {
       }
 
       // Create provider and signer
-      const provider = createProvider()
+      const provider = await createProvider()
       const signer = provider.getSigner()
       
       // Check if we're on the correct network (BaseCAMP)

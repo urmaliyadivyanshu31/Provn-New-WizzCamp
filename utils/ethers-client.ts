@@ -28,7 +28,7 @@ export async function createProvider() {
     throw new Error('No wallet detected. Please install MetaMask or another wallet.')
   }
 
-  return new ethers.BrowserProvider(window.ethereum)
+  return new ethers.providers.Web3Provider(window.ethereum)
 }
 
 export async function createContract(address: string, abi: string[], signer: any) {

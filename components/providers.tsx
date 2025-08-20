@@ -97,17 +97,17 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                 // Check if ethereum already exists and is configurable
                 const existingDescriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
                 if (existingDescriptor && existingDescriptor.configurable === false) {
-                  console.warn('ethereum property already exists and is not configurable, skipping redefinition');
+                  // Property already exists and is not configurable
                   return obj;
                 }
                 if (window.ethereum) {
-                  console.warn('ethereum object already exists, skipping redefinition');
+                  // Ethereum object already exists
                   return obj;
                 }
               }
               return originalDefineProperty.call(this, obj, prop, descriptor) as T;
             } catch (error) {
-              console.warn('Error defining property:', prop, error);
+              // Error defining property - silently handle
               return obj;
             }
           };
@@ -117,7 +117,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
             Object.defineProperty = originalDefineProperty;
           }, 5000);
         } catch (error) {
-          console.warn('Error setting up ethereum conflict handler:', error);
+          // Error setting up ethereum conflict handler - silently handle
         }
       }
     };
@@ -132,7 +132,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       
       // Let CampProvider handle configuration automatically
       setIsConfigReady(true);
-      console.log('🔧 Ready to initialize CampProvider');
+      // Ready to initialize CampProvider
     }
   }, []);
 

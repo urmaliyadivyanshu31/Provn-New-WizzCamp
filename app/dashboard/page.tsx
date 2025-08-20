@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Navigation } from "@/components/provn/navigation"
 import { ProvnButton } from "@/components/provn/button"
 import { ProvnCard, ProvnCardContent } from "@/components/provn/card"
+import { FullyProtectedRoute } from "@/components/guards/ProtectedRoute"
 import { useAuth } from '@campnetwork/origin/react'
 
 interface CreatorRanking {
@@ -203,8 +204,12 @@ export default function LeaderboardPage() {
   const topThree = leaderboardData?.leaderboard.slice(0, 3) || []
 
   return (
-    <div className="min-h-screen font-headline bg-provn-bg">
-      <Navigation currentPage="dashboard" />
+    <FullyProtectedRoute
+      authMessage="Connect your wallet to view creator leaderboards and compete with other creators."
+      profileMessage="Create your profile to appear on leaderboards and compete for the top spots."
+    >
+      <div className="min-h-screen font-headline bg-provn-bg">
+        <Navigation currentPage="dashboard" />
 
       {/* Hero Section - Clean and Simple */}
       <div className="pt-20 pb-8 px-6">
@@ -547,6 +552,7 @@ export default function LeaderboardPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </FullyProtectedRoute>
   )
 }

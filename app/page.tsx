@@ -1,6 +1,8 @@
 "use client"
 import React, { useRef, useState, useEffect } from "react"
 import { motion, useScroll, useTransform, useInView } from "framer-motion"
+import { rafThrottle } from "@/lib/utils/performance"
+import { fastTransition, normalTransition, slideUpFast, fadeInFast, optimizedViewport } from "@/lib/utils/animation-config"
 import { ProvnBadge } from "@/components/provn/badge"
 import { Navigation } from "@/components/provn/navigation"
 import { ProvnButton } from "@/components/provn/button"
@@ -88,8 +90,8 @@ const LiveMetrics = ({ creatorsCount, videosCount }: { creatorsCount: number, vi
             key={metric.label}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: index * 0.1 }}
-            viewport={{ once: true }}
+            transition={{ ...fastTransition, delay: index * 0.03 }}
+            viewport={optimizedViewport}
             className="bg-provn-surface border border-provn-border rounded-xl p-4 text-center"
           >
             <Icon className="w-8 h-8 text-provn-accent mx-auto mb-2" />
@@ -108,10 +110,12 @@ const LiveMetrics = ({ creatorsCount, videosCount }: { creatorsCount: number, vi
 
 export default function HomePage() {
   const { scrollYProgress } = useScroll()
+  // Optimize scroll-based transforms to reduce repaints
   const headerOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0.8])
   
   const heroRef = useRef(null)
-  const isHeroInView = useInView(heroRef, { once: true })
+  const isHeroInView = useInView(heroRef, { once: true, margin: "0px 0px -100px 0px" })
+  
   
   // Real platform data
   const [platformData, setPlatformData] = useState({
@@ -119,6 +123,12 @@ export default function HomePage() {
     videosCount: 3   // Default fallback
   })
   
+  // Helper function to handle protected navigation
+  const handleProtectedNavigation = (href: string) => {
+    // Just redirect to the page - the guards will handle auth and profile creation
+    window.location.href = href
+  }
+
   // Fetch real platform data
   useEffect(() => {
     const fetchPlatformData = async () => {
@@ -151,8 +161,7 @@ export default function HomePage() {
         }
         
       } catch (error) {
-        console.error('Failed to fetch platform data:', error)
-        // Keep fallback values
+        // Keep fallback values - silent for better performance
       }
     }
     
@@ -189,14 +198,14 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={isHeroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-            transition={{ duration: 0.8 }}
+            transition={normalTransition}
             className="space-y-8"
           >
             <div className="space-y-6">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={isHeroInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
+                transition={{ ...normalTransition, delay: 0.1 }}
               >
                 <ProvnBadge className="bg-provn-success/10 text-provn-success border-provn-success/20 mb-6">
                   <DollarSign className="w-4 h-4 mr-1" />
@@ -220,7 +229,7 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <ProvnButton
                 size="lg"
-                onClick={() => (window.location.href = "/upload")}
+                onClick={() => handleProtectedNavigation("/upload")}
                 className="px-12 py-4 text-xl font-semibold group"
               >
                 <Upload className="w-6 h-6 mr-2 group-hover:rotate-12 transition-transform" />
@@ -230,7 +239,7 @@ export default function HomePage() {
               <ProvnButton
                 variant="secondary"
                 size="lg"
-                onClick={() => (window.location.href = "/dashboard")}
+                onClick={() => handleProtectedNavigation("/dashboard")}
                 className="px-12 py-4 text-xl group"
               >
                 <Play className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
@@ -242,7 +251,7 @@ export default function HomePage() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={isHeroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
+              transition={{ ...normalTransition, delay: 0.2 }}
               className="flex flex-wrap justify-center gap-12 pt-12 border-t border-provn-border/30"
             >
               <div className="text-center">
@@ -295,15 +304,15 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
+            transition={normalTransition}
+            viewport={optimizedViewport}
             className="text-center mb-16"
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              viewport={{ once: true }}
+              viewport={optimizedViewport}
             >
               <ProvnBadge className="bg-provn-accent/10 text-provn-accent border-provn-accent/20 mb-6">
                 <Play className="w-4 h-4 mr-1" />
@@ -328,7 +337,7 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 40, scale: 0.95 }}
             whileInView={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            viewport={{ once: true }}
+            viewport={optimizedViewport}
             className="relative"
           >
             {/* Decorative elements */}
@@ -380,8 +389,8 @@ export default function HomePage() {
                 <motion.div
                   initial={{ opacity: 0, x: 30 }}
                   whileInView={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.8, delay: 0.6 }}
-                  viewport={{ once: true }}
+                  transition={{ ...normalTransition, delay: 0.3 }}
+                  viewport={optimizedViewport}
                   className="absolute -top-4 -right-4 bg-gradient-to-br from-provn-success/90 to-provn-success/80 backdrop-blur-sm border border-provn-success/20 rounded-xl p-4 text-center shadow-lg"
                 >
                   <div className="text-2xl font-bold text-white font-headline">100%</div>
@@ -391,8 +400,8 @@ export default function HomePage() {
                 <motion.div
                   initial={{ opacity: 0, x: -30 }}
                   whileInView={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.8, delay: 0.8 }}
-                  viewport={{ once: true }}
+                  transition={{ ...normalTransition, delay: 0.4 }}
+                  viewport={optimizedViewport}
                   className="absolute -bottom-4 -left-4 bg-gradient-to-br from-provn-accent/90 to-provn-accent/80 backdrop-blur-sm border border-provn-accent/20 rounded-xl p-4 text-center shadow-lg"
                 >
                   <div className="text-2xl font-bold text-white font-headline">0%</div>
@@ -404,12 +413,12 @@ export default function HomePage() {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 1.0 }}
-                viewport={{ once: true }}
+                transition={{ ...normalTransition, delay: 0.5 }}
+                viewport={optimizedViewport}
                 className="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center"
               >
                 <ProvnButton
-                  onClick={() => (window.location.href = "/upload")}
+                  onClick={() => handleProtectedNavigation("/upload")}
                   className="px-8 py-3 text-lg group"
                 >
                   <Upload className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform" />
@@ -418,7 +427,7 @@ export default function HomePage() {
                 </ProvnButton>
                 <ProvnButton
                   variant="secondary"
-                  onClick={() => (window.location.href = "/explore")}
+                  onClick={() => handleProtectedNavigation("/explore")}
                   className="px-8 py-3 text-lg group"
                 >
                   <Play className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
@@ -433,7 +442,7 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            viewport={{ once: true }}
+            viewport={optimizedViewport}
             className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6"
           >
             {[
@@ -447,8 +456,8 @@ export default function HomePage() {
                   key={feature.title}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.6 + (index * 0.1) }}
-                  viewport={{ once: true }}
+                  transition={{ ...fastTransition, delay: 0.3 + (index * 0.05) }}
+                  viewport={optimizedViewport}
                   className="bg-provn-surface/50 backdrop-blur-sm border border-provn-border/30 rounded-xl p-6 text-center hover:bg-provn-surface/70 transition-all duration-300"
                 >
                   <Icon className="w-8 h-8 text-provn-accent mx-auto mb-3" />
@@ -470,8 +479,8 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
+            transition={normalTransition}
+            viewport={optimizedViewport}
             className="text-center mb-20"
           >
             <h2 className="font-headline text-5xl md:text-7xl font-bold text-provn-text mb-8 leading-tight">
@@ -493,7 +502,7 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              viewport={{ once: true }}
+              viewport={optimizedViewport}
               className="relative bg-gradient-to-br from-provn-surface/80 to-provn-surface/40 backdrop-blur-2xl border border-provn-border/30 rounded-3xl p-12 shadow-2xl"
             >
               <div className="text-center mb-12">
@@ -510,8 +519,8 @@ export default function HomePage() {
                 <motion.div
                   initial={{ opacity: 0, x: -30 }}
                   whileInView={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.8, delay: 0.4 }}
-                  viewport={{ once: true }}
+                  transition={{ ...normalTransition, delay: 0.2 }}
+                  viewport={optimizedViewport}
                   className="space-y-8"
                 >
                   <div className="text-center">
@@ -561,8 +570,8 @@ export default function HomePage() {
                 <motion.div
                   initial={{ opacity: 0, x: 30 }}
                   whileInView={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.8, delay: 0.6 }}
-                  viewport={{ once: true }}
+                  transition={{ ...normalTransition, delay: 0.3 }}
+                  viewport={optimizedViewport}
                   className="relative"
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-provn-accent/20 to-provn-success/20 rounded-2xl blur-2xl"></div>
@@ -610,7 +619,7 @@ export default function HomePage() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          viewport={{ once: true }}
+          viewport={optimizedViewport}
           className="text-center mb-16"
         >
           <h2 className="font-headline text-4xl md:text-6xl font-bold text-provn-text mb-6">
@@ -654,12 +663,12 @@ export default function HomePage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          viewport={{ once: true }}
+          transition={{ ...fastTransition, delay: 0.2 }}
+          viewport={optimizedViewport}
           className="text-center mt-12"
         >
           <ProvnButton
-            onClick={() => (window.location.href = "/upload")}
+            onClick={() => handleProtectedNavigation("/upload")}
             className="px-8 py-3 text-lg"
           >
             Join These Successful Creators
@@ -674,8 +683,8 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
+            transition={normalTransition}
+            viewport={optimizedViewport}
             className="text-center mb-16"
           >
             <h2 className="font-headline text-4xl md:text-6xl font-bold text-provn-text mb-6">
@@ -691,7 +700,7 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            viewport={{ once: true }}
+            viewport={optimizedViewport}
             className="bg-provn-surface border border-provn-border rounded-2xl overflow-hidden max-w-4xl mx-auto"
           >
             <div className="grid grid-cols-4 bg-provn-surface-2 p-4">
@@ -727,8 +736,8 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            viewport={{ once: true }}
+            transition={{ ...fastTransition, delay: 0.3 }}
+            viewport={optimizedViewport}
             className="text-center mt-8"
           >
             <div className="text-2xl font-bold text-provn-success mb-2">
@@ -745,7 +754,7 @@ export default function HomePage() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          viewport={{ once: true }}
+          viewport={optimizedViewport}
           className="text-center mb-16"
         >
           <h2 className="font-headline text-4xl md:text-6xl font-bold text-provn-text mb-6">
@@ -765,8 +774,8 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
+            transition={normalTransition}
+            viewport={optimizedViewport}
           >
             <h2 className="font-headline text-4xl md:text-6xl font-bold text-provn-text mb-6">
               Ready to Keep 100% of Your Earnings?
@@ -778,7 +787,7 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <ProvnButton
                 size="lg"
-                onClick={() => (window.location.href = "/upload")}
+                onClick={() => handleProtectedNavigation("/upload")}
                 className="px-12 py-4 text-xl font-semibold group"
               >
                 <Upload className="w-6 h-6 mr-2 group-hover:rotate-12 transition-transform" />
@@ -792,7 +801,7 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            viewport={{ once: true }}
+            viewport={optimizedViewport}
             className="flex flex-wrap justify-center gap-4 pt-8"
           >
             <ProvnBadge variant="success" className="text-sm px-4 py-2">
@@ -817,8 +826,8 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
+            transition={normalTransition}
+            viewport={optimizedViewport}
             className="text-center space-y-12"
           >
             {/* Dominant Logo */}
@@ -876,6 +885,7 @@ export default function HomePage() {
           </motion.div>
         </div>
       </footer>
+
     </div>
   )
 }

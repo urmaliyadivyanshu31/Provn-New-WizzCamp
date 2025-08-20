@@ -9,6 +9,9 @@ import { Badge } from "@/components/provn/badge";
 import { useAuth } from "@campnetwork/origin/react";
 import { toast } from "sonner";
 import { ProfileEditModal } from "@/components/provn/profile-edit-modal";
+import { ProfileCard } from "@/components/profile/ProfileCard";
+import { ProfileCardModal } from "@/components/profile/ProfileCardModal";
+import { Profile } from "@/lib/supabase";
 
 interface UserProfile {
   id: number;
@@ -47,6 +50,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [showProfileCard, setShowProfileCard] = useState(false);
 
   // Check if this is the current user's profile
   const isOwnProfile = currentUserAddress && 
@@ -146,6 +150,20 @@ export default function ProfilePage() {
     if (fileType.startsWith('image/')) return '🖼️';
     if (fileType.startsWith('audio/')) return '🎵';
     return '📄';
+  };
+
+  // Convert UserProfile to Profile format for ProfileCard
+  const convertToProfile = (userProfile: UserProfile): Profile => {
+    return {
+      id: userProfile.id.toString(),
+      wallet_address: userProfile.walletAddress,
+      handle: userProfile.handle,
+      display_name: userProfile.displayName || undefined,
+      bio: userProfile.bio || undefined,
+      avatar_url: userProfile.avatarUrl || undefined,
+      created_at: userProfile.joinedDate,
+      updated_at: userProfile.joinedDate
+    };
   };
 
   if (loading) {
@@ -319,6 +337,18 @@ export default function ProfilePage() {
                   </div>
                 )}
               </div>
+
+              {/* Profile Card Section */}
+              <div className="mt-8 flex justify-center">
+                <Button
+                  variant="secondary" 
+                  onClick={() => setShowProfileCard(true)}
+                  className="px-6 py-3 flex items-center gap-2 bg-gradient-to-r from-provn-accent/10 to-provn-accent/5 hover:from-provn-accent/20 hover:to-provn-accent/10 border border-provn-accent/30 text-provn-accent"
+                >
+                  ✨
+                  View Profile Card
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -409,6 +439,17 @@ export default function ProfilePage() {
             bannerUrl: profile.bannerUrl,
           }}
           onSave={handleSaveProfile}
+        />
+      )}
+
+      {/* Profile Card Modal */}
+      {profile && (
+        <ProfileCardModal
+          isOpen={showProfileCard}
+          onClose={() => setShowProfileCard(false)}
+          profile={convertToProfile(profile)}
+          title="Profile Card"
+          subtitle="Download or share your beautiful profile card"
         />
       )}
     </>

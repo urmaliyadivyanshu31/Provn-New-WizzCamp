@@ -8,6 +8,7 @@ import { ProvnButton } from "@/components/provn/button";
 import { ProvnCard, ProvnCardContent } from "@/components/provn/card";
 import { ProvnBadge } from "@/components/provn/badge";
 import { Navigation } from "@/components/provn/navigation";
+import { FullyProtectedRoute } from "@/components/guards/ProtectedRoute";
 import { CampModal } from "@campnetwork/origin/react";
 import { RemixingSettings } from "@/components/upload/RemixingSettings";
 import { RemixingConfiguration } from "@/types/remixing";
@@ -382,8 +383,12 @@ export default function UploadPage() {
   // Render success state
   if (mintResult) {
     return (
-      <div className="font-headline min-h-screen bg-provn-bg">
-        <Navigation currentPage="upload" />
+      <FullyProtectedRoute
+        authMessage="Connect your wallet to view your minted video results."
+        profileMessage="Create your profile to access your uploaded content."
+      >
+        <div className="font-headline min-h-screen bg-provn-bg">
+          <Navigation currentPage="upload" />
 
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center space-y-12">
@@ -632,14 +637,19 @@ export default function UploadPage() {
             </div>
           </div>
         </main>
-      </div>
+        </div>
+      </FullyProtectedRoute>
     );
   }
 
   // Render main upload form
   return (
-    <div className="font-headline min-h-screen bg-provn-bg">
-      <Navigation currentPage="upload" />
+    <FullyProtectedRoute
+      authMessage="Connect your wallet to start creating and minting videos as IP-NFTs on Provn."
+      profileMessage="Create your profile to upload videos and build your creator presence on the platform."
+    >
+      <div className="font-headline min-h-screen bg-provn-bg">
+        <Navigation currentPage="upload" />
 
       {/* Upload Form */}
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -914,13 +924,14 @@ export default function UploadPage() {
       {/* CampModal for Origin SDK wallet connection */}
       {/* <CampModal /> */}
 
-      {/* Remixing Settings Modal */}
-      <RemixingSettings
-        isOpen={showRemixingSettings}
-        onClose={() => setShowRemixingSettings(false)}
-        onSave={handleRemixingConfigSave}
-        initialConfig={remixingConfig}
-      />
-    </div>
+        {/* Remixing Settings Modal */}
+        <RemixingSettings
+          isOpen={showRemixingSettings}
+          onClose={() => setShowRemixingSettings(false)}
+          onSave={handleRemixingConfigSave}
+          initialConfig={remixingConfig}
+        />
+      </div>
+    </FullyProtectedRoute>
   );
 }

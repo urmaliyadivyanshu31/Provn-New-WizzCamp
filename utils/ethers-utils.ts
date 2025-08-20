@@ -1,83 +1,61 @@
 // Utility functions for ethers.js integration
-export const ensureEthersAvailable = (): Promise<boolean> => {
-  return new Promise((resolve) => {
-    // First check if ethers is already available
-    if (typeof window !== 'undefined' && (window as any).ethers) {
-      console.log('✅ Ethers.js is already available');
-      resolve(true);
-      return;
-    }
-    
-    // Listen for ethers loaded event
-    const handleEthersLoaded = () => {
-      console.log('✅ Ethers.js loaded via event');
-      window.removeEventListener('ethersLoaded', handleEthersLoaded);
-      window.removeEventListener('ethersLoadFailed', handleEthersLoadFailed);
-      resolve(true);
-    };
-    
-    const handleEthersLoadFailed = () => {
-      console.error('❌ Ethers.js failed to load via event');
-      window.removeEventListener('ethersLoaded', handleEthersLoaded);
-      window.removeEventListener('ethersLoadFailed', handleEthersLoadFailed);
-      resolve(false);
-    };
-    
-    window.addEventListener('ethersLoaded', handleEthersLoaded);
-    window.addEventListener('ethersLoadFailed', handleEthersLoadFailed);
-    
-    // Fallback: check periodically
-    const checkEthers = () => {
-      if (typeof window !== 'undefined' && (window as any).ethers) {
-        console.log('✅ Ethers.js is available via polling');
-        window.removeEventListener('ethersLoaded', handleEthersLoaded);
-        window.removeEventListener('ethersLoadFailed', handleEthersLoadFailed);
-        resolve(true);
-        return;
-      }
-      
-      // Wait a bit and try again
-      setTimeout(checkEthers, 100);
-    };
-    
-    checkEthers();
-    
-    // Timeout after 10 seconds
-    setTimeout(() => {
-      console.error('❌ Ethers.js failed to load within 10 seconds');
-      window.removeEventListener('ethersLoaded', handleEthersLoaded);
-      window.removeEventListener('ethersLoadFailed', handleEthersLoadFailed);
-      resolve(false);
-    }, 10000);
-  });
-};
+import { logger } from '@/lib/logger';
 
-export const getEthers = () => {
-  if (typeof window !== 'undefined' && (window as any).ethers) {
-    return (window as any).ethers;
+let ethers: any = null;
+
+export const ensureEthersAvailable = async (): Promise<boolean> => {
+  if (ethers) {
+    return true;
   }
-  throw new Error('Ethers.js not available');
+
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  try {
+    // Dynamic import of ethers
+    const ethersModule = await import('ethers');
+    ethers = ethersModule;
+    logger.debug('Ethers.js loaded successfully');
+    return true;
+  } catch (error) {
+    logger.error('Failed to load ethers', { error });
+    return false;
+  }
 };
 
-export const createProvider = () => {
-  const ethers = getEthers();
+export const getEthers = async () => {
+  if (ethers) {
+    return ethers;
+  }
+  
+  const isAvailable = await ensureEthersAvailable();
+  if (!isAvailable) {
+    throw new Error('Ethers.js not available');
+  }
+  
+  return ethers;
+};
+
+export const createProvider = async () => {
+  const ethers = await getEthers();
   if (!window.ethereum) {
     throw new Error('No wallet detected');
   }
   return new ethers.providers.Web3Provider(window.ethereum);
 };
 
-export const createContract = (address: string, abi: any[], signerOrProvider: any) => {
-  const ethers = getEthers();
+export const createContract = async (address: string, abi: any[], signerOrProvider: any) => {
+  const ethers = await getEthers();
   return new ethers.Contract(address, abi, signerOrProvider);
 };
 
-export const parseUnits = (value: string | number, decimals: number) => {
-  const ethers = getEthers();
-  return ethers.utils.parseUnits(value.toString(), decimals);
+export const parseUnits = async (value: string | number, decimals: number) => {
+  const ethers = await getEthers();
+  return ethers.parseUnits(value.toString(), decimals);
 };
 
-export const formatUnits = (value: any, decimals: number) => {
-  const ethers = getEthers();
-  return ethers.utils.formatUnits(value, decimals);
+export const formatUnits = async (value: any, decimals: number) => {
+  const ethers = await getEthers();
+  return ethers.formatUnits(value, decimals);
 };

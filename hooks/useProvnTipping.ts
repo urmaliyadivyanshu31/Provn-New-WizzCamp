@@ -47,7 +47,7 @@ export const useProvnTipping = () => {
       }
 
       // Create provider and signer
-      const provider = createProvider();
+      const provider = await createProvider();
       const signer = provider.getSigner();
 
       // Check if user is on correct network
@@ -62,10 +62,10 @@ export const useProvnTipping = () => {
       }
 
       // Create contract instance with signer
-      const provnContract = createContract(PROVN_TOKEN_ADDRESS, PROVN_ABI, signer);
+      const provnContract = await createContract(PROVN_TOKEN_ADDRESS, PROVN_ABI, signer);
 
       // Convert amount to wei (18 decimals)
-      const amountInWei = parseUnits(amount.toString(), 18);
+      const amountInWei = await parseUnits(amount.toString(), 18);
 
       // Send transaction
       const tx = await provnContract.transfer(recipientAddress, amountInWei);
@@ -138,7 +138,7 @@ export const useProvnTipping = () => {
       }
 
       // Create provider and signer
-      const provider = createProvider();
+      const provider = await createProvider();
       const signer = provider.getSigner();
 
       // Check if user is on correct network
@@ -153,7 +153,7 @@ export const useProvnTipping = () => {
       }
 
       // Create contract instance with signer
-      const provnContract = createContract(PROVN_TOKEN_ADDRESS, PROVN_ABI, signer);
+      const provnContract = await createContract(PROVN_TOKEN_ADDRESS, PROVN_ABI, signer);
 
       // Call autoFaucet function
       const tx = await provnContract.autoFaucet(userAddress);

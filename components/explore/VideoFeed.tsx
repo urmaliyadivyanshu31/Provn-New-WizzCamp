@@ -9,6 +9,8 @@ import { useVideoFeed } from "@/hooks/useVideoFeed";
 import { trackVideoEvent } from "@/components/analytics/GoogleAnalytics";
 import { Loader2 } from "lucide-react";
 import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
+import { logger, perf } from "@/lib/logger";
+import { rafThrottle, PerformanceCleanup, measureRenderTime } from "@/lib/utils/performance";
 
 interface VideoFeedProps {
   onVideoDetails: (video: ExploreVideo) => void;
@@ -27,6 +29,14 @@ export function VideoFeed({
   const [renderBuffer] = useState(3); // Number of videos to render around current index
   const [scrollProgress, setScrollProgress] = useState(0); // For smooth scroll animation
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+  const cleanupRef = useRef(new PerformanceCleanup());
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanupRef.current.cleanup();
+    };
+  }, []);
   
   // Get user wallet from localStorage for personalized content
   const userWallet = typeof window !== 'undefined' ? localStorage.getItem('userWallet') : null;
@@ -65,16 +75,16 @@ export function VideoFeed({
     }
   }, [hasNextPage, isFetching, fetchNextPage]);
 
-  // Handle smooth scroll navigation with better sensitivity
-  const handleScroll = useCallback(
-    (e: React.WheelEvent) => {
+  // RAF-throttled scroll handler for 60fps performance
+  const handleScrollThrottled = useCallback(
+    rafThrottle((e: React.WheelEvent) => {
       e.preventDefault();
       
       // Only handle scroll if not already scrolling
       if (isScrolling) return;
       
       // More conservative scroll sensitivity
-      const scrollDelta = e.deltaY / 300; // Reduced sensitivity (was /100)
+      const scrollDelta = e.deltaY / 300;
       const newProgress = Math.max(-1, Math.min(1, scrollProgress + scrollDelta));
       
       setScrollProgress(newProgress);
@@ -102,19 +112,24 @@ export function VideoFeed({
         window.dispatchEvent(new CustomEvent('forceCloseModals'));
         
         // Reset scroll progress after transition
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           setScrollProgress(0);
           setIsScrolling(false);
         }, 400);
+        cleanupRef.current.addTimeoutCleanup(timeoutId);
       } else {
         // Reset scroll progress if no action taken after a longer delay
-        scrollTimeoutRef.current = setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           setScrollProgress(0);
-        }, 300); // Increased from 150ms to 300ms
+        }, 300);
+        scrollTimeoutRef.current = timeoutId;
+        cleanupRef.current.addTimeoutCleanup(timeoutId);
       }
-    },
+    }),
     [currentIndex, videos.length, isScrolling, scrollProgress, loadMoreVideos]
   );
+
+  const handleScroll = useCallback(handleScrollThrottled, [handleScrollThrottled]);
 
   // Handle touch gestures for mobile
   const touchStartY = useRef<number>(0);
@@ -153,7 +168,7 @@ export function VideoFeed({
     }
   }, [currentIndex, videos, viewVideo]);
 
-  // Handle keyboard navigation
+  // Handle keyboard navigation with proper cleanup
   useEffect(() => {
     const handleKeyboardNav = (e: CustomEvent) => {
       const direction = e.detail.direction;
@@ -170,12 +185,11 @@ export function VideoFeed({
       window.dispatchEvent(new CustomEvent('forceCloseModals'));
     };
 
-    window.addEventListener("keyboardNavigation" as any, handleKeyboardNav);
-    return () =>
-      window.removeEventListener(
-        "keyboardNavigation" as any,
-        handleKeyboardNav
-      );
+    cleanupRef.current.addEventListenerCleanup(
+      window,
+      "keyboardNavigation" as any,
+      handleKeyboardNav as EventListener
+    );
   }, [currentIndex, videos.length, hasNextPage]);
 
   const [videoStates, setVideoStates] = useState<Record<string, { isLiked?: boolean; likeCount?: number }>>({});
@@ -214,7 +228,7 @@ export function VideoFeed({
     try {
       const success = await likeVideo(videoId, true);
       if (!success) {
-        console.error("Failed to like video");
+        logger.warn("Failed to like video", { videoId });
         // Revert optimistic update
         setVideoStates(prev => ({
           ...prev,
@@ -228,7 +242,7 @@ export function VideoFeed({
         trackVideoEvent('like_failed', videoId);
       }
     } catch (error) {
-      console.error("Error liking video:", error);
+      logger.error("Error liking video", { videoId, error });
       // Revert optimistic update
       setVideoStates(prev => ({
         ...prev,
