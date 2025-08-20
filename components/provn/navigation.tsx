@@ -11,7 +11,6 @@ import {
 import { Menu, X, Wallet, User } from "lucide-react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { CreateProfileModal } from "./create-profile-modal";
-import { ProfileCardModal } from "@/components/profile/ProfileCardModal";
 import { useProfile } from "@/hooks/useProfile";
 
 interface NavigationProps {
@@ -61,7 +60,6 @@ export function Navigation({ currentPage }: NavigationProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [showCreateProfile, setShowCreateProfile] = useState(false);
-  const [showProfileCard, setShowProfileCard] = useState(false);
   const { scrollY } = useScroll();
   const { isAuthenticated, walletAddress } = useAuth();
   const { authenticated } = useAuthState();
@@ -214,9 +212,10 @@ export function Navigation({ currentPage }: NavigationProps) {
                 <>
                   <motion.button
                     onClick={() => {
-                      console.log('🎯 Navigation: View Profile clicked', { profile: profile?.handle, showProfileCard })
+                      console.log('🎯 Navigation: View Profile clicked', { profile: profile?.handle })
                       if (profile) {
-                        setShowProfileCard(true);
+                        // Navigate to profile page instead of opening modal
+                        window.location.href = `/u/${profile.handle}`;
                       } else {
                         // No profile, show create profile modal
                         setShowCreateProfile(true);
@@ -361,10 +360,10 @@ export function Navigation({ currentPage }: NavigationProps) {
                 <>
                   <motion.button
                     onClick={() => {
-                      console.log('🎯 Mobile Navigation: View Profile clicked', { profile: profile?.handle, showProfileCard })
+                      console.log('🎯 Mobile Navigation: View Profile clicked', { profile: profile?.handle })
                       if (profile) {
-                        // Profile exists, show profile card modal
-                        setShowProfileCard(true);
+                        // Navigate to profile page instead of opening modal
+                        window.location.href = `/u/${profile.handle}`;
                       } else {
                         // No profile, show create profile modal
                         setShowCreateProfile(true);
@@ -462,14 +461,6 @@ export function Navigation({ currentPage }: NavigationProps) {
         }}
       />
 
-      {/* Profile Card Modal */}
-      {profile && (
-        <ProfileCardModal
-          isOpen={showProfileCard}
-          onClose={() => setShowProfileCard(false)}
-          profile={profile}
-        />
-      )}
     </>
   );
 }

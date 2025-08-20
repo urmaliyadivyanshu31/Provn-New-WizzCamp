@@ -72,7 +72,10 @@ export default function ProfilePage() {
         const data = await response.json();
 
         if (data.success) {
-          setProfile(data.user);
+          // Redirect to new URL structure
+          const profileHandle = data.user.handle;
+          window.location.replace(`/u/${profileHandle}`);
+          return;
         } else {
           toast.error('Profile not found');
         }
@@ -338,7 +341,7 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* Profile Card Section */}
+              {/* Profile Card Section - Available to everyone */}
               <div className="mt-8 flex justify-center">
                 <Button
                   variant="secondary" 

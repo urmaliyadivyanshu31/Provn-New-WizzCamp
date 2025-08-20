@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '@campnetwork/origin/react';
 import { errorToast } from '@/lib/toast';
-import { ensureEthersAvailable, createProvider, createContract, parseUnits, formatUnits } from '@/utils/ethers-utils';
+import { ensureEthersAvailable, createProvider, getSigner, createContract, parseUnits, formatUnits } from '@/utils/ethers-utils';
 
 // PROVN Token Contract ABI
 const PROVN_ABI = [
@@ -48,7 +48,7 @@ export const useProvnTipping = () => {
 
       // Create provider and signer
       const provider = await createProvider();
-      const signer = provider.getSigner();
+      const signer = await getSigner(provider);
 
       // Check if user is on correct network
       const network = await provider.getNetwork();
@@ -92,7 +92,8 @@ export const useProvnTipping = () => {
   // Get user's PROVN balance
   const getBalance = useCallback(async (userAddress: string): Promise<string> => {
     try {
-      const provnContract = await createContract(PROVN_TOKEN_ADDRESS, PROVN_ABI, null);
+      const provider = await createProvider();
+      const provnContract = await createContract(PROVN_TOKEN_ADDRESS, PROVN_ABI, provider);
       const balance = await provnContract.balanceOf(userAddress);
       const decimals = await provnContract.decimals();
       
@@ -107,7 +108,8 @@ export const useProvnTipping = () => {
   // Check faucet status
   const checkFaucetStatus = useCallback(async (userAddress: string) => {
     try {
-      const provnContract = await createContract(PROVN_TOKEN_ADDRESS, PROVN_ABI, null);
+      const provider = await createProvider();
+      const provnContract = await createContract(PROVN_TOKEN_ADDRESS, PROVN_ABI, provider);
       const [canReceive, timeUntilNextFaucet] = await provnContract.getFaucetStatus(userAddress);
       return { canReceive, timeUntilNextFaucet: timeUntilNextFaucet.toString() };
     } catch (err: any) {
@@ -139,7 +141,7 @@ export const useProvnTipping = () => {
 
       // Create provider and signer
       const provider = await createProvider();
-      const signer = provider.getSigner();
+      const signer = await getSigner(provider);
 
       // Check if user is on correct network
       const network = await provider.getNetwork();

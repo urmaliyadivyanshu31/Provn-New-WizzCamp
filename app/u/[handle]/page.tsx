@@ -49,6 +49,14 @@ export default function ProfilePage() {
     }
   }, [error, loading, router])
 
+  // Update document title with profile info
+  useEffect(() => {
+    if (profile) {
+      const title = `${profile.display_name || profile.handle} (@${profile.handle}) - Provn`
+      document.title = title
+    }
+  }, [profile])
+
     const handleCopyAddress = async () => {
     if (!profile) return
 
@@ -292,17 +300,16 @@ export default function ProfilePage() {
                     )}
                   </div>
                   
-                  {/* Profile Card Button - Always visible */}
-                  <ProvnButton 
-                    variant="secondary"
-                    onClick={() => {
-                      console.log('🎯 Profile page: View Profile Card clicked', { profile: profile?.handle, showProfileCard })
-                      setShowProfileCard(true)
-                    }}
-                    className="px-6 py-3 bg-gradient-to-r from-provn-accent/10 to-provn-accent/5 hover:from-provn-accent/20 hover:to-provn-accent/10 border border-provn-accent/30 text-provn-accent"
-                  >
-                    ✨ View Profile Card
-                  </ProvnButton>
+                  {/* Profile Card Button - Only visible to profile owner */}
+                  {isOwnProfile && (
+                    <ProvnButton 
+                      variant="secondary"
+                      onClick={() => setShowProfileCard(true)}
+                      className="px-6 py-3 bg-gradient-to-r from-provn-accent/10 to-provn-accent/5 hover:from-provn-accent/20 hover:to-provn-accent/10 border border-provn-accent/30 text-provn-accent"
+                    >
+                      ✨ View Profile Card
+                    </ProvnButton>
+                  )}
                 </div>
               </div>
               

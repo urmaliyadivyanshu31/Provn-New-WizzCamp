@@ -33,8 +33,8 @@ export function ProfileCardModal({
 
   // Debug logging
   useEffect(() => {
-    console.log('🎯 ProfileCardModal: isOpen changed:', isOpen, 'profile:', profile?.handle)
-  }, [isOpen, profile?.handle])
+    console.log('🎯 ProfileCardModal: isOpen changed:', isOpen, 'profile:', profile?.handle, 'mounted:', mounted)
+  }, [isOpen, profile?.handle, mounted])
 
   const handleDownload = async () => {
     setIsDownloading(true)
@@ -48,15 +48,50 @@ export function ProfileCardModal({
         return
       }
 
-      const canvas = await html2canvas(cardElement, {
-        backgroundColor: null,
-        scale: 2, // Higher quality
+      // Reset any transforms temporarily for clean capture
+      const originalTransform = cardElement.style.transform
+      cardElement.style.transform = 'none'
+      
+      // Wait for transforms to settle
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Create a temporary wrapper to ensure clean capture
+      const wrapper = document.createElement('div')
+      wrapper.style.position = 'fixed'
+      wrapper.style.top = '-9999px'
+      wrapper.style.left = '-9999px'
+      wrapper.style.width = '340px'
+      wrapper.style.height = '440px'
+      wrapper.style.backgroundColor = 'transparent'
+      
+      // Clone the card element
+      const clonedCard = cardElement.cloneNode(true) as HTMLElement
+      clonedCard.style.transform = 'none'
+      clonedCard.style.margin = '0'
+      clonedCard.style.position = 'relative'
+      
+      wrapper.appendChild(clonedCard)
+      document.body.appendChild(wrapper)
+      
+      // Wait for rendering
+      await new Promise(resolve => setTimeout(resolve, 200))
+
+      const canvas = await html2canvas(clonedCard, {
+        backgroundColor: 'transparent',
+        scale: 2, // Good quality
         useCORS: true,
         allowTaint: true,
         logging: false,
         width: 340,
-        height: 440
+        height: 440,
+        scrollX: 0,
+        scrollY: 0,
+        foreignObjectRendering: true
       })
+
+      // Clean up
+      document.body.removeChild(wrapper)
+      cardElement.style.transform = originalTransform
 
       // Create download link
       const link = document.createElement('a')
@@ -123,15 +158,15 @@ export function ProfileCardModal({
   }, [isOpen])
 
   const handleShareToTwitter = () => {
-    const text = `Check out my profile on Provn! @${profile.handle}`
-    const url = window.location.origin + `/profile/${profile.handle}`
+    const text = `Check out @${profile.handle}'s profile on Provn - the decentralized content platform! 🚀`
+    const url = window.location.origin + `/u/${profile.handle}`
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank')
     setShowShareMenu(false)
   }
 
   const handleShareToInstagram = () => {
     // Instagram doesn't have direct sharing, so copy text for user to paste
-    const text = `Check out my profile on Provn! Link in bio: ${window.location.origin}/profile/${profile.handle}`
+    const text = `Check out @${profile.handle}'s profile on Provn - the decentralized content platform! 🚀 ${window.location.origin}/u/${profile.handle}`
     navigator.clipboard.writeText(text)
     toast.success('Text copied! Paste it on Instagram')
     setShowShareMenu(false)
@@ -139,7 +174,7 @@ export function ProfileCardModal({
 
   const handleCopyLink = async () => {
     try {
-      const profileUrl = window.location.origin + `/profile/${profile.handle}`
+      const profileUrl = window.location.origin + `/u/${profile.handle}`
       await navigator.clipboard.writeText(profileUrl)
       toast.success('Profile link copied!')
       setShowShareMenu(false)
@@ -148,7 +183,9 @@ export function ProfileCardModal({
     }
   }
 
-  if (!mounted) return null
+  if (!mounted) {
+    return null
+  }
 
   return (
     <AnimatePresence>
