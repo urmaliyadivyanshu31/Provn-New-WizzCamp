@@ -2,8 +2,10 @@
 
 import React, { useRef, useEffect, useState, memo, useCallback } from "react";
 import { ExploreVideo } from "@/types/explore";
-import { Play, Pause, VolumeX, Volume2 } from "lucide-react";
+import { Play, Pause, VolumeX, Volume2, Loader } from "lucide-react";
 import { ipfsGateway } from "@/lib/ipfs-gateway";
+import { videoBufferManager } from "@/lib/video-buffer";
+import { performanceTracker } from "@/lib/performance-metrics";
 
 interface VideoPlayerProps {
   video: ExploreVideo;
@@ -14,11 +16,13 @@ interface VideoPlayerProps {
 const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false); // Start with sound ON
+  const [isMuted, setIsMuted] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showControls, setShowControls] = useState(false);
   const [videoSrc, setVideoSrc] = useState<string>("");
   const [posterSrc, setPosterSrc] = useState<string>("");
+  const [loadingState, setLoadingState] = useState<'loading' | 'poster' | 'video' | 'ready'>('loading');
+  const [isBuffered, setIsBuffered] = useState(false);
 
   // Auto-play/pause based on active state with better error handling
   useEffect(() => {
@@ -63,48 +67,96 @@ const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: Vi
     }
   }, [isActive, isVisible]);
 
-  // Initialize optimal IPFS URL and setup error handler
+  // Progressive loading with buffer manager integration
   useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement || !video.videoUrl) return;
 
-    // Get optimal IPFS URLs for video and poster
-    ipfsGateway
-      .getOptimalUrl(video.videoUrl)
-      .then((url) => {
-        setVideoSrc(url);
-      })
-      .catch((error) => {
-        console.error("Failed to get optimal IPFS URL:", error);
-        setVideoSrc(video.videoUrl); // Fallback to original URL
-      });
+    let isCancelled = false;
+    
+    const loadProgressively = async () => {
+      try {
+        setLoadingState('loading');
+        
+        // Start performance tracking
+        const gatewayName = 'ipfs-gateway'; // Will be updated with actual gateway
+        performanceTracker.startVideoLoad(video.tokenId, gatewayName);
+        
+        // Check if video is already buffered
+        const bufferedVideo = await videoBufferManager.getBufferedVideo(video);
+        if (isCancelled) return;
+        
+        if (bufferedVideo && bufferedVideo !== videoElement) {
+          // Use buffered video element - instant load!
+          setIsBuffered(true);
+          setVideoSrc(bufferedVideo.src);
+          setPosterSrc(bufferedVideo.poster || '');
+          setLoadingState('ready');
+          
+          // Track buffer hit
+          performanceTracker.markBufferHit(video.tokenId);
+          performanceTracker.markVideoLoaded(video.tokenId);
+          performanceTracker.markFirstPlay(video.tokenId);
+          
+          console.log(`🎯 Using buffered video for ${video.tokenId}`);
+          return;
+        }
 
-    // Get poster URL if available
-    if (video.thumbnailUrl) {
-      ipfsGateway
-        .getOptimalUrl(video.thumbnailUrl)
-        .then((url) => {
-          setPosterSrc(url);
-        })
-        .catch((error) => {
-          console.error("Failed to get optimal poster URL:", error);
-          if (video.thumbnailUrl) {
-            setPosterSrc(video.thumbnailUrl); // Fallback to original URL
+        // Step 1: Load poster first for immediate visual feedback
+        if (video.thumbnailUrl) {
+          try {
+            const posterUrl = await ipfsGateway.getOptimalUrl(video.thumbnailUrl, true);
+            if (!isCancelled) {
+              setPosterSrc(posterUrl);
+              setLoadingState('poster');
+              
+              // Track poster load time
+              performanceTracker.markPosterLoaded(video.tokenId);
+              console.log(`📸 Poster loaded for ${video.tokenId}`);
+            }
+          } catch (error) {
+            console.warn('Failed to load poster:', error);
           }
-        });
-    }
+        }
 
-    // Setup error handler for automatic fallbacks
-    const errorHandler = ipfsGateway.createErrorHandler(video.videoUrl);
+        // Step 2: Load video with optimal gateway
+        const videoUrl = await ipfsGateway.getOptimalUrl(video.videoUrl, true);
+        if (!isCancelled) {
+          setVideoSrc(videoUrl);
+          setLoadingState('video');
+        }
 
-    const handleError = () => {
-      console.warn("Video failed to load, trying fallback gateway...");
-      errorHandler(videoElement);
+        // Setup error handler for automatic fallbacks
+        const errorHandler = ipfsGateway.createErrorHandler(video.videoUrl);
+        const handleError = () => {
+          if (!isCancelled) {
+            console.warn("Video failed to load, trying fallback gateway...");
+            errorHandler(videoElement);
+          }
+        };
+
+        videoElement.addEventListener("error", handleError);
+        
+        // Clean up error handler
+        return () => {
+          videoElement.removeEventListener("error", handleError);
+        };
+
+      } catch (error) {
+        if (!isCancelled) {
+          console.error("Progressive loading failed:", error);
+          setVideoSrc(video.videoUrl); // Fallback to original URL
+          setLoadingState('video');
+        }
+      }
     };
 
-    videoElement.addEventListener("error", handleError);
-    return () => videoElement.removeEventListener("error", handleError);
-  }, [video.videoUrl]);
+    loadProgressively();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [video.videoUrl, video.tokenId]);
 
   // Update progress
   useEffect(() => {
@@ -208,13 +260,24 @@ const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: Vi
         muted={isMuted}
         loop
         playsInline
-        preload={isVisible ? "auto" : "none"}
+        preload={isVisible && isActive ? "auto" : "metadata"} // Smart preloading
+        crossOrigin="anonymous" // Enable CORS for better IPFS support
+        onLoadStart={() => {
+          if (loadingState === 'video') {
+            console.log(`🎬 Video load started for ${video.tokenId}`);
+          }
+        }}
         onLoadedData={() => {
-          // Set initial muted state and auto-play with sound
+          // Set initial muted state and mark as ready
           const videoElement = videoRef.current;
           if (videoElement) {
             videoElement.muted = false; // Start with sound ON
             setIsMuted(false);
+            setLoadingState('ready');
+            
+            // Track video load completion
+            performanceTracker.markVideoLoaded(video.tokenId);
+            console.log(`✅ Video ready for ${video.tokenId}`);
           }
         }}
         onLoadedMetadata={() => {
@@ -230,6 +293,25 @@ const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: Vi
               videoElement.style.objectFit = 'contain';
             } else {
               videoElement.style.objectFit = 'cover';
+            }
+          }
+        }}
+        onCanPlay={() => {
+          // Video has enough data to start playing
+          performanceTracker.markFirstPlay(video.tokenId);
+          console.log(`🚀 Video can play for ${video.tokenId}`);
+        }}
+        onProgress={() => {
+          // Track download progress for better UX
+          const videoElement = videoRef.current;
+          if (videoElement && videoElement.buffered.length > 0) {
+            const buffered = videoElement.buffered.end(0);
+            const duration = videoElement.duration;
+            if (duration > 0) {
+              const bufferPercent = (buffered / duration) * 100;
+              if (bufferPercent > 25 && loadingState !== 'ready') {
+                setLoadingState('ready'); // Mark as ready when 25% buffered
+              }
             }
           }
         }}
@@ -294,13 +376,43 @@ const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: Vi
         </div>
       </div>
 
-      {/* Loading State */}
-      {!videoSrc && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+      {/* Progressive Loading States */}
+      {loadingState !== 'ready' && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="text-white text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
-            <p className="text-sm">Loading video...</p>
+            {loadingState === 'loading' && (
+              <>
+                <Loader className="w-8 h-8 animate-spin mx-auto mb-2" />
+                <p className="text-sm">Connecting to IPFS...</p>
+              </>
+            )}
+            {loadingState === 'poster' && (
+              <>
+                <div className="w-8 h-8 mx-auto mb-2 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <p className="text-sm">Loading video...</p>
+              </>
+            )}
+            {loadingState === 'video' && (
+              <>
+                <div className="w-8 h-8 mx-auto mb-2 border-2 border-provn-accent/30 border-t-provn-accent rounded-full animate-spin"></div>
+                <p className="text-sm">Buffering...</p>
+              </>
+            )}
+            {isBuffered && (
+              <div className="absolute top-2 right-2">
+                <div className="bg-green-500/20 text-green-400 px-2 py-1 rounded-full text-xs font-medium">
+                  ⚡ Cached
+                </div>
+              </div>
+            )}
           </div>
+        </div>
+      )}
+
+      {/* Fast Gateway Indicator */}
+      {loadingState === 'ready' && isBuffered && (
+        <div className="absolute top-2 left-2 bg-green-500/20 text-green-400 px-2 py-1 rounded-lg text-xs font-medium">
+          ⚡ Instant Load
         </div>
       )}
     </div>
