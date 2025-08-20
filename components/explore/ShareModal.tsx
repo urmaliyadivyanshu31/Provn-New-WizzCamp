@@ -22,7 +22,9 @@ export function ShareModal({ isOpen, onClose, video, onShare }: ShareModalProps)
   const shareText = `Check out this amazing prov by @${video.creator.handle} on Provn! 🎥✨\n\n"${video.title}"\n\n#Provn #IPNFT #Web3Creator`
 
   const handleTwitterShare = () => {
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(videoUrl)}`
+    // Create a Twitter card-like experience by including thumbnail
+    const twitterText = `Check out this amazing prov by @${video.creator.handle} on Provn! 🎥✨\n\n"${video.title}"\n\n${videoUrl}\n\n#Provn #IPNFT #Web3Creator`
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(twitterText)}`
     window.open(twitterUrl, '_blank')
     onShare('twitter')
   }
@@ -112,7 +114,7 @@ export function ShareModal({ isOpen, onClose, video, onShare }: ShareModalProps)
                 </div>
               </div>
 
-              {/* Share Options - Redesigned to match elite website standards */}
+              {/* Share Options - Better aligned and consistent */}
               <div className="space-y-3">
                 {/* Twitter - Clean and professional */}
                 <motion.button
@@ -124,11 +126,13 @@ export function ShareModal({ isOpen, onClose, video, onShare }: ShareModalProps)
                   <div className="flex-shrink-0 w-12 h-12 bg-[#1DA1F2] rounded-xl flex items-center justify-center group-hover:shadow-lg group-hover:shadow-[#1DA1F2]/25 transition-all duration-200">
                     <Twitter className="w-6 h-6 text-white" />
                   </div>
-                  <div className="flex-1 text-left">
-                    <h4 className="font-semibold text-provn-text font-headline group-hover:text-provn-accent transition-colors">Twitter</h4>
-                    <p className="text-sm text-provn-muted font-headline">Share with your followers</p>
+                  <div className="flex-1 text-left min-w-0">
+                    <h4 className="font-semibold text-provn-text font-headline group-hover:text-provn-accent transition-colors">X (Twitter)</h4>
+                    <p className="text-sm text-provn-muted font-headline">Share with preview card</p>
                   </div>
-                  <ExternalLink className="w-5 h-5 text-provn-muted group-hover:text-provn-accent transition-colors" />
+                  <div className="flex-shrink-0 w-5 flex justify-center">
+                    <ExternalLink className="w-5 h-5 text-provn-muted group-hover:text-provn-accent transition-colors" />
+                  </div>
                 </motion.button>
 
                 {/* Instagram - Elegant gradient approach */}
@@ -141,11 +145,13 @@ export function ShareModal({ isOpen, onClose, video, onShare }: ShareModalProps)
                   <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-[#E4405F] via-[#F56040] to-[#FFDC80] rounded-xl flex items-center justify-center group-hover:shadow-lg group-hover:shadow-[#E4405F]/25 transition-all duration-200">
                     <Instagram className="w-6 h-6 text-white" />
                   </div>
-                  <div className="flex-1 text-left">
+                  <div className="flex-1 text-left min-w-0">
                     <h4 className="font-semibold text-provn-text font-headline group-hover:text-provn-accent transition-colors">Instagram</h4>
                     <p className="text-sm text-provn-muted font-headline">Copy link for stories</p>
                   </div>
-                  <Copy className="w-5 h-5 text-provn-muted group-hover:text-provn-accent transition-colors" />
+                  <div className="flex-shrink-0 w-5 flex justify-center">
+                    <Copy className="w-5 h-5 text-provn-muted group-hover:text-provn-accent transition-colors" />
+                  </div>
                 </motion.button>
 
                 {/* Copy Link - Premium feel with provn brand colors */}
@@ -158,22 +164,24 @@ export function ShareModal({ isOpen, onClose, video, onShare }: ShareModalProps)
                   <div className="flex-shrink-0 w-12 h-12 bg-provn-accent rounded-xl flex items-center justify-center group-hover:shadow-lg group-hover:shadow-provn-accent/25 transition-all duration-200">
                     <Copy className="w-6 h-6 text-provn-bg" />
                   </div>
-                  <div className="flex-1 text-left">
+                  <div className="flex-1 text-left min-w-0">
                     <h4 className="font-semibold text-provn-text font-headline group-hover:text-provn-accent transition-colors">Copy Link</h4>
                     <p className="text-sm text-provn-muted font-headline">Direct URL to prov</p>
                   </div>
-                  {copied ? (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="flex items-center gap-1 text-provn-accent text-sm font-medium font-headline"
-                    >
-                      <div className="w-2 h-2 bg-provn-accent rounded-full"></div>
-                      Copied
-                    </motion.div>
-                  ) : (
-                    <div className="w-5 h-5"></div>
-                  )}
+                  <div className="flex-shrink-0 w-5 flex justify-center">
+                    {copied ? (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="flex items-center gap-1 text-provn-accent text-sm font-medium font-headline"
+                      >
+                        <div className="w-2 h-2 bg-provn-accent rounded-full"></div>
+                        <span className="text-xs">Copied</span>
+                      </motion.div>
+                    ) : (
+                      <div className="w-5 h-5"></div>
+                    )}
+                  </div>
                 </motion.button>
               </div>
 
