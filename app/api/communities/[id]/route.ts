@@ -93,7 +93,7 @@ export async function GET(
 
     // Sort derivatives by featured first, then by date
     if (community.recent_derivatives) {
-      community.recent_derivatives.sort((a, b) => {
+      community.recent_derivatives.sort((a: any, b: any) => {
         if (a.featured && !b.featured) return -1
         if (!a.featured && b.featured) return 1
         return new Date(b.added_at).getTime() - new Date(a.added_at).getTime()
@@ -102,13 +102,13 @@ export async function GET(
 
     // Sort members by role (admin, moderator, member) and contribution score
     if (community.community_members) {
-      community.community_members.sort((a, b) => {
+      community.community_members.sort((a: any, b: any) => {
         const roleOrder = { admin: 0, moderator: 1, member: 2 }
         const aRole = roleOrder[a.role as keyof typeof roleOrder] || 3
         const bRole = roleOrder[b.role as keyof typeof roleOrder] || 3
         
         if (aRole !== bRole) return aRole - bRole
-        return b.contribution_score - a.contribution_score
+        return (b.contribution_score || 0) - (a.contribution_score || 0)
       })
     }
 
@@ -143,11 +143,12 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const supabase = createAdminClient()
-    const communityId = params.id
+    const communityId = id
     const body = await request.json()
     
     const { name, description, featured_derivative_id, admin_address } = body

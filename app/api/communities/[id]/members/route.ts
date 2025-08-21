@@ -103,11 +103,12 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const supabase = createAdminClient()
-    const communityId = params.id
+    const communityId = id
     const body = await request.json()
     
     const { member_address, transaction_hash } = body
@@ -196,11 +197,12 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const supabase = createAdminClient()
-    const communityId = params.id
+    const communityId = id
     const { searchParams } = new URL(request.url)
     const memberAddress = searchParams.get('member_address')
 

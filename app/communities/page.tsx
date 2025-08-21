@@ -160,7 +160,7 @@ function CommunityCard({ community, onJoin, onLeave, isJoining }: CommunityCardP
           {community.is_member ? (
             <>
               <ProvnButton
-                variant="outline"
+                variant="secondary"
                 onClick={() => onLeave(community.id)}
                 disabled={isJoining}
                 className="flex-1"
@@ -183,7 +183,7 @@ function CommunityCard({ community, onJoin, onLeave, isJoining }: CommunityCardP
                 {isJoining ? <ProvnBrandLoader size="sm" variant="simple" /> : 'Join Community'}
               </ProvnButton>
               <Link href={`/community/${community.id}`}>
-                <ProvnButton variant="outline">
+                <ProvnButton variant="secondary">
                   <Eye className="w-4 h-4" />
                 </ProvnButton>
               </Link>
@@ -385,7 +385,7 @@ export default function CommunitiesPage() {
               {/* Filter Controls */}
               <div className="flex flex-wrap items-center gap-4">
                 <ProvnButton
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => setShowFilters(!showFilters)}
                   className="flex items-center gap-2"
                 >

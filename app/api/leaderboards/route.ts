@@ -70,16 +70,16 @@ async function getOverallLeaderboard(supabase: any, period: string, limit: numbe
 
   if (creatorStats && creatorStats.length > 0) {
     // Get profile information for each creator
-    const addresses = creatorStats.map(c => c.creator_address)
+    const addresses = creatorStats.map((c: any) => c.creator_address)
     
     const { data: profilesData } = await supabase
       .from('profiles')
       .select('wallet_address, handle, display_name, avatar_url, id')
       .in('wallet_address', addresses)
 
-    const profileMap = new Map(profilesData?.map(p => [p.wallet_address.toLowerCase(), p]) || [])
+    const profileMap = new Map(profilesData?.map((p: any) => [p.wallet_address.toLowerCase(), p]) || [])
 
-    const scoredProfiles = creatorStats.map((creator) => {
+    const scoredProfiles = creatorStats.map((creator: any) => {
       const profile = profileMap.get(creator.creator_address.toLowerCase())
       
       // Calculate overall score using derivatives and tips
@@ -109,9 +109,9 @@ async function getOverallLeaderboard(supabase: any, period: string, limit: numbe
     })
     
     return scoredProfiles
-      .sort((a, b) => b.score - a.score)
+      .sort((a: any, b: any) => b.score - a.score)
       .slice(0, limit)
-      .map((profile, index) => ({
+      .map((profile: any, index: number) => ({
         rank: index + 1,
         user: {
           id: profile.profile.id,
@@ -142,7 +142,7 @@ async function getOverallLeaderboard(supabase: any, period: string, limit: numbe
 
   // Calculate scores for each profile
   const scoredProfiles = await Promise.all(
-    profiles.map(async (profile) => {
+    profiles.map(async (profile: any) => {
       // Get derivatives count
       const { count: derivativesCount } = await supabase
         .from('community_derivatives')
@@ -158,7 +158,7 @@ async function getOverallLeaderboard(supabase: any, period: string, limit: numbe
         .select('points_earned')
         .eq('user_address', profile.wallet_address)
 
-      const totalAchievementPoints = achievements?.reduce((sum, a) => sum + a.points_earned, 0) || 0
+      const totalAchievementPoints = achievements?.reduce((sum: number, a: any) => sum + a.points_earned, 0) || 0
 
       // Calculate overall score using derivatives and tips
       const score = (
@@ -181,9 +181,9 @@ async function getOverallLeaderboard(supabase: any, period: string, limit: numbe
   )
 
   return scoredProfiles
-    .sort((a, b) => b.score - a.score)
+    .sort((a: any, b: any) => b.score - a.score)
     .slice(0, limit)
-    .map((profile, index) => ({
+    .map((profile: any, index: number) => ({
       rank: index + 1,
       user: {
         id: profile.id,
@@ -213,17 +213,17 @@ async function getCreatorsLeaderboard(supabase: any, period: string, limit: numb
 
   if (creatorStats && creatorStats.length > 0) {
     // Get profile information for each creator
-    const addresses = creatorStats.map(c => c.creator_address)
+    const addresses = creatorStats.map((c: any) => c.creator_address)
     
     const { data: profilesData } = await supabase
       .from('profiles')
       .select('wallet_address, handle, display_name, avatar_url, id')
       .in('wallet_address', addresses)
 
-    const profileMap = new Map(profilesData?.map(p => [p.wallet_address.toLowerCase(), p]) || [])
+    const profileMap = new Map(profilesData?.map((p: any) => [p.wallet_address.toLowerCase(), p]) || [])
 
-    return creatorStats.map((creator, index) => {
-      const profile = profileMap.get(creator.creator_address.toLowerCase())
+    return creatorStats.map((creator: any, index: number) => {
+      const profile = profileMap.get(creator.creator_address.toLowerCase()) as any
       
       return {
         rank: index + 1,
@@ -261,7 +261,7 @@ async function getCreatorsLeaderboard(supabase: any, period: string, limit: numb
   if (!derivatives) return []
 
   // Group by creator and count
-  const creatorCounts = derivatives.reduce((acc, derivative) => {
+  const creatorCounts = derivatives.reduce((acc: any, derivative: any) => {
     const address = derivative.creator_address
     if (!acc[address]) {
       acc[address] = {
@@ -278,7 +278,7 @@ async function getCreatorsLeaderboard(supabase: any, period: string, limit: numb
   return Object.values(creatorCounts)
     .sort((a: any, b: any) => b.count - a.count)
     .slice(0, limit)
-    .map((creator: any, index) => ({
+    .map((creator: any, index: number) => ({
       rank: index + 1,
       user: {
         id: creator.profile?.id,
@@ -311,13 +311,13 @@ async function getRevenueLeaderboard(supabase: any, period: string, limit: numbe
   if (!profiles) return []
 
   return profiles
-    .map((profile) => ({
+    .map((profile: any) => ({
       ...profile,
       revenue: Math.floor(Math.random() * 1000) + Math.floor(Math.random() * 500)
     }))
-    .sort((a, b) => b.revenue - a.revenue)
+    .sort((a: any, b: any) => b.revenue - a.revenue)
     .slice(0, limit)
-    .map((profile, index) => ({
+    .map((profile: any, index: number) => ({
       rank: index + 1,
       user: {
         id: profile.id,
@@ -356,7 +356,7 @@ async function getCommunityLeaderboard(supabase: any, period: string, limit: num
 
   if (!communities) return []
 
-  return communities.map((community, index) => ({
+  return communities.map((community: any, index: number) => ({
     rank: index + 1,
     community: {
       id: community.id,
@@ -398,7 +398,7 @@ async function getAchievementsLeaderboard(supabase: any, limit: number) {
   if (!achievements) return []
 
   // Group by user and sum points
-  const userPoints = achievements.reduce((acc, achievement) => {
+  const userPoints = achievements.reduce((acc: any, achievement: any) => {
     const address = achievement.user_address
     if (!acc[address]) {
       acc[address] = {
@@ -416,7 +416,7 @@ async function getAchievementsLeaderboard(supabase: any, limit: number) {
   return Object.values(userPoints)
     .sort((a: any, b: any) => b.points - a.points)
     .slice(0, limit)
-    .map((user: any, index) => ({
+    .map((user: any, index: number) => ({
       rank: index + 1,
       user: {
         id: user.profile?.id,

@@ -173,7 +173,7 @@ export async function GET(request: NextRequest) {
 
     // Get user's current stats if user address provided
     let userStats = null
-    let userAchievements = []
+    let userAchievements: Array<{ achievement_id: string; unlocked_at: string }> = []
 
     if (userAddress) {
       // Fetch user's achievement stats

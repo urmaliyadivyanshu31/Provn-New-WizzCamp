@@ -151,7 +151,7 @@ function CommunityHeader({
           {community.is_member ? (
             <>
               <ProvnButton
-                variant="outline"
+                variant="secondary"
                 onClick={onLeave}
                 disabled={isJoining}
                 className="flex items-center justify-center gap-2"
@@ -177,7 +177,7 @@ function CommunityHeader({
           
           {isOwner && (
             <ProvnButton
-              variant="outline"
+              variant="secondary"
               className="flex items-center justify-center gap-2"
             >
               <Settings className="w-4 h-4" />
@@ -186,7 +186,7 @@ function CommunityHeader({
           )}
           
           <ProvnButton
-            variant="ghost"
+            variant="secondary"
             className="flex items-center justify-center gap-2"
           >
             <Share2 className="w-4 h-4" />
@@ -230,7 +230,7 @@ function DerivativeCard({ derivative }: { derivative: CommunityDerivative }) {
 
         {/* Duration Badge */}
         <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-          {derivative.duration || '0:00'}
+          {'0:00'}
         </div>
       </div>
 
@@ -241,9 +241,9 @@ function DerivativeCard({ derivative }: { derivative: CommunityDerivative }) {
         </h3>
         
         <div className="flex items-center gap-2 text-sm text-provn-muted mb-3">
-          <span>by @{derivative.creator_profile?.handle || 'Unknown'}</span>
+          <span>by @{'creator'}</span>
           <span>•</span>
-          <span>{new Date(derivative.created_at).toLocaleDateString()}</span>
+          <span>{new Date(derivative.added_at).toLocaleDateString()}</span>
         </div>
 
         {derivative.description && (
@@ -257,16 +257,16 @@ function DerivativeCard({ derivative }: { derivative: CommunityDerivative }) {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1 text-provn-muted">
               <Eye className="w-4 h-4" />
-              <span>{derivative.views || 0}</span>
+              <span>{derivative.views_count || 0}</span>
             </div>
             <div className="flex items-center gap-1 text-provn-muted">
               <Heart className="w-4 h-4" />
-              <span>{derivative.likes || 0}</span>
+              <span>{derivative.likes_count || 0}</span>
             </div>
           </div>
           
-          <Link href={`/video/${derivative.token_id}`}>
-            <ProvnButton size="sm" variant="ghost">
+          <Link href={`/video/${derivative.derivative_token_id}`}>
+            <ProvnButton size="sm" variant="secondary">
               <ExternalLink className="w-4 h-4" />
             </ProvnButton>
           </Link>
@@ -287,12 +287,12 @@ function MemberCard({ member }: { member: CommunityMember }) {
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 bg-provn-accent rounded-full flex items-center justify-center">
           <span className="text-white font-bold">
-            {member.profile?.handle?.[0]?.toUpperCase() || '?'}
+            {member.member_address?.[0]?.toUpperCase() || '?'}
           </span>
         </div>
         <div className="flex-1">
           <h4 className="font-medium text-provn-text">
-            @{member.profile?.handle || 'Unknown'}
+            {member.member_address?.slice(0, 8) || 'Unknown'}...
           </h4>
           <p className="text-sm text-provn-muted">
             Joined {new Date(member.joined_at).toLocaleDateString()}
@@ -436,7 +436,7 @@ export default function CommunityDetailPage() {
 
   const filteredDerivatives = derivatives.filter(derivative =>
     derivative.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    derivative.creator_profile?.handle?.toLowerCase().includes(searchTerm.toLowerCase())
+    derivative.creator_address?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   if (loading) {
@@ -567,7 +567,7 @@ export default function CommunityDetailPage() {
                       </select>
                       
                       <ProvnButton
-                        variant="outline"
+                        variant="secondary"
                         onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
                         className="p-2"
                       >

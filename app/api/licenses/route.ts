@@ -100,46 +100,40 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createAdminClient()
     const { searchParams } = new URL(request.url)
     const tokenId = searchParams.get('tokenId')
     const purchaser = searchParams.get('purchaser')
 
+    let query = supabase
+      .from('license_transactions')
+      .select('*')
+      .order('created_at', { ascending: false })
+
     if (tokenId) {
       // Get licenses for a specific token
-      const tokenLicenses = licenses.get(tokenId) || []
-      
-      return NextResponse.json({
-        success: true,
-        licenses: tokenLicenses,
-        count: tokenLicenses.length
-      })
+      query = query.eq('token_id', parseInt(tokenId))
     }
 
     if (purchaser) {
       // Get licenses purchased by a specific user
-      const userLicenses = []
-      for (const [token, tokenLicenses] of licenses.entries()) {
-        const userTokenLicenses = tokenLicenses.filter(license => license.purchaser === purchaser)
-        userLicenses.push(...userTokenLicenses)
-      }
-      
-      return NextResponse.json({
-        success: true,
-        licenses: userLicenses,
-        count: userLicenses.length
-      })
+      query = query.eq('licensee_address', purchaser.toLowerCase())
     }
 
-    // Get all licenses
-    const allLicenses = []
-    for (const [token, tokenLicenses] of licenses.entries()) {
-      allLicenses.push(...tokenLicenses)
+    const { data: licenses, error } = await query.limit(50)
+
+    if (error) {
+      console.error('❌ Licenses API: Database error:', error)
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch licenses' },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({
       success: true,
-      licenses: allLicenses.slice(-50), // Return last 50 licenses
-      count: allLicenses.length
+      licenses: licenses || [],
+      count: licenses?.length || 0
     })
 
   } catch (error) {

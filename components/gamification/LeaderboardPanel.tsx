@@ -257,7 +257,7 @@ export function LeaderboardPanel({ userAddress }: LeaderboardPanelProps) {
             </div>
           )}
           <ProvnButton
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={fetchLeaderboard}
             disabled={loading}

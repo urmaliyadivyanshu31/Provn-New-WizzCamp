@@ -70,7 +70,7 @@ export default function DashboardPage() {
                 )}
                 
                 {activeTab === 'achievements' && (
-                  <AchievementsPanel userAddress={walletAddress} />
+                  <AchievementsPanel userAddress={walletAddress || undefined} />
                 )}
                 
               </div>

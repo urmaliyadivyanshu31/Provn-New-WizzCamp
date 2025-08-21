@@ -230,12 +230,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Update creator stats
-    await supabase.rpc('update_creator_stats_community', {
-      creator_addr: creator_address.toLowerCase(),
-      new_community: true
-    }).catch(err => {
+    try {
+      await supabase.rpc('update_creator_stats_community', {
+        creator_addr: creator_address.toLowerCase(),
+        new_community: true
+      })
+    } catch (err) {
       console.warn('⚠️ Failed to update creator stats:', err)
-    })
+    }
 
     console.log('✅ Communities API: Community created successfully', { 
       communityId: community.id,

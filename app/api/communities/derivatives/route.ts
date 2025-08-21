@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     // Verify community membership
     const { data: membership, error: membershipError } = await supabase
       .from('community_members')
-      .select('id')
+      .select('id, contribution_score')
       .eq('community_id', community_id)
       .eq('member_address', creator_address.toLowerCase())
       .single()
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     await supabase
       .from('community_members')
       .update({ 
-        contribution_score: supabase.raw('contribution_score + 10'),
+        contribution_score: (membership.contribution_score || 0) + 10,
         updated_at: new Date().toISOString()
       })
       .eq('community_id', community_id)

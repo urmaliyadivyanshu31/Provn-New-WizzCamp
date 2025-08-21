@@ -162,7 +162,7 @@ export async function POST(
     // Check if user is a member of this community
     const { data: membership } = await supabase
       .from('community_members')
-      .select('id, role')
+      .select('id, role, contribution_score')
       .eq('community_id', communityId)
       .eq('member_address', creator_address.toLowerCase())
       .single()
@@ -222,8 +222,15 @@ export async function POST(
     await supabase
       .from('community_members')
       .update({ 
-        contribution_score: supabase.raw('contribution_score + 10'),
         last_active_at: new Date().toISOString()
+      })
+      .eq('id', membership.id)
+    
+    // Increment contribution score separately
+    await supabase
+      .from('community_members')
+      .update({ 
+        contribution_score: (membership.contribution_score || 0) + 10
       })
       .eq('id', membership.id)
 
