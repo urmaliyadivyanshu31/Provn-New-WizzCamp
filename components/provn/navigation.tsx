@@ -8,7 +8,7 @@ import {
   useAuthState,
   useModal,
 } from "@campnetwork/origin/react";
-import { Menu, X, Wallet, User } from "lucide-react";
+import { Menu, X, Wallet, User, Users } from "lucide-react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { CreateProfileModal } from "./create-profile-modal";
 import { useProfile } from "@/hooks/useProfile";
@@ -21,7 +21,8 @@ interface NavigationProps {
     | "video"
     | "provs"
     | "profile"
-    | "explore";
+    | "explore"
+    | "communities";
 }
 
 // Custom Provn Logo Component
@@ -206,6 +207,23 @@ export function Navigation({ currentPage }: NavigationProps) {
               >
                 Leaderboard
               </NavLink>
+              
+              <NavLink
+                href={isAuthenticated && profile ? "/communities" : "#"}
+                currentPage={currentPage}
+                page="communities"
+                onClick={!isAuthenticated || !profile ? (e) => {
+                  e?.preventDefault()
+                  if (!isAuthenticated) {
+                    openModal()
+                  } else if (!profile) {
+                    setShowCreateProfile(true)
+                  }
+                } : undefined}
+                disabled={!isAuthenticated || !profile}
+              >
+                Communities
+              </NavLink>
 
               {/* Profile and Connect Wallet */}
               {isAuthenticated ? (
@@ -352,6 +370,22 @@ export function Navigation({ currentPage }: NavigationProps) {
               disabled={!isAuthenticated || !profile}
             >
               Leaderboard
+            </MobileNavLink>
+            
+            <MobileNavLink
+              href={isAuthenticated && profile ? "/communities" : "#"}
+              onClick={!isAuthenticated || !profile ? (e) => {
+                e?.preventDefault()
+                if (!isAuthenticated) {
+                  openModal()
+                } else if (!profile) {
+                  setShowCreateProfile(true)
+                }
+                setIsMenuOpen(false)
+              } : () => setIsMenuOpen(false)}
+              disabled={!isAuthenticated || !profile}
+            >
+              Communities
             </MobileNavLink>
 
             {/* Mobile Wallet Connection */}

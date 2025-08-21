@@ -23,14 +23,21 @@ export function useOriginLicensing() {
   const { address } = useAccount()
   const publicClient = usePublicClient()
   
-  // Marketplace contract ABI (actual contract functions)
+  // Enhanced Provn Marketplace contract ABI with community features
   const marketplaceABI = parseAbi([
-    'function buyAccess(address buyer, uint256 tokenId, uint32 periods) external payable',
-    'function hasAccess(address user, uint256 tokenId) external view returns (bool)',
-    'function subscriptionExpiry(uint256 tokenId, address user) external view returns (uint256)',
+    'function purchaseLicense(uint256 tokenId, uint32 periods) external',
+    'function hasActiveLicense(address user, uint256 tokenId) external view returns (bool)',
+    'function licenseExpiry(uint256 tokenId, address user) external view returns (uint64)',
+    'function setLicenseTerms(uint256 tokenId, uint128 price, uint32 duration, uint8 licenseType, bool transferable, uint16 royaltyBps) external',
+    'function createCommunity(uint256 creatorTokenId, string calldata name, string calldata description) external',
+    'function joinCommunity(uint256 communityId) external',
+    'function addDerivativeToCommunit(uint256 communityId, uint256 derivativeTokenId) external',
+    'function getCommunityDetails(uint256 communityId) external view returns (uint256, address, string, string, uint64, uint64, uint64, uint8, bool)',
+    'function canCreateCommunity(address creator) external view returns (bool)',
+    'function isCommunityMember(uint256 communityId, address user) external view returns (bool)',
+    'function getCreatorStats(address creator) external view returns (uint256, uint256, uint256)',
     'function protocolFeeBps() external view returns (uint16)',
-    'function treasury() external view returns (address)',
-    'function maxSubscriptionPeriod() external view returns (uint256)'
+    'function communityCounter() external view returns (uint256)'
   ])
   
   // IP-NFT contract ABI for getting license terms
@@ -40,9 +47,10 @@ export function useOriginLicensing() {
     'function dataStatus(uint256 tokenId) external view returns (uint8)'
   ])
   
-  const MARKETPLACE_CONTRACT = '0xBe611BFBDcb45C5E8C3E81a3ec36CBee31E52981'
-  // Use the correct IP-NFT contract address where videos are actually minted
+  // Contract addresses - will be updated after deployment
+  const PROVN_MARKETPLACE_CONTRACT = process.env.NEXT_PUBLIC_PROVN_MARKETPLACE_CONTRACT || '0xBe611BFBDcb45C5E8C3E81a3ec36CBee31E52981'
   const IP_NFT_CONTRACT = '0x5a3f832b47b948dA27aE788E96A0CD7BB0dCd1c1'
+  const CAMP_TOKEN_CONTRACT = '0x618a32eae7dEE87dD7dF8DF24D18dc98fb6Df8Ab'
   
   // Set up wallet client for Origin SDK
   useEffect(() => {
@@ -175,17 +183,16 @@ export function useOriginLicensing() {
           }
           
           try {
-            // Prepare transaction data for buyAccess(buyer, tokenId, periods)
+            // Prepare transaction data for purchaseLicense(tokenId, periods)
             const txData = encodeFunctionData({
               abi: marketplaceABI,
-              functionName: 'buyAccess',
-              args: [walletAddress as `0x${string}`, BigInt(tokenIdNum), periods]
+              functionName: 'purchaseLicense',
+              args: [BigInt(tokenIdNum), periods]
             })
             
             console.log('📝 Transaction data prepared:', {
-              to: MARKETPLACE_CONTRACT,
+              to: PROVN_MARKETPLACE_CONTRACT,
               data: txData,
-              value: totalCost.toString(),
               buyer: walletAddress,
               tokenId: tokenIdNum,
               tokenIdBigInt: BigInt(tokenIdNum).toString(),
@@ -194,9 +201,8 @@ export function useOriginLicensing() {
             
             // Send transaction directly
             const hash = await walletClient.sendTransaction({
-              to: MARKETPLACE_CONTRACT as `0x${string}`,
+              to: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
               data: txData,
-              value: totalCost,
               gas: BigInt(300000) // Provide gas limit
             })
             
@@ -284,14 +290,29 @@ export function useOriginLicensing() {
   }
 
   const hasAccess = async (tokenId: string, userAddress?: string): Promise<boolean> => {
-    if (!origin) return false
+    const address = userAddress || walletAddress
+    if (!address || !publicClient) return false
 
     try {
-      const address = userAddress || walletAddress
-      if (!address) return false
+      // First try Origin SDK
+      if (origin) {
+        try {
+          const hasAccessResult = await (origin as any).hasAccess(BigInt(tokenId), address)
+          return hasAccessResult
+        } catch (sdkError) {
+          console.warn('⚠️ Origin SDK hasAccess failed, trying direct contract:', sdkError)
+        }
+      }
 
-      const hasAccessResult = await (origin as any).hasAccess(BigInt(tokenId), address)
-      return hasAccessResult
+      // Fallback to direct contract call
+      const hasLicense = await publicClient.readContract({
+        address: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
+        abi: marketplaceABI,
+        functionName: 'hasActiveLicense',
+        args: [address as `0x${string}`, BigInt(tokenId)]
+      })
+      
+      return hasLicense
     } catch (error) {
       console.error('Failed to check access:', error)
       return false
@@ -452,12 +473,231 @@ export function useOriginLicensing() {
     }
   }
 
+  // Community-related functions
+  const canCreateCommunity = async (creatorAddress?: string): Promise<boolean> => {
+    if (!publicClient) return false
+    
+    try {
+      const address = creatorAddress || walletAddress
+      if (!address) return false
+      
+      const canCreate = await publicClient.readContract({
+        address: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
+        abi: marketplaceABI,
+        functionName: 'canCreateCommunity',
+        args: [address as `0x${string}`]
+      })
+      
+      return canCreate
+    } catch (error) {
+      console.error('Failed to check community creation eligibility:', error)
+      return false
+    }
+  }
+
+  const createCommunity = async (tokenId: string, name: string, description: string) => {
+    if (!isAuthenticated || !walletClient) {
+      throw new Error('Wallet not connected')
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const txData = encodeFunctionData({
+        abi: marketplaceABI,
+        functionName: 'createCommunity',
+        args: [BigInt(tokenId), name, description]
+      })
+
+      const hash = await walletClient.sendTransaction({
+        to: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
+        data: txData,
+        gas: BigInt(400000)
+      })
+
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash })
+      }
+
+      toast.success('Community created successfully!')
+      return { success: true, hash }
+    } catch (error) {
+      console.error('Failed to create community:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create community'
+      setError(errorMessage)
+      toast.error(errorMessage)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const joinCommunity = async (communityId: number) => {
+    if (!isAuthenticated || !walletClient) {
+      throw new Error('Wallet not connected')
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const txData = encodeFunctionData({
+        abi: marketplaceABI,
+        functionName: 'joinCommunity',
+        args: [BigInt(communityId)]
+      })
+
+      const hash = await walletClient.sendTransaction({
+        to: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
+        data: txData,
+        gas: BigInt(200000)
+      })
+
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash })
+      }
+
+      toast.success('Joined community successfully!')
+      return { success: true, hash }
+    } catch (error) {
+      console.error('Failed to join community:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to join community'
+      setError(errorMessage)
+      toast.error(errorMessage)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const addDerivativeToCommunity = async (communityId: number, derivativeTokenId: string) => {
+    if (!isAuthenticated || !walletClient) {
+      throw new Error('Wallet not connected')
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const txData = encodeFunctionData({
+        abi: marketplaceABI,
+        functionName: 'addDerivativeToCommunit',
+        args: [BigInt(communityId), BigInt(derivativeTokenId)]
+      })
+
+      const hash = await walletClient.sendTransaction({
+        to: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
+        data: txData,
+        gas: BigInt(300000)
+      })
+
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash })
+      }
+
+      toast.success('Derivative added to community successfully!')
+      return { success: true, hash }
+    } catch (error) {
+      console.error('Failed to add derivative to community:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add derivative'
+      setError(errorMessage)
+      toast.error(errorMessage)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getCommunityDetails = async (communityId: number) => {
+    if (!publicClient) return null
+
+    try {
+      const details = await publicClient.readContract({
+        address: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
+        abi: marketplaceABI,
+        functionName: 'getCommunityDetails',
+        args: [BigInt(communityId)]
+      })
+
+      return {
+        creatorTokenId: details[0].toString(),
+        creator: details[1],
+        name: details[2],
+        description: details[3],
+        createdAt: Number(details[4]),
+        memberCount: Number(details[5]),
+        derivativeCount: Number(details[6]),
+        tier: Number(details[7]),
+        active: details[8]
+      }
+    } catch (error) {
+      console.error('Failed to get community details:', error)
+      return null
+    }
+  }
+
+  const isCommunityMember = async (communityId: number, userAddress?: string): Promise<boolean> => {
+    if (!publicClient) return false
+    
+    try {
+      const address = userAddress || walletAddress
+      if (!address) return false
+      
+      const isMember = await publicClient.readContract({
+        address: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
+        abi: marketplaceABI,
+        functionName: 'isCommunityMember',
+        args: [BigInt(communityId), address as `0x${string}`]
+      })
+      
+      return isMember
+    } catch (error) {
+      console.error('Failed to check community membership:', error)
+      return false
+    }
+  }
+
+  const getCreatorStats = async (creatorAddress: string) => {
+    if (!publicClient) return null
+
+    try {
+      const stats = await publicClient.readContract({
+        address: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
+        abi: marketplaceABI,
+        functionName: 'getCreatorStats',
+        args: [creatorAddress as `0x${string}`]
+      })
+
+      return {
+        revenue: stats[0].toString(),
+        licensesSold: Number(stats[1]),
+        derivatives: Number(stats[2])
+      }
+    } catch (error) {
+      console.error('Failed to get creator stats:', error)
+      return null
+    }
+  }
+
   return {
+    // Original licensing functions
     buyLicense,
     hasAccess,
     getLicenseTerms,
     getSubscriptionExpiry,
     renewAccess,
+    
+    // Community functions
+    canCreateCommunity,
+    createCommunity,
+    joinCommunity,
+    addDerivativeToCommunity,
+    getCommunityDetails,
+    isCommunityMember,
+    getCreatorStats,
+    
+    // State
     loading,
     error,
     clearError: () => setError(null)

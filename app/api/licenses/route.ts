@@ -1,75 +1,91 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-// In-memory storage for demo (use database in production)
-const licenses = new Map<string, Array<{
-  id: string
-  tokenId: string
-  periods: number
-  totalCost: string
-  purchaser: string
-  timestamp: string
-  expiresAt: string
-  status: 'active' | 'expired'
-}>>()
+import { createAdminClient } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createAdminClient()
     const body = await request.json()
-    const { tokenId, periods, totalCost, purchaser, timestamp } = body
+    
+    const {
+      token_id,
+      licensee_address,
+      license_type,
+      price_paid,
+      periods,
+      duration_seconds,
+      expires_at,
+      transaction_hash,
+      block_number
+    } = body
 
-    if (!tokenId || !periods || !totalCost || !purchaser) {
+    if (!token_id || !licensee_address || !license_type || !price_paid || !periods || !duration_seconds || !expires_at) {
       return NextResponse.json(
         { success: false, error: 'All license details required' },
         { status: 400 }
       )
     }
 
-    console.log('📄 Licenses API: Recording license purchase', { tokenId, periods, purchaser })
+    console.log('📄 Licenses API: Recording license purchase', { 
+      token_id, 
+      licensee_address, 
+      license_type, 
+      periods 
+    })
 
-    const licenseId = `license_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    
-    // Calculate expiry (assuming 30 days per period for demo)
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + (periods * 30))
-    
-    const newLicense = {
-      id: licenseId,
-      tokenId,
-      periods,
-      totalCost,
-      purchaser,
-      timestamp: timestamp || new Date().toISOString(),
-      expiresAt: expiresAt.toISOString(),
-      status: 'active' as const
+    // Save license transaction to database
+    const { data: licenseTransaction, error } = await supabase
+      .from('license_transactions')
+      .insert({
+        token_id: parseInt(token_id),
+        licensee_address: licensee_address.toLowerCase(),
+        license_type,
+        price_paid: parseFloat(price_paid),
+        periods,
+        duration_seconds,
+        expires_at,
+        transaction_hash,
+        block_number
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('❌ Licenses API: Database error:', error)
+      return NextResponse.json(
+        { success: false, error: 'Failed to record license purchase' },
+        { status: 500 }
+      )
     }
 
-    // Store license
-    if (!licenses.has(tokenId)) {
-      licenses.set(tokenId, [])
+    // Update creator stats (get creator address from platform_videos or profiles)
+    try {
+      const { data: video } = await supabase
+        .from('platform_videos')
+        .select('creator_address')
+        .eq('token_id', parseInt(token_id))
+        .single()
+
+      if (video?.creator_address) {
+        // Calculate creator revenue (total - platform fee)
+        const creatorRevenue = parseFloat(price_paid) * 0.975 // 97.5% after 2.5% platform fee
+        
+        await supabase.rpc('update_creator_stats_from_license', {
+          creator_addr: video.creator_address,
+          revenue_amount: creatorRevenue
+        })
+      }
+    } catch (statsError) {
+      console.warn('⚠️ Failed to update creator stats:', statsError)
     }
-    licenses.get(tokenId)!.push(newLicense)
 
-    console.log('📄 Licenses API: License recorded successfully', { licenseId })
-
-    // In production, save to database
-    // await db.licenses.create({
-    //   data: {
-    //     id: licenseId,
-    //     tokenId,
-    //     purchaser,
-    //     periods,
-    //     totalCost,
-    //     timestamp: new Date(timestamp),
-    //     expiresAt,
-    //     transactionHash: '', // Would be populated after blockchain confirmation
-    //     status: 'active'
-    //   }
-    // })
+    console.log('✅ Licenses API: License recorded successfully', { 
+      licenseId: licenseTransaction.id,
+      tokenId: token_id
+    })
 
     return NextResponse.json({
       success: true,
-      licenseId,
-      expiresAt: expiresAt.toISOString(),
+      license: licenseTransaction,
       message: 'License purchase recorded successfully'
     })
 
