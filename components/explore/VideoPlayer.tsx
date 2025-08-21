@@ -2,10 +2,11 @@
 
 import React, { useRef, useEffect, useState, memo, useCallback } from "react";
 import { ExploreVideo } from "@/types/explore";
-import { Play, Pause, VolumeX, Volume2, Loader } from "lucide-react";
+import { Play, Pause, VolumeX, Volume2 } from "lucide-react";
 import { ipfsGateway } from "@/lib/ipfs-gateway";
 import { videoBufferManager } from "@/lib/video-buffer";
 import { performanceTracker } from "@/lib/performance-metrics";
+import { ProvnBrandLoader } from "@/components/common/LoadingStates";
 
 interface VideoPlayerProps {
   video: ExploreVideo;
@@ -381,22 +382,13 @@ const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: Vi
         <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="text-white text-center">
             {loadingState === 'loading' && (
-              <>
-                <Loader className="w-8 h-8 animate-spin mx-auto mb-2" />
-                <p className="text-sm">Connecting to IPFS...</p>
-              </>
+              <ProvnBrandLoader size="default" message="Connecting to IPFS..." variant="brand" />
             )}
             {loadingState === 'poster' && (
-              <>
-                <div className="w-8 h-8 mx-auto mb-2 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                <p className="text-sm">Loading video...</p>
-              </>
+              <ProvnBrandLoader size="default" message="Loading video..." variant="brand" />
             )}
             {loadingState === 'video' && (
-              <>
-                <div className="w-8 h-8 mx-auto mb-2 border-2 border-provn-accent/30 border-t-provn-accent rounded-full animate-spin"></div>
-                <p className="text-sm">Buffering...</p>
-              </>
+              <ProvnBrandLoader size="default" message="Buffering..." variant="brand" />
             )}
             {isBuffered && (
               <div className="absolute top-2 right-2">

@@ -318,13 +318,6 @@ GET    /api/platform-stats           # Get platform metrics
 4. Purchase License → 5. Download/Use Content → 6. Create Derivatives
 ```
 
-### Platform Ecosystem
-```
-Creators ←→ Content Library ←→ Licensees
-    ↓           ↓                ↓
-Earn Revenue → IP Protection → Creative Freedom
-```
-
 ---
 
 ## 🔧 Development Guide

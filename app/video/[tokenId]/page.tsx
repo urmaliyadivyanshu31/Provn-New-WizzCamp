@@ -9,6 +9,7 @@ import { ArrowLeft, ExternalLink, Play } from "lucide-react"
 import { ipfsGateway } from "@/lib/ipfs-gateway"
 import { useGlobalVideoModal } from "@/contexts/VideoModalContext"
 import { createMinimalExploreVideo } from "@/lib/video-adapters"
+import { ProvnBrandLoader } from "@/components/common/LoadingStates"
 
 interface VideoData {
   id: string
@@ -127,10 +128,7 @@ export default function VideoPage() {
       <>
         <Navigation />
         <div className="min-h-screen bg-provn-bg flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-8 h-8 border-4 border-provn-accent border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-provn-muted">Loading video...</p>
-          </div>
+          <ProvnBrandLoader size="lg" message="Loading video..." variant="brand" />
         </div>
       </>
     )

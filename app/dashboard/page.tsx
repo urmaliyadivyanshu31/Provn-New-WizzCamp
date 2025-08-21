@@ -6,6 +6,7 @@ import { ProvnButton } from "@/components/provn/button"
 import { ProvnCard, ProvnCardContent } from "@/components/provn/card"
 import { FullyProtectedRoute } from "@/components/guards/ProtectedRoute"
 import { useAuth } from '@campnetwork/origin/react'
+import { LeaderboardSkeleton } from "@/components/common/LoadingStates"
 
 interface CreatorRanking {
   rank: number
@@ -170,34 +171,19 @@ export default function LeaderboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen font-headline bg-provn-bg">
-        <Navigation currentPage="dashboard" />
-        <div className="pt-16 pb-8 px-4">
-          <div className="max-w-7xl mx-auto">
-            <div className="space-y-8">
-              {/* Header Skeleton */}
-              <div className="text-center font-headline space-y-4 py-16">
-                <div className="h-16 bg-provn-surface rounded-xl w-96 mx-auto animate-pulse"></div>
-                <div className="h-6 bg-provn-surface rounded-xl w-80 mx-auto animate-pulse"></div>
-              </div>
-              
-              {/* Stats Skeleton */}
-              <div className="grid font-headline grid-cols-1 md:grid-cols-4 gap-6">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="h-24 bg-provn-surface rounded-xl animate-pulse"></div>
-                ))}
-              </div>
-              
-              {/* Top 3 Skeleton */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-64 bg-provn-surface rounded-xl animate-pulse"></div>
-                ))}
-              </div>
+      <FullyProtectedRoute
+        authMessage="Connect your wallet to view creator leaderboards and compete with other creators."
+        profileMessage="Create your profile to appear on leaderboards and compete for the top spots."
+      >
+        <div className="min-h-screen font-headline bg-provn-bg">
+          <Navigation currentPage="dashboard" />
+          <div className="pt-20 pb-8 px-6">
+            <div className="max-w-6xl mx-auto">
+              <LeaderboardSkeleton />
             </div>
           </div>
         </div>
-      </div>
+      </FullyProtectedRoute>
     )
   }
 

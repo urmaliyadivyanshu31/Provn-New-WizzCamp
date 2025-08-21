@@ -13,7 +13,8 @@ import { useProfileVideos } from "@/hooks/useProfileVideos"
 import { toast } from "sonner"
 import { Profile } from "@/lib/supabase"
 import { Copy, ExternalLink, Edit } from "lucide-react"
-import { ProfileLoadingState, ErrorState, EmptyState } from "@/components/provn/loading-states"
+import { ErrorState, EmptyState } from "@/components/common/LoadingStates"
+import { ProvnBrandLoader } from "@/components/common/LoadingStates"
 import { ProfileSkeleton } from "@/components/provn/profile-skeleton"
 import { AnimatedBackground } from "@/components/provn/animated-background"
 import { ProfileEditModal } from "@/components/provn/profile-edit-modal"
@@ -127,7 +128,11 @@ export default function ProfilePage() {
   }
 
   if (loading) {
-    return <ProfileLoadingState />
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-provn-bg">
+        <ProvnBrandLoader size="lg" message="Loading profile" />
+      </div>
+    )
   }
 
   if (!profile) {

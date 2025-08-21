@@ -22,6 +22,7 @@ import {
   Settings,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ProvnBrandLoader } from "@/components/common/LoadingStates";
 
 interface LicenseTerms {
   price: string;
@@ -524,7 +525,7 @@ export default function UploadPage() {
                     <div className="font-mono text-xs text-provn-muted bg-provn-surface-2 px-2.5 py-1.5 rounded border border-provn-border">
                       {mintResult.ipfsHash === "processing" ? (
                         <div className="flex items-center gap-1.5">
-                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <ProvnBrandLoader size="sm" variant="simple" />
                           Processing...
                         </div>
                       ) : (
@@ -578,7 +579,7 @@ export default function UploadPage() {
                     <div className="font-mono text-xs text-provn-muted bg-provn-surface-2 px-2.5 py-1.5 rounded border border-provn-border">
                       {mintResult.transactionHash === "processing" ? (
                         <div className="flex items-center gap-1.5">
-                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <ProvnBrandLoader size="sm" variant="simple" />
                           Processing...
                         </div>
                       ) : mintResult.transactionHash &&
@@ -881,8 +882,8 @@ export default function UploadPage() {
               >
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Minting Video...
+                    <ProvnBrandLoader size="sm" variant="simple" />
+                    <span className="ml-2">Minting Video...</span>
                   </>
                 ) : (
                   <>

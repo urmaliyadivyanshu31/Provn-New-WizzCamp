@@ -13,6 +13,7 @@ import { logger, perf } from "@/lib/logger";
 import { rafThrottle, PerformanceCleanup, measureRenderTime } from "@/lib/utils/performance";
 import { videoBufferManager } from "@/lib/video-buffer";
 import { performanceTracker } from "@/lib/performance-metrics";
+import { ProvnBrandLoader } from "@/components/common/LoadingStates";
 
 interface VideoFeedProps {
   onVideoDetails: (video: ExploreVideo) => void;
@@ -343,7 +344,7 @@ export function VideoFeed({
   if (isLoading && videos.length === 0) {
     return (
       <div className="flex items-center justify-center h-screen bg-black">
-        <Loader2 className="w-8 h-8 animate-spin text-white" />
+        <ProvnBrandLoader size="lg" message="Loading videos..." variant="brand" />
       </div>
     );
   }
@@ -406,7 +407,9 @@ export function VideoFeed({
       {/* Loading indicator for infinite scroll */}
       {isFetching && videos.length > 0 && (
         <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2">
-          <Loader2 className="w-6 h-6 animate-spin text-white" />
+          <div className="bg-black/50 backdrop-blur-sm rounded-full px-4 py-2">
+            <ProvnBrandLoader size="sm" message="Loading more..." variant="brand" />
+          </div>
         </div>
       )}
 

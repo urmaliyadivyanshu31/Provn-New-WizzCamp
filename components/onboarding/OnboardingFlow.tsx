@@ -18,6 +18,7 @@ import { ProvnCard, ProvnCardContent } from '@/components/provn/card'
 import { CreateProfileModal } from '@/components/provn/create-profile-modal'
 import { useProfile } from '@/hooks/useProfile'
 import { CampModal, useModal } from '@campnetwork/origin/react'
+import { ProvnBrandLoader } from '@/components/common/LoadingStates'
 
 interface OnboardingFlowProps {
   onComplete: () => void
@@ -64,10 +65,7 @@ export function OnboardingFlow({ onComplete, showSteps = true }: OnboardingFlowP
   if (loading) {
     return (
       <div className="min-h-screen bg-provn-bg flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-provn-accent mx-auto"></div>
-          <p className="text-provn-muted">Setting up your experience...</p>
-        </div>
+        <ProvnBrandLoader size="lg" message="Setting up your experience..." variant="brand" />
       </div>
     )
   }

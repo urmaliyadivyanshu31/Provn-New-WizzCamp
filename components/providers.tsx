@@ -11,6 +11,7 @@ import { Toaster } from 'sonner';
 import { VideoModalProvider } from '@/contexts/VideoModalContext';
 import { FollowStateProvider } from '@/contexts/FollowStateContext';
 import { useServiceWorker } from '@/hooks/useServiceWorker';
+import { ProvnBrandLoader } from '@/components/common/LoadingStates';
 
 // Define BaseCAMP chain with correct configuration
 const baseCamp = defineChain({
@@ -90,20 +91,43 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       if (typeof window !== 'undefined') {
         // Prevent ethereum property redefinition errors
         try {
+          // If ethereum already exists, make it non-configurable to prevent redefinition
+          if (window.ethereum) {
+            const existingDescriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
+            if (existingDescriptor && existingDescriptor.configurable !== false) {
+              Object.defineProperty(window, 'ethereum', {
+                value: window.ethereum,
+                writable: true,
+                enumerable: true,
+                configurable: false
+              });
+            }
+            return;
+          }
+
           const originalDefineProperty = Object.defineProperty;
           Object.defineProperty = function<T>(obj: T, prop: PropertyKey, descriptor: PropertyDescriptor & ThisType<any>): T {
             try {
               if (prop === 'ethereum' && obj === window) {
                 // Check if ethereum already exists and is configurable
                 const existingDescriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
-                if (existingDescriptor && existingDescriptor.configurable === false) {
-                  // Property already exists and is not configurable
-                  return obj;
+                if (existingDescriptor) {
+                  if (existingDescriptor.configurable === false) {
+                    // Property already exists and is not configurable
+                    return obj;
+                  }
+                  if (window.ethereum) {
+                    // Ethereum object already exists, don't redefine
+                    return obj;
+                  }
                 }
-                if (window.ethereum) {
-                  // Ethereum object already exists
-                  return obj;
-                }
+                
+                // Set ethereum property as non-configurable to prevent further redefinition
+                const newDescriptor = {
+                  ...descriptor,
+                  configurable: false
+                };
+                return originalDefineProperty.call(this, obj, prop, newDescriptor) as T;
               }
               return originalDefineProperty.call(this, obj, prop, descriptor) as T;
             } catch (error) {
@@ -141,10 +165,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
         <div className="flex items-center justify-center min-h-screen bg-provn-bg">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-provn-accent mx-auto mb-4"></div>
-            <p className="text-provn-muted">Initializing Origin SDK...</p>
-          </div>
+          <ProvnBrandLoader size="lg" message="Initializing Origin SDK..." />
         </div>
       </QueryClientProvider>
     );

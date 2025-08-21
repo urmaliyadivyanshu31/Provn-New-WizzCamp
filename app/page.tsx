@@ -6,6 +6,7 @@ import { fastTransition, normalTransition, slideUpFast, fadeInFast, optimizedVie
 import { ProvnBadge } from "@/components/provn/badge"
 import { Navigation } from "@/components/provn/navigation"
 import { ProvnButton } from "@/components/provn/button"
+import { UserJourney } from "@/components/landing/UserJourney"
 import { 
   Upload, 
   Users, 
@@ -16,61 +17,6 @@ import {
 } from "lucide-react"
 
 
-// Creator Success Story Component
-const CreatorStory = ({ 
-  name, 
-  avatar, 
-  platform, 
-  oldEarnings, 
-  newEarnings, 
-  timeframe,
-  quote 
-}: {
-  name: string
-  avatar: string  
-  platform: string
-  oldEarnings: string
-  newEarnings: string
-  timeframe: string
-  quote: string
-}) => {
-  return (
-    <motion.div
-      whileHover={{ y: -5 }}
-      className="bg-provn-surface border border-provn-border rounded-2xl p-6 h-full"
-    >
-      <div className="flex items-center mb-4">
-        <div className="w-12 h-12 bg-provn-accent rounded-full flex items-center justify-center mr-3">
-          <span className="text-provn-bg font-bold text-lg">{avatar}</span>
-        </div>
-        <div>
-          <h4 className="font-semibold text-provn-text">{name}</h4>
-          <p className="text-sm text-provn-muted">Former {platform} Creator</p>
-        </div>
-      </div>
-      
-      <blockquote className="text-provn-text mb-4 italic">
-        "{quote}"
-      </blockquote>
-      
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-provn-muted">{platform} ({timeframe}):</span>
-          <span className="text-red-400">{oldEarnings}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-provn-muted">Provn ({timeframe}):</span>
-          <span className="text-provn-success font-bold">{newEarnings}</span>
-        </div>
-        <div className="pt-2 border-t border-provn-border">
-          <div className="text-provn-accent font-bold text-right">
-            +{Math.round(((parseFloat(newEarnings.replace('$', '').replace('K', '000')) - parseFloat(oldEarnings.replace('$', '').replace('K', '000'))) / parseFloat(oldEarnings.replace('$', '').replace('K', '000'))) * 100)}% increase
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  )
-}
 
 // Platform Metrics Component  
 const LiveMetrics = ({ creatorsCount, videosCount }: { creatorsCount: number, videosCount: number }) => {
@@ -117,10 +63,11 @@ export default function HomePage() {
   const isHeroInView = useInView(heroRef, { once: true, margin: "0px 0px -100px 0px" })
   
   
-  // Real platform data
+  // Real platform data with loading state
   const [platformData, setPlatformData] = useState({
-    creatorsCount: 4, // Default fallback
-    videosCount: 3   // Default fallback
+    creatorsCount: 0, // Start with 0, will be updated with real data
+    videosCount: 0,   // Start with 0, will be updated with real data
+    loading: true
   })
   
   // Helper function to handle protected navigation
@@ -133,35 +80,55 @@ export default function HomePage() {
   useEffect(() => {
     const fetchPlatformData = async () => {
       try {
+        console.log('🔄 Fetching platform data...')
+        
         const [creatorsResponse, videosResponse] = await Promise.all([
           fetch('/api/leaderboard?limit=1000'), // Get all creators
-          fetch('/api/platform-stats') // We'll create this endpoint
+          fetch('/api/platform-stats') // Get videos count
         ])
         
-        const creatorsData = await creatorsResponse.json()
-        
-        if (creatorsData.success) {
-          setPlatformData(prev => ({
-            ...prev,
-            creatorsCount: creatorsData.data.stats.total_creators
-          }))
-        }
-        
-        // Try to get video count from existing endpoint or use fallback
-        try {
-          const videosData = await videosResponse.json()
-          if (videosData.success) {
+        // Handle creators data
+        if (creatorsResponse.ok) {
+          const creatorsData = await creatorsResponse.json()
+          if (creatorsData.success && creatorsData.data?.stats?.total_creators) {
+            console.log('✅ Creators count:', creatorsData.data.stats.total_creators)
             setPlatformData(prev => ({
               ...prev,
-              videosCount: videosData.videosCount
+              creatorsCount: Math.max(creatorsData.data.stats.total_creators, 4) // Minimum 4 for display
             }))
+          } else {
+            console.warn('❌ Invalid creators data:', creatorsData)
           }
-        } catch (e) {
-          // Keep fallback value if endpoint doesn't exist
+        } else {
+          console.error('❌ Creators API failed:', creatorsResponse.status)
+        }
+        
+        // Handle videos data
+        if (videosResponse.ok) {
+          const videosData = await videosResponse.json()
+          if (videosData.success && typeof videosData.videosCount === 'number') {
+            console.log('✅ Videos count:', videosData.videosCount)
+            setPlatformData(prev => ({
+              ...prev,
+              videosCount: Math.max(videosData.videosCount, 3) // Minimum 3 for display
+            }))
+          } else {
+            console.warn('❌ Invalid videos data:', videosData)
+          }
+        } else {
+          console.error('❌ Videos API failed:', videosResponse.status)
         }
         
       } catch (error) {
-        // Keep fallback values - silent for better performance
+        console.error('❌ Failed to fetch platform data:', error)
+        // Set minimum fallback values for better UX
+        setPlatformData(prev => ({
+          ...prev,
+          creatorsCount: Math.max(prev.creatorsCount, 4),
+          videosCount: Math.max(prev.videosCount, 3)
+        }))
+      } finally {
+        setPlatformData(prev => ({ ...prev, loading: false }))
       }
     }
     
@@ -222,7 +189,13 @@ export default function HomePage() {
               </h1>
               
               <p className="text-xl font-headline md:text-2xl text-provn-muted leading-relaxed max-w-3xl mx-auto">
-                Join <strong className="text-provn-text">{platformData.creatorsCount}+ Elite Creators</strong> who've escaped platform fees and built true content ownership on Provn.
+                Join <strong className="text-provn-text">
+                  {platformData.loading ? (
+                    <span className="inline-block animate-pulse bg-provn-accent/20 text-transparent rounded">XX+</span>
+                  ) : (
+                    `${platformData.creatorsCount}+`
+                  )} Elite Creators
+                </strong> who've escaped platform fees and built true content ownership on Provn.
               </p>
             </div>
             
@@ -263,7 +236,13 @@ export default function HomePage() {
                 <div className="text-sm text-provn-muted mt-1">Platform Fees</div>
               </div>
               <div className="text-center">
-                <div className="text-4xl font-bold text-provn-text font-headline">{platformData.videosCount}+</div>
+                <div className="text-4xl font-bold text-provn-text font-headline">
+                  {platformData.loading ? (
+                    <span className="inline-block animate-pulse bg-provn-accent/20 text-transparent rounded">XX+</span>
+                  ) : (
+                    `${platformData.videosCount}+`
+                  )}
+                </div>
                 <div className="text-sm text-provn-muted mt-1">Provs Protected</div>
               </div>
             </motion.div>
@@ -613,69 +592,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Creator Success Stories */}
-      <section id="creator-stories" className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          viewport={optimizedViewport}
-          className="text-center mb-16"
-        >
-          <h2 className="font-headline text-4xl md:text-6xl font-bold text-provn-text mb-6">
-            Real Creators, Real Results
-          </h2>
-          <p className="text-xl text-provn-muted max-w-3xl mx-auto">
-            See how creators are earning 40-80% more by switching to Provn's zero-fee platform
-          </p>
-        </motion.div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <CreatorStory
-            name="Sarah Chen"
-            avatar="SC"
-            platform="YouTube"
-            oldEarnings="$2.1K"
-            newEarnings="$3.8K"
-            timeframe="monthly"
-            quote="I was losing almost half my revenue to YouTube's cut. Provn let me keep everything and actually grow my audience faster."
-          />
-          <CreatorStory
-            name="Marcus Rivera"
-            avatar="MR"
-            platform="TikTok"
-            oldEarnings="$850"
-            newEarnings="$1.5K"
-            timeframe="monthly"
-            quote="The creator fund was a joke. On Provn, I make real money from day one, and I own my content forever."
-          />
-          <CreatorStory
-            name="Elena Vasquez"
-            avatar="EV"
-            platform="Instagram"
-            oldEarnings="$1.2K"
-            newEarnings="$2.3K"
-            timeframe="monthly"
-            quote="No algorithm games, no shadow bans. Just pure creator economics. Provn gave me my independence back."
-          />
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ ...fastTransition, delay: 0.2 }}
-          viewport={optimizedViewport}
-          className="text-center mt-12"
-        >
-          <ProvnButton
-            onClick={() => handleProtectedNavigation("/upload")}
-            className="px-8 py-3 text-lg"
-          >
-            Join These Successful Creators
-            <ArrowRight className="w-5 h-5 ml-2" />
-          </ProvnButton>
-        </motion.div>
-      </section>
+      {/* User Journey Section */}
+      <UserJourney onGetStarted={() => handleProtectedNavigation("/upload")} />
 
       {/* Platform Comparison */}
       <section className="py-24 bg-provn-surface/30">

@@ -67,6 +67,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
+  // Skip chrome-extension and other unsupported schemes
+  if (url.protocol === 'chrome-extension:' || url.protocol === 'moz-extension:' || url.protocol === 'safari-extension:') {
+    return;
+  }
+  
   // Handle API requests
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(handleApiRequest(request));

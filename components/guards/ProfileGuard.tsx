@@ -8,6 +8,7 @@ import { ProvnButton } from '@/components/provn/button'
 import { ProvnCard, ProvnCardContent } from '@/components/provn/card'
 import { CreateProfileModal } from '@/components/provn/create-profile-modal'
 import { useProfile } from '@/hooks/useProfile'
+import { ProvnBrandLoader } from '@/components/common/LoadingStates'
 
 interface ProfileGuardProps {
   children: React.ReactNode
@@ -26,14 +27,11 @@ export function ProfileGuard({
   const { profile, loading } = useProfile(walletAddress || undefined)
   const [showCreateProfile, setShowCreateProfile] = useState(false)
 
-  // If still loading profile, show loading state
+  // If still loading profile, show premium loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-provn-bg flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-provn-accent mx-auto"></div>
-          <p className="text-provn-muted">Loading profile...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen bg-provn-bg">
+        <ProvnBrandLoader size="lg" message="Loading profile" variant="brand" minDisplayTime={600} />
       </div>
     )
   }

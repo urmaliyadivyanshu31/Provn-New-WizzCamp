@@ -12,6 +12,7 @@ import { ProfileEditModal } from "@/components/provn/profile-edit-modal";
 import { ProfileCard } from "@/components/profile/ProfileCard";
 import { ProfileCardModal } from "@/components/profile/ProfileCardModal";
 import { Profile } from "@/lib/supabase";
+import { ProfileSkeleton } from "@/components/common/LoadingStates";
 
 interface UserProfile {
   id: number;
@@ -173,9 +174,7 @@ export default function ProfilePage() {
     return (
       <>
         <Navigation currentPage="profile" />
-        <div className="min-h-screen bg-provn-bg flex items-center justify-center">
-          <div className="text-provn-text">Loading profile...</div>
-        </div>
+        <ProfileSkeleton />
       </>
     );
   }
