@@ -3,7 +3,10 @@ import { logger } from '@/lib/logger';
 
 export function useServiceWorker() {
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    // Only run in browser environment
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
+    
+    if ('serviceWorker' in navigator) {
       const registerSW = async () => {
         try {
           const registration = await navigator.serviceWorker.register('/sw.js', {
@@ -37,14 +40,18 @@ export function useServiceWorker() {
         }
       };
 
-      // Register on page load
-      registerSW();
+      // Register on page load with a small delay to avoid blocking
+      setTimeout(() => {
+        registerSW();
+      }, 100);
 
       // Register background sync for offline interactions
       if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
         navigator.serviceWorker.ready.then((registration) => {
           logger.info('Background sync available');
           // Could register sync events here
+        }).catch((error) => {
+          logger.warn('Service Worker ready check failed', { error });
         });
       }
     }

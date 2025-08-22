@@ -2,11 +2,11 @@
 pragma solidity ^0.8.29;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
-import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 
 interface IIpNFT {
     function ownerOf(uint256 tokenId) external view returns (address);
@@ -17,7 +17,7 @@ interface IIpNFT {
 /// @notice Enhanced marketplace for content licensing with community features
 /// @dev Implements industry-standard security practices for DeFi protocols
 contract ProvnMarketplace is Ownable, Pausable, ReentrancyGuard {
-    using SafeTransferLib for address;
+    using SafeERC20 for IERC20;
     using Address for address;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/

@@ -14,6 +14,115 @@ interface PurchaseResult {
   expiryDate?: Date
 }
 
+// Error categorization
+const isRetryableError = (error: Error): boolean => {
+  const message = error.message.toLowerCase()
+  return message.includes('network error') ||
+         message.includes('timeout') ||
+         message.includes('rate limit') ||
+         message.includes('429') ||
+         message.includes('too many requests') ||
+         message.includes('http request failed') ||
+         message.includes('connection') ||
+         message.includes('fetch')
+}
+
+const isNonRetryableError = (error: Error): boolean => {
+  const message = error.message.toLowerCase()
+  return message.includes('user rejected') ||
+         message.includes('insufficient funds') ||
+         message.includes('invalid address') ||
+         message.includes('pgrst116') ||
+         message.includes('execution reverted') ||
+         message.includes('contract call failed') ||
+         message.includes('abi encoding')
+}
+
+// Circuit breaker state
+let rpcFailureCount = 0
+let rpcLastFailure = 0
+const RPC_CIRCUIT_BREAKER_THRESHOLD = 5
+const RPC_CIRCUIT_BREAKER_TIMEOUT = 60000 // 1 minute
+
+const isRpcCircuitOpen = (): boolean => {
+  if (rpcFailureCount >= RPC_CIRCUIT_BREAKER_THRESHOLD) {
+    return Date.now() - rpcLastFailure < RPC_CIRCUIT_BREAKER_TIMEOUT
+  }
+  return false
+}
+
+const recordRpcFailure = () => {
+  rpcFailureCount++
+  rpcLastFailure = Date.now()
+}
+
+const resetRpcCircuit = () => {
+  rpcFailureCount = 0
+  rpcLastFailure = 0
+}
+
+// Retry utility with exponential backoff
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+const retryWithBackoff = async <T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> => {
+  // Check circuit breaker
+  if (isRpcCircuitOpen()) {
+    throw new Error('RPC circuit breaker is open. Too many recent failures.')
+  }
+  
+  let lastError: Error
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await fn()
+      
+      // Success - reset circuit breaker
+      if (rpcFailureCount > 0) {
+        resetRpcCircuit()
+        console.log('✅ RPC circuit breaker reset after successful call')
+      }
+      
+      return result
+    } catch (error) {
+      lastError = error as Error
+      
+      // Record RPC failures
+      if (isRetryableError(lastError)) {
+        recordRpcFailure()
+        console.warn(`🚫 RPC failure ${rpcFailureCount}/${RPC_CIRCUIT_BREAKER_THRESHOLD}:`, lastError.message)
+      }
+      
+      // Don't retry for non-retryable errors
+      if (isNonRetryableError(lastError)) {
+        throw lastError
+      }
+      
+      // If this was the last attempt, throw the error
+      if (attempt === maxRetries) {
+        throw lastError
+      }
+      
+      // Wait with exponential backoff for retryable errors
+      if (isRetryableError(lastError)) {
+        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000
+        console.warn(`⏳ Retrying after ${delay}ms (attempt ${attempt + 1}/${maxRetries + 1})`)
+        await sleep(delay)
+      } else {
+        // Non-categorized errors get one retry with shorter delay
+        const delay = Math.min(1000, baseDelay * Math.pow(2, attempt))
+        console.warn(`⚠️ Unknown error, retrying after ${delay}ms:`, lastError.message)
+        await sleep(delay)
+      }
+    }
+  }
+  
+  throw lastError!
+}
+
 export function useOriginLicensing() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -31,7 +140,7 @@ export function useOriginLicensing() {
     'function setLicenseTerms(uint256 tokenId, uint128 price, uint32 duration, uint8 licenseType, bool transferable, uint16 royaltyBps) external',
     'function createCommunity(uint256 creatorTokenId, string calldata name, string calldata description) external',
     'function joinCommunity(uint256 communityId) external',
-    'function addDerivativeToCommunit(uint256 communityId, uint256 derivativeTokenId) external',
+    'function addDerivativeToCommunity(uint256 communityId, uint256 derivativeTokenId) external',
     'function getCommunityDetails(uint256 communityId) external view returns (uint256, address, string, string, uint64, uint64, uint64, uint8, bool)',
     'function canCreateCommunity(address creator) external view returns (bool)',
     'function isCommunityMember(uint256 communityId, address user) external view returns (bool)',
@@ -47,8 +156,8 @@ export function useOriginLicensing() {
     'function dataStatus(uint256 tokenId) external view returns (uint8)'
   ])
   
-  // Contract addresses - will be updated after deployment
-  const PROVN_MARKETPLACE_CONTRACT = process.env.NEXT_PUBLIC_PROVN_MARKETPLACE_CONTRACT || '0xBe611BFBDcb45C5E8C3E81a3ec36CBee31E52981'
+  // Contract addresses - updated with deployed contract
+  const PROVN_MARKETPLACE_CONTRACT = process.env.NEXT_PUBLIC_PROVN_MARKETPLACE_CONTRACT || '0x592544471e26B60edfa018B03e9adE320fD81095'
   const IP_NFT_CONTRACT = '0x5a3f832b47b948dA27aE788E96A0CD7BB0dCd1c1'
   const CAMP_TOKEN_CONTRACT = '0x618a32eae7dEE87dD7dF8DF24D18dc98fb6Df8Ab'
   
@@ -293,28 +402,47 @@ export function useOriginLicensing() {
     const address = userAddress || walletAddress
     if (!address || !publicClient) return false
 
-    try {
-      // First try Origin SDK
-      if (origin) {
-        try {
-          const hasAccessResult = await (origin as any).hasAccess(BigInt(tokenId), address)
-          return hasAccessResult
-        } catch (sdkError) {
-          console.warn('⚠️ Origin SDK hasAccess failed, trying direct contract:', sdkError)
-        }
-      }
-
-      // Fallback to direct contract call
-      const hasLicense = await publicClient.readContract({
-        address: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
-        abi: marketplaceABI,
-        functionName: 'hasActiveLicense',
-        args: [address as `0x${string}`, BigInt(tokenId)]
+    // Validate tokenId format
+    if (!tokenId || typeof tokenId !== 'string') {
+      console.error('❌ Invalid tokenId in hasAccess:', tokenId)
+      return false
+    }
+    
+    const tokenIdNum = tokenId.trim()
+    if (!/^\d+$/.test(tokenIdNum)) {
+      console.error('❌ Invalid tokenId format in hasAccess:', {
+        tokenId,
+        cleaned: tokenIdNum,
+        isNumeric: /^\d+$/.test(tokenIdNum)
       })
-      
-      return hasLicense
+      return false
+    }
+
+    try {
+      return await retryWithBackoff(async () => {
+        // First try Origin SDK with correct parameter order
+        if (origin) {
+          try {
+            // Note: Origin SDK hasAccess takes (address, tokenId) not (tokenId, address)
+            const hasAccessResult = await (origin as any).hasAccess(address, BigInt(tokenIdNum))
+            return hasAccessResult
+          } catch (sdkError) {
+            console.warn('⚠️ Origin SDK hasAccess failed, trying direct contract:', sdkError)
+          }
+        }
+
+        // Fallback to direct contract call
+        const hasLicense = await publicClient.readContract({
+          address: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
+          abi: marketplaceABI,
+          functionName: 'hasActiveLicense',
+          args: [address as `0x${string}`, BigInt(tokenIdNum)]
+        })
+        
+        return hasLicense
+      }, 2, 2000) // 2 retries, 2s base delay for rate limiting
     } catch (error) {
-      console.error('Failed to check access:', error)
+      console.error('Failed to check access after retries:', error)
       return false
     }
   }
@@ -343,26 +471,27 @@ export function useOriginLicensing() {
     }
     
     try {
-      let terms
-      
-      // Try Origin SDK first
-      if (origin) {
-        try {
-          const tokenBigInt = BigInt(tokenIdNum)
-          console.log('🔢 getLicenseTerms converting tokenId:', {
-            original: tokenId,
-            cleaned: tokenIdNum,
-            bigInt: tokenBigInt.toString()
-          })
-          terms = await origin.getTerms(tokenBigInt)
-          console.log('📋 Terms fetched from Origin SDK for tokenId:', tokenIdNum, terms)
-        } catch (sdkError) {
-          console.warn('⚠️ Origin SDK getTerms failed:', sdkError)
-          throw sdkError
+      const terms = await retryWithBackoff(async () => {
+        // Try Origin SDK first
+        if (origin) {
+          try {
+            const tokenBigInt = BigInt(tokenIdNum)
+            console.log('🔢 getLicenseTerms converting tokenId:', {
+              original: tokenId,
+              cleaned: tokenIdNum,
+              bigInt: tokenBigInt.toString()
+            })
+            const result = await origin.getTerms(tokenBigInt)
+            console.log('📋 Terms fetched from Origin SDK for tokenId:', tokenIdNum, result)
+            return result
+          } catch (sdkError) {
+            console.warn('⚠️ Origin SDK getTerms failed:', sdkError)
+            throw sdkError
+          }
+        } else {
+          throw new Error('Origin SDK not available')
         }
-      } else {
-        throw new Error('Origin SDK not available')
-      }
+      }, 2, 2000)
       
       const licenseTerms = {
         price: terms.price,
@@ -412,14 +541,34 @@ export function useOriginLicensing() {
   const getSubscriptionExpiry = async (tokenId: string, userAddress?: string): Promise<Date | null> => {
     if (!origin) return null
 
+    // Validate tokenId format
+    if (!tokenId || typeof tokenId !== 'string') {
+      console.error('❌ Invalid tokenId in getSubscriptionExpiry:', tokenId)
+      return null
+    }
+    
+    const tokenIdNum = tokenId.trim()
+    if (!/^\d+$/.test(tokenIdNum)) {
+      console.error('❌ Invalid tokenId format in getSubscriptionExpiry:', {
+        tokenId,
+        cleaned: tokenIdNum,
+        isNumeric: /^\d+$/.test(tokenIdNum)
+      })
+      return null
+    }
+
     try {
       const address = userAddress || walletAddress
       if (!address) return null
 
-      const expiry = await (origin as any).subscriptionExpiry(BigInt(tokenId), address)
+      const expiry = await retryWithBackoff(async () => {
+        // Use correct parameter order for Origin SDK
+        return await (origin as any).subscriptionExpiry(BigInt(tokenIdNum), address)
+      }, 2, 2000)
+      
       return new Date(Number(expiry) * 1000)
     } catch (error) {
-      console.error('Failed to get subscription expiry:', error)
+      console.error('Failed to get subscription expiry after retries:', error)
       return null
     }
   }
@@ -582,7 +731,7 @@ export function useOriginLicensing() {
     try {
       const txData = encodeFunctionData({
         abi: marketplaceABI,
-        functionName: 'addDerivativeToCommunit',
+        functionName: 'addDerivativeToCommunity',
         args: [BigInt(communityId), BigInt(derivativeTokenId)]
       })
 

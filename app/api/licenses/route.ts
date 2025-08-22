@@ -104,23 +104,65 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const tokenId = searchParams.get('tokenId')
     const purchaser = searchParams.get('purchaser')
+    const status = searchParams.get('status') // 'active', 'expired', 'expiring_soon'
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const offset = parseInt(searchParams.get('offset') || '0')
+    const detailed = searchParams.get('detailed') === 'true'
+
+    console.log('📄 Licenses API: GET request', { 
+      tokenId, 
+      purchaser, 
+      status, 
+      detailed,
+      limit,
+      offset
+    })
 
     let query = supabase
       .from('license_transactions')
-      .select('*')
+      .select(`
+        *,
+        ${detailed ? `
+        platform_videos!inner(
+          token_id,
+          title,
+          description,
+          video_url,
+          thumbnail_url,
+          creator_address,
+          profiles(handle, display_name, avatar_url)
+        )
+        ` : ''}
+      `)
       .order('created_at', { ascending: false })
 
     if (tokenId) {
-      // Get licenses for a specific token
       query = query.eq('token_id', parseInt(tokenId))
     }
 
     if (purchaser) {
-      // Get licenses purchased by a specific user
       query = query.eq('licensee_address', purchaser.toLowerCase())
     }
 
-    const { data: licenses, error } = await query.limit(50)
+    // Add status filtering
+    if (status) {
+      const now = new Date().toISOString()
+      const soonThreshold = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days from now
+      
+      switch (status) {
+        case 'active':
+          query = query.gt('expires_at', now)
+          break
+        case 'expired':
+          query = query.lte('expires_at', now)
+          break
+        case 'expiring_soon':
+          query = query.gt('expires_at', now).lte('expires_at', soonThreshold)
+          break
+      }
+    }
+
+    const { data: licenses, error } = await query.range(offset, offset + limit - 1)
 
     if (error) {
       console.error('❌ Licenses API: Database error:', error)
@@ -130,10 +172,52 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Get total count for pagination
+    let countQuery = supabase
+      .from('license_transactions')
+      .select('*', { count: 'exact', head: true })
+
+    if (tokenId) {
+      countQuery = countQuery.eq('token_id', parseInt(tokenId))
+    }
+
+    if (purchaser) {
+      countQuery = countQuery.eq('licensee_address', purchaser.toLowerCase())
+    }
+
+    const { count: totalCount } = await countQuery
+
+    // Process licenses to add computed fields
+    const processedLicenses = licenses?.map((license: any) => {
+      const now = new Date()
+      const expiresAt = new Date(license.expires_at)
+      const isExpired = expiresAt <= now
+      const daysUntilExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      const isExpiringSoon = !isExpired && daysUntilExpiry <= 7
+
+      return {
+        ...license,
+        computed: {
+          is_expired: isExpired,
+          is_expiring_soon: isExpiringSoon,
+          days_until_expiry: isExpired ? 0 : daysUntilExpiry,
+          status: isExpired ? 'expired' : isExpiringSoon ? 'expiring_soon' : 'active'
+        }
+      }
+    })
+
+    console.log(`✅ Licenses API: Retrieved ${processedLicenses?.length || 0} licenses`)
+
     return NextResponse.json({
       success: true,
-      licenses: licenses || [],
-      count: licenses?.length || 0
+      licenses: processedLicenses || [],
+      count: processedLicenses?.length || 0,
+      total_count: totalCount || 0,
+      pagination: {
+        limit,
+        offset,
+        has_more: (totalCount || 0) > offset + limit
+      }
     })
 
   } catch (error) {

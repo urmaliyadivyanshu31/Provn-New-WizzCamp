@@ -20,9 +20,13 @@ import {
   Hash,
   Calendar,
   User,
-  Zap
+  Zap,
+  Scissors,
+  Plus
 } from "lucide-react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { LicenseStatusBadge } from "@/components/licenses/LicenseStatusBadge";
 
 interface VideoDetailsModalProps {
   video: ExploreVideo;
@@ -32,6 +36,8 @@ interface VideoDetailsModalProps {
 }
 
 export function VideoDetailsModal({ video, isOpen, onClose, isAuthenticated }: VideoDetailsModalProps) {
+  const router = useRouter();
+  
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -65,6 +71,24 @@ export function VideoDetailsModal({ video, isOpen, onClose, isAuthenticated }: V
 
   const handleReport = () => {
     toast.info('Report functionality coming soon');
+  };
+
+  const handleCreateDerivative = () => {
+    if (!isAuthenticated) {
+      toast.error('Please connect your wallet to create derivatives');
+      return;
+    }
+    
+    if (!video.remixing.enabled) {
+      toast.error('This content does not allow derivatives');
+      return;
+    }
+    
+    // Navigate to derivative upload with parent tokenId
+    const url = `/upload/derivative?parent=${video.tokenId}&title=${encodeURIComponent(video.title)}&creator=${encodeURIComponent(video.creator.handle)}`;
+    onClose(); // Close modal first
+    router.push(url);
+    toast.success('Redirecting to derivative creation...');
   };
 
   if (!isOpen) return null;
@@ -120,21 +144,30 @@ export function VideoDetailsModal({ video, isOpen, onClose, isAuthenticated }: V
                 <p className="text-xs text-provn-muted font-headline">
                   by @{video.creator.handle}
                 </p>
-                <div className={`mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${
-                  video.ipInfo.status === 'verified'
-                    ? 'bg-green-500/10 text-green-400'
-                    : 'bg-yellow-500/10 text-yellow-400'
-                }`}>
-                  {video.ipInfo.status === 'verified' ? (
-                    <>
-                      <CheckCircle className="w-3 h-3" />
-                      Verified IP
-                    </>
-                  ) : (
-                    <>
-                      <AlertTriangle className="w-3 h-3" />
-                      Pending
-                    </>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${
+                    video.ipInfo.status === 'verified'
+                      ? 'bg-green-500/10 text-green-400'
+                      : 'bg-yellow-500/10 text-yellow-400'
+                  }`}>
+                    {video.ipInfo.status === 'verified' ? (
+                      <>
+                        <CheckCircle className="w-3 h-3" />
+                        Verified IP
+                      </>
+                    ) : (
+                      <>
+                        <AlertTriangle className="w-3 h-3" />
+                        Pending
+                      </>
+                    )}
+                  </div>
+                  {isAuthenticated && (
+                    <LicenseStatusBadge 
+                      tokenId={video.tokenId} 
+                      variant="full"
+                      className="text-xs"
+                    />
                   )}
                 </div>
               </div>
@@ -263,22 +296,36 @@ export function VideoDetailsModal({ video, isOpen, onClose, isAuthenticated }: V
             )}
 
             {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-2 pt-1 sm:pt-2">
-              <button
-                onClick={handleViewOnExplorer}
-                disabled={!video.ipInfo.transactionHash}
-                className="flex items-center justify-center gap-2 py-2.5 px-3 text-sm border border-provn-border text-provn-muted hover:text-provn-text hover:border-provn-accent/50 rounded-lg transition-all font-headline touch-manipulation disabled:opacity-50"
-              >
-                <ExternalLink className="w-4 h-4" />
-                Explorer
-              </button>
-              <button
-                onClick={handleReport}
-                className="flex items-center justify-center gap-2 py-2.5 px-3 text-sm border border-provn-border text-provn-muted hover:text-provn-text hover:border-provn-accent/50 rounded-lg transition-all font-headline touch-manipulation"
-              >
-                <Flag className="w-4 h-4" />
-                Report
-              </button>
+            <div className="space-y-2 pt-1 sm:pt-2">
+              {/* Primary Action - Create Derivative (if remixing is enabled) */}
+              {video.remixing.enabled && (
+                <button
+                  onClick={handleCreateDerivative}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-provn-accent to-provn-accent/80 hover:from-provn-accent/90 hover:to-provn-accent/70 text-provn-bg font-semibold rounded-lg transition-all font-headline touch-manipulation shadow-lg hover:shadow-xl"
+                >
+                  <Scissors className="w-4 h-4" />
+                  Create Derivative
+                </button>
+              )}
+              
+              {/* Secondary Actions */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={handleViewOnExplorer}
+                  disabled={!video.ipInfo.transactionHash}
+                  className="flex items-center justify-center gap-2 py-2.5 px-3 text-sm border border-provn-border text-provn-muted hover:text-provn-text hover:border-provn-accent/50 rounded-lg transition-all font-headline touch-manipulation disabled:opacity-50"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Explorer
+                </button>
+                <button
+                  onClick={handleReport}
+                  className="flex items-center justify-center gap-2 py-2.5 px-3 text-sm border border-provn-border text-provn-muted hover:text-provn-text hover:border-provn-accent/50 rounded-lg transition-all font-headline touch-manipulation"
+                >
+                  <Flag className="w-4 h-4" />
+                  Report
+                </button>
+              </div>
             </div>
 
             {/* Footer */}

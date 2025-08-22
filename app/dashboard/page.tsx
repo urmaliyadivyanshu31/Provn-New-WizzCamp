@@ -8,16 +8,18 @@ import { FullyProtectedRoute } from "@/components/guards/ProtectedRoute"
 import { useAuth } from '@campnetwork/origin/react'
 import { AchievementsPanel } from "@/components/gamification/AchievementsPanel"
 import { PremiumLeaderboard } from "@/components/leaderboard/PremiumLeaderboard"
-import { Trophy, Award } from "lucide-react"
+import { LicenseManager } from "@/components/licenses/LicenseManager"
+import { Trophy, Award, Package } from "lucide-react"
 
 
 export default function DashboardPage() {
   const { walletAddress } = useAuth()
-  const [activeTab, setActiveTab] = useState<'leaderboards' | 'achievements'>('leaderboards')
+  const [activeTab, setActiveTab] = useState<'leaderboards' | 'achievements' | 'licenses'>('leaderboards')
 
   const tabs = [
     { id: 'leaderboards', name: 'Leaderboards', icon: Trophy },
-    { id: 'achievements', name: 'Achievements', icon: Award }
+    { id: 'achievements', name: 'Achievements', icon: Award },
+    { id: 'licenses', name: 'My Licenses', icon: Package }
   ]
 
   return (
@@ -71,6 +73,10 @@ export default function DashboardPage() {
                 
                 {activeTab === 'achievements' && (
                   <AchievementsPanel userAddress={walletAddress || undefined} />
+                )}
+                
+                {activeTab === 'licenses' && (
+                  <LicenseManager userAddress={walletAddress || undefined} />
                 )}
                 
               </div>

@@ -3,6 +3,7 @@ import { Inter, Space_Grotesk } from "next/font/google"
 import "./globals.css"
 
 import Providers from "@/components/providers"
+import ErrorBoundary from "@/components/ErrorBoundary"
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics"
 
 const inter = Inter({
@@ -66,9 +67,11 @@ export default function RootLayout({
       </head>
       <body className="bg-provn-bg text-provn-text antialiased" suppressHydrationWarning={true}>
         <GoogleAnalytics />
-        <Providers>
-          {children}
-        </Providers>
+        <ErrorBoundary>
+          <Providers>
+            {children}
+          </Providers>
+        </ErrorBoundary>
       </body>
     </html>
   )

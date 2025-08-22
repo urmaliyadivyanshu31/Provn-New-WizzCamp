@@ -55,8 +55,10 @@ const config = createConfig({
 });
 
 export default function Providers({ children }: { children: React.ReactNode }) {
-  // Register service worker for performance optimizations
-  useServiceWorker();
+  // Only register service worker if running in browser
+  if (typeof window !== 'undefined') {
+    useServiceWorker();
+  }
   
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
@@ -84,65 +86,86 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     },
   }));
   const [isConfigReady, setIsConfigReady] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Handle ethereum object conflicts from multiple wallet extensions
+    // Set mounted to true to avoid hydration mismatches
+    setMounted(true);
+
+    // Enhanced ethereum object conflict handler
     const handleEthereumConflict = () => {
-      if (typeof window !== 'undefined') {
-        // Prevent ethereum property redefinition errors
-        try {
-          // If ethereum already exists, make it non-configurable to prevent redefinition
-          if (window.ethereum) {
-            const existingDescriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
-            if (existingDescriptor && existingDescriptor.configurable !== false) {
-              Object.defineProperty(window, 'ethereum', {
+      if (typeof window === 'undefined') return;
+      
+      try {
+        // Store original methods
+        const originalDefineProperty = Object.defineProperty;
+        const originalGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+        
+        // If ethereum already exists, protect it immediately
+        if (window.ethereum) {
+          console.log('🔒 Protecting existing ethereum object');
+          try {
+            const descriptor = originalGetOwnPropertyDescriptor(window, 'ethereum');
+            if (descriptor && descriptor.configurable !== false) {
+              originalDefineProperty(window, 'ethereum', {
                 value: window.ethereum,
-                writable: true,
+                writable: false,
                 enumerable: true,
                 configurable: false
               });
+              console.log('✅ Ethereum object protected');
             }
-            return;
+          } catch (e) {
+            // Silently handle protection errors
+            console.warn('⚠️ Could not protect ethereum object:', e);
           }
+          return;
+        }
 
-          const originalDefineProperty = Object.defineProperty;
-          Object.defineProperty = function<T>(obj: T, prop: PropertyKey, descriptor: PropertyDescriptor & ThisType<any>): T {
+        // Override defineProperty to handle ethereum conflicts
+        Object.defineProperty = function<T>(obj: T, prop: PropertyKey, descriptor: PropertyDescriptor & ThisType<any>): T {
+          if (prop === 'ethereum' && obj === window) {
             try {
-              if (prop === 'ethereum' && obj === window) {
-                // Check if ethereum already exists and is configurable
-                const existingDescriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
-                if (existingDescriptor) {
-                  if (existingDescriptor.configurable === false) {
-                    // Property already exists and is not configurable
-                    return obj;
-                  }
-                  if (window.ethereum) {
-                    // Ethereum object already exists, don't redefine
-                    return obj;
-                  }
-                }
-                
-                // Set ethereum property as non-configurable to prevent further redefinition
-                const newDescriptor = {
-                  ...descriptor,
-                  configurable: false
-                };
-                return originalDefineProperty.call(this, obj, prop, newDescriptor) as T;
+              console.log('🔍 Intercepting ethereum property definition');
+              
+              // Check if ethereum already exists
+              const existingDescriptor = originalGetOwnPropertyDescriptor(window, 'ethereum');
+              if (existingDescriptor) {
+                console.log('⚠️ Ethereum already exists, preventing redefinition');
+                return obj;
               }
-              return originalDefineProperty.call(this, obj, prop, descriptor) as T;
+              
+              // Allow the first definition but make it non-configurable
+              const protectedDescriptor = {
+                ...descriptor,
+                configurable: false,
+                writable: false
+              };
+              
+              console.log('✅ Allowing protected ethereum definition');
+              return originalDefineProperty.call(this, obj, prop, protectedDescriptor) as T;
             } catch (error) {
-              // Error defining property - silently handle
+              console.warn('⚠️ Ethereum definition error:', error);
               return obj;
             }
-          };
+          }
           
-          // Restore after extensions load
-          setTimeout(() => {
+          // For non-ethereum properties, use original method
+          return originalDefineProperty.call(this, obj, prop, descriptor) as T;
+        };
+        
+        // Restore original defineProperty after wallet extensions load
+        setTimeout(() => {
+          try {
             Object.defineProperty = originalDefineProperty;
-          }, 5000);
-        } catch (error) {
-          // Error setting up ethereum conflict handler - silently handle
-        }
+            console.log('🔄 Restored original Object.defineProperty');
+          } catch (e) {
+            console.warn('⚠️ Could not restore defineProperty:', e);
+          }
+        }, 8000); // Increased timeout for slower extensions
+        
+      } catch (error) {
+        console.error('❌ Ethereum conflict handler setup failed:', error);
       }
     };
 
@@ -152,16 +175,22 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       handleEthereumConflict();
       
       // Clear any existing config first
-      delete (window as any).__ORIGIN_CONFIG__;
+      try {
+        delete (window as any).__ORIGIN_CONFIG__;
+      } catch (e) {
+        // Silently handle config deletion errors
+      }
       
       // Let CampProvider handle configuration automatically
       setIsConfigReady(true);
-      // Ready to initialize CampProvider
+    } else {
+      // For SSR, immediately mark as ready
+      setIsConfigReady(true);
     }
   }, []);
 
-  // Don't render CampProvider until config is ready
-  if (!isConfigReady) {
+  // Don't render CampProvider until mounted and config is ready
+  if (!mounted || !isConfigReady) {
     return (
       <QueryClientProvider client={queryClient}>
         <div className="flex items-center justify-center min-h-screen bg-provn-bg">
@@ -173,10 +202,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <WagmiProvider config={config} reconnectOnMount={true}>
+      <WagmiProvider config={config} reconnectOnMount={false}>
         <CampProvider 
           clientId={process.env.NEXT_PUBLIC_CAMP_NETWORK_CLIENT_ID || '9123887d-94f0-4427-a2f7-cd04d16c1fc3'}
-          redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
+          redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001'}
           allowAnalytics={false}
         >
           <FollowStateProvider>
