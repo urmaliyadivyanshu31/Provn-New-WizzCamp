@@ -25,7 +25,7 @@ const LiveMetrics = ({ creatorsCount, videosCount }: { creatorsCount: number, vi
   const metrics = [
     { label: "Active Creators", value: creatorsCount.toString(), icon: Users },
     { label: "Total Earnings", value: "$2.3M", icon: DollarSign },
-    { label: "Provs Protected", value: videosCount.toString(), icon: CheckCircle },
+    { label: "PROVN Protected", value: videosCount.toString(), icon: CheckCircle },
     { label: "Zero Platform Fees", value: "100%", icon: CheckCircle }
   ]
 

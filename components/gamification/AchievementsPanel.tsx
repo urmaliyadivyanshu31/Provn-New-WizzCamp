@@ -45,6 +45,7 @@ interface Achievement {
     derivatives_created?: number
     licenses_sold?: number
     community_members?: number
+    communities_created?: number
     total_revenue?: number
     tips_received?: number
     communities_joined?: number

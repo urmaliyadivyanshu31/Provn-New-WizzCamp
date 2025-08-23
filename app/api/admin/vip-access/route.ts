@@ -438,7 +438,7 @@ async function validateAdmin(
   }
   
   // Additional admin wallet validation (check against whitelist of admin wallets)
-  const adminWallets = (process.env.ADMIN_WALLETS || '').split(',').map(w => w.toLowerCase().trim())
+  const adminWallets = (process.env.ADMIN_WALLETS || process.env.NEXT_PUBLIC_ADMIN_WALLETS || '').split(',').map(w => w.toLowerCase().trim())
   if (adminWallets.length > 0 && !adminWallets.includes(adminWallet.toLowerCase())) {
     return { valid: false, error: 'Wallet not authorized as admin' }
   }

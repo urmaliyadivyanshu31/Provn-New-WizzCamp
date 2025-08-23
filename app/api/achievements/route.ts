@@ -5,6 +5,7 @@ interface AchievementCriteria {
   derivatives_created?: number
   licenses_sold?: number
   community_members?: number
+  communities_created?: number
   total_revenue?: number
   tips_received?: number
   communities_joined?: number
@@ -104,7 +105,7 @@ const ACHIEVEMENTS: Achievement[] = [
     icon: '🏗️',
     category: 'community',
     rarity: 'rare',
-    criteria: { community_members: 1 }, // Tracks if they have a community
+    criteria: { communities_created: 1 }, // Tracks if they created a community
     points: 100
   },
   {
@@ -190,13 +191,13 @@ export async function GET(request: NextRequest) {
           .select('id')
           .eq('creator_address', userAddress.toLowerCase())
 
-        // Get user's community stats (if they own a community)
+        // Get user's owned communities count and max member count
         const { data: ownedCommunities } = await supabase
           .from('communities')
           .select('member_count')
           .eq('creator_address', userAddress.toLowerCase())
 
-        // Get user's membership count
+        // Get user's membership count (communities they joined)
         const { data: memberships } = await supabase
           .from('community_members')
           .select('id')
@@ -224,13 +225,19 @@ export async function GET(request: NextRequest) {
         const totalRevenue = licenses?.reduce((sum, license) => sum + parseFloat(license.price_paid), 0) || 0
         const totalTips = tips?.length || 0
 
+        // Find the community with the most members for community builder achievements
+        const maxCommunityMembers = (ownedCommunities && ownedCommunities.length > 0) 
+          ? Math.max(...ownedCommunities.map(c => c.member_count || 0))
+          : 0
+
         userStats = {
           derivatives_created: derivatives?.length || 0,
           licenses_sold: licenses?.length || 0,
           total_revenue: totalRevenue,
           tips_received: totalTips,
-          community_members: ownedCommunities?.[0]?.member_count || 0,
-          communities_joined: memberships?.length || 0
+          communities_created: ownedCommunities?.length || 0, // Number of communities they created
+          community_members: maxCommunityMembers, // Max members in any of their communities
+          communities_joined: memberships?.length || 0 // Communities they joined as a member
         }
 
         userAchievements = achievements || []

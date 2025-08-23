@@ -116,6 +116,71 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    // Validate admin key
+    if (!validateAdminKey(request)) {
+      return NextResponse.json({ 
+        error: 'Unauthorized - Invalid admin key' 
+      }, { status: 401 })
+    }
+
+    const { requestId, action } = await request.json()
+
+    if (!requestId || !action) {
+      return NextResponse.json({
+        success: false,
+        error: 'Request ID and action are required'
+      }, { status: 400 })
+    }
+
+    if (!['approve', 'reject'].includes(action)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Action must be "approve" or "reject"'
+      }, { status: 400 })
+    }
+
+    const supabase = createAdminClient()
+    const status = action === 'approve' ? 'approved' : 'rejected'
+
+    // Update whitelist request status
+    const { data, error } = await supabase
+      .from('beta_whitelist')
+      .update({
+        status: status,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', requestId)
+      .select()
+
+    if (error) {
+      console.error('Database error updating request:', error)
+      throw error
+    }
+
+    if (!data || data.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Request not found'
+      }, { status: 404 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Request ${action}d successfully`,
+      data: data[0]
+    })
+
+  } catch (error) {
+    console.error('Admin update request error:', error)
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to update request'
+    }, { status: 500 })
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     // Validate admin key

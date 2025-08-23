@@ -170,11 +170,8 @@ async function getWhitelistStats(supabase: any): Promise<number> {
       return getFallbackWhitelistCount()
     }
     
-    // Add some realistic padding to the count for exclusivity perception
-    const baseCount = count || 0
-    const padding = Math.floor(baseCount * 0.1) + Math.floor(Math.random() * 100)
-    
-    return Math.max(baseCount + padding, getFallbackWhitelistCount())
+    // Return the real count without artificial padding
+    return Math.max(count || 0, 0)
     
   } catch (error) {
     console.error('Whitelist stats fetch error:', error)
@@ -197,7 +194,7 @@ async function getCreatorStats(supabase: any): Promise<number> {
       return getFallbackCreatorCount()
     }
     
-    return Math.max(count || 0, getFallbackCreatorCount())
+    return Math.max(count || 0, 0)
     
   } catch (error) {
     console.error('Creator stats fetch error:', error)
@@ -221,7 +218,7 @@ async function getVideoStats(supabase: any): Promise<number> {
       return getFallbackVideoCount()
     }
     
-    return Math.max(count || 0, getFallbackVideoCount())
+    return Math.max(count || 0, 0)
     
   } catch (error) {
     console.error('Video stats fetch error:', error)
