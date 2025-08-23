@@ -11,7 +11,6 @@ import {
   Video,
   DollarSign,
   Heart,
-  Filter,
   Search,
   Award,
   Lock,
@@ -23,7 +22,10 @@ import {
   Share2,
   Sparkles,
   Shield,
-  Rocket
+  Rocket,
+  RefreshCw,
+  Loader2,
+  AlertCircle
 } from "lucide-react"
 import { ProvnButton } from "@/components/provn/button"
 import { ProvnCard, ProvnCardContent } from "@/components/provn/card"
@@ -33,15 +35,27 @@ interface Achievement {
   name: string
   description: string
   icon: string
-  category: 'creator' | 'community' | 'social' | 'revenue' | 'milestone' | 'special'
-  rarity: 'common' | 'rare' | 'epic' | 'legendary' | 'mythic'
+  category: 'creator' | 'community' | 'social' | 'revenue'
+  rarity: 'common' | 'rare' | 'epic' | 'legendary'
   points: number
   isUnlocked: boolean
   progress: number
-  maxProgress: number
   unlockedAt?: string
-  reward?: string
-  tier: number
+  criteria: {
+    derivatives_created?: number
+    licenses_sold?: number
+    community_members?: number
+    total_revenue?: number
+    tips_received?: number
+    communities_joined?: number
+  }
+}
+
+interface ApiResponse {
+  success: boolean
+  achievements: Achievement[]
+  userStats?: any
+  totalPoints: number
 }
 
 interface AchievementsPanelProps {
@@ -53,242 +67,114 @@ const categoryConfig = {
   creator: {
     icon: Video,
     label: 'Creator',
-    color: 'from-provn-accent to-orange-500',
-    bgColor: 'bg-gradient-to-br from-provn-accent/10 to-orange-500/10',
-    borderColor: 'border-provn-accent/30'
+    color: 'text-provn-accent'
   },
   community: {
     icon: Users,
-    label: 'Community',
-    color: 'from-blue-500 to-cyan-500',
-    bgColor: 'bg-gradient-to-br from-blue-500/10 to-cyan-500/10',
-    borderColor: 'border-blue-500/30'
+    label: 'Community', 
+    color: 'text-blue-400'
   },
   social: {
     icon: Heart,
     label: 'Social',
-    color: 'from-pink-500 to-rose-500',
-    bgColor: 'bg-gradient-to-br from-pink-500/10 to-rose-500/10',
-    borderColor: 'border-pink-500/30'
+    color: 'text-pink-400'
   },
   revenue: {
     icon: DollarSign,
     label: 'Revenue',
-    color: 'from-green-500 to-emerald-500',
-    bgColor: 'bg-gradient-to-br from-green-500/10 to-emerald-500/10',
-    borderColor: 'border-green-500/30'
-  },
-  milestone: {
-    icon: Target,
-    label: 'Milestone',
-    color: 'from-purple-500 to-violet-500',
-    bgColor: 'bg-gradient-to-br from-purple-500/10 to-violet-500/10',
-    borderColor: 'border-purple-500/30'
-  },
-  special: {
-    icon: Crown,
-    label: 'Special',
-    color: 'from-yellow-500 to-amber-500',
-    bgColor: 'bg-gradient-to-br from-yellow-500/10 to-amber-500/10',
-    borderColor: 'border-yellow-500/30'
+    color: 'text-green-400'
   }
 }
 
 const rarityConfig = {
   common: {
     label: 'Common',
-    color: 'from-gray-400 to-gray-600',
-    glow: 'shadow-gray-500/20',
-    points: '10-50',
-    probability: '60%'
+    color: 'text-gray-400'
   },
   rare: {
     label: 'Rare',
-    color: 'from-blue-400 to-blue-600',
-    glow: 'shadow-blue-500/30',
-    points: '50-150',
-    probability: '25%'
+    color: 'text-blue-400'
   },
   epic: {
     label: 'Epic',
-    color: 'from-purple-400 to-purple-600',
-    glow: 'shadow-purple-500/40',
-    points: '150-500',
-    probability: '10%'
+    color: 'text-purple-400'
   },
   legendary: {
     label: 'Legendary',
-    color: 'from-yellow-400 to-orange-500',
-    glow: 'shadow-yellow-500/50',
-    points: '500-1500',
-    probability: '4%'
-  },
-  mythic: {
-    label: 'Mythic',
-    color: 'from-pink-400 via-purple-500 to-indigo-500',
-    glow: 'shadow-pink-500/60',
-    points: '1500+',
-    probability: '1%'
+    color: 'text-yellow-400'
   }
 }
 
 // Icon mapping
-const getIcon = (iconName: string) => {
-  const icons: { [key: string]: React.ComponentType<any> } = {
-    trophy: Trophy,
-    star: Star,
-    crown: Crown,
-    zap: Zap,
-    users: Users,
-    video: Video,
-    dollar: DollarSign,
-    heart: Heart,
-    award: Award,
-    flame: Flame,
-    target: Target,
-    trending: TrendingUp,
-    eye: Eye,
-    share: Share2,
-    sparkles: Sparkles,
-    shield: Shield,
-    rocket: Rocket
+const getIconFromEmoji = (emoji: string) => {
+  const iconMap: { [key: string]: React.ComponentType<any> } = {
+    '🎬': Video,
+    '🎭': Award,
+    '🎨': Trophy,
+    '👑': Crown,
+    '💰': DollarSign,
+    '💎': Sparkles,
+    '🏆': Trophy,
+    '🏗️': Users,
+    '🏘️': Users,
+    '🏙️': Crown,
+    '🦋': Heart,
+    '🎁': Heart,
+    '❤️': Heart
   }
-  return icons[iconName] || Trophy
+  return iconMap[emoji] || Award
 }
 
-// Sample achievements data - in production this would come from API
-const sampleAchievements: Achievement[] = [
-  {
-    id: '1',
-    name: 'First Steps',
-    description: 'Upload your first video to the platform',
-    icon: 'rocket',
-    category: 'creator',
-    rarity: 'common',
-    points: 25,
-    isUnlocked: true,
-    progress: 1,
-    maxProgress: 1,
-    unlockedAt: '2024-01-15',
-    reward: '+25 Creator Points',
-    tier: 1
-  },
-  {
-    id: '2',
-    name: 'Rising Star',
-    description: 'Get 100 views on a single video',
-    icon: 'star',
-    category: 'creator',
-    rarity: 'rare',
-    points: 100,
-    isUnlocked: true,
-    progress: 150,
-    maxProgress: 100,
-    unlockedAt: '2024-01-18',
-    reward: '+100 Creator Points',
-    tier: 1
-  },
-  {
-    id: '3',
-    name: 'Viral Creator',
-    description: 'Reach 10,000 views across all videos',
-    icon: 'flame',
-    category: 'creator',
-    rarity: 'epic',
-    points: 500,
-    isUnlocked: false,
-    progress: 7580,
-    maxProgress: 10000,
-    tier: 2
-  },
-  {
-    id: '4',
-    name: 'Community Builder',
-    description: 'Get 50 followers on your profile',
-    icon: 'users',
-    category: 'community',
-    rarity: 'rare',
-    points: 150,
-    isUnlocked: false,
-    progress: 28,
-    maxProgress: 50,
-    tier: 1
-  },
-  {
-    id: '5',
-    name: 'Revenue Royalty',
-    description: 'Earn 1000 CAMP tokens from licensing',
-    icon: 'crown',
-    category: 'revenue',
-    rarity: 'legendary',
-    points: 1000,
-    isUnlocked: false,
-    progress: 125,
-    maxProgress: 1000,
-    tier: 3
-  },
-  {
-    id: '6',
-    name: 'Platform Pioneer',
-    description: 'Be among the first 100 creators on Provn',
-    icon: 'shield',
-    category: 'special',
-    rarity: 'mythic',
-    points: 2500,
-    isUnlocked: true,
-    progress: 1,
-    maxProgress: 1,
-    unlockedAt: '2024-01-10',
-    reward: 'Exclusive Pioneer Badge + 2500 Points',
-    tier: 4
-  },
-  {
-    id: '7',
-    name: 'Social Butterfly',
-    description: 'Like 100 videos from other creators',
-    icon: 'heart',
-    category: 'social',
-    rarity: 'common',
-    points: 50,
-    isUnlocked: false,
-    progress: 73,
-    maxProgress: 100,
-    tier: 1
-  },
-  {
-    id: '8',
-    name: 'License Master',
-    description: 'Have your content licensed 25 times',
-    icon: 'sparkles',
-    category: 'revenue',
-    rarity: 'epic',
-    points: 750,
-    isUnlocked: false,
-    progress: 8,
-    maxProgress: 25,
-    tier: 2
-  }
-]
+// Default empty achievements for initial state
+const defaultAchievements: Achievement[] = []
 
 const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ 
   userAddress, 
   className = "" 
 }) => {
-  const [achievements, setAchievements] = useState<Achievement[]>(sampleAchievements)
-  const [filteredAchievements, setFilteredAchievements] = useState<Achievement[]>(sampleAchievements)
+  const [achievements, setAchievements] = useState<Achievement[]>(defaultAchievements)
+  const [filteredAchievements, setFilteredAchievements] = useState<Achievement[]>(defaultAchievements)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [selectedRarity, setSelectedRarity] = useState<string>('all')
   const [showUnlockedOnly, setShowUnlockedOnly] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [totalPoints, setTotalPoints] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [userStats, setUserStats] = useState<any>(null)
 
-  // Calculate total points from unlocked achievements
+  // Fetch achievements from API
   useEffect(() => {
-    const points = achievements
-      .filter(achievement => achievement.isUnlocked)
-      .reduce((sum, achievement) => sum + achievement.points, 0)
-    setTotalPoints(points)
-  }, [achievements])
+    if (!userAddress) {
+      setLoading(false)
+      return
+    }
+
+    const fetchAchievements = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const response = await fetch(`/api/achievements?user=${userAddress}`)
+        const data: ApiResponse = await response.json()
+        
+        if (data.success) {
+          setAchievements(data.achievements)
+          setTotalPoints(data.totalPoints)
+          setUserStats(data.userStats)
+        } else {
+          setError('Failed to load achievements')
+        }
+      } catch (err) {
+        console.error('Error fetching achievements:', err)
+        setError('Failed to load achievements')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchAchievements()
+  }, [userAddress])
 
   // Filter achievements based on selected filters
   useEffect(() => {
@@ -316,9 +202,6 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
     setFilteredAchievements(filtered)
   }, [achievements, selectedCategory, selectedRarity, showUnlockedOnly, searchQuery])
 
-  const unlockedCount = achievements.filter(a => a.isUnlocked).length
-  const progressPercentage = Math.round((unlockedCount / achievements.length) * 100)
-
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Header & Stats */}
@@ -326,8 +209,8 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
         <ProvnCardContent className="p-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-bold text-provn-text mb-2 font-headline">
-                🏆 Achievements
+              <h2 className="text-lg font-bold text-provn-text font-headline">
+                Achievements
               </h2>
               <p className="text-provn-muted">
                 Track your progress and unlock exclusive rewards
@@ -343,32 +226,14 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
               </div>
               <div className="text-center lg:text-right">
                 <div className="text-3xl font-bold text-provn-text">
-                  {unlockedCount}/{achievements.length}
+                  {achievements.filter(a => a.isUnlocked).length}/{achievements.length}
                 </div>
                 <div className="text-sm text-provn-muted">Unlocked</div>
               </div>
             </div>
           </div>
 
-          {/* Progress Bar */}
-          <div className="mt-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-provn-text">
-                Overall Progress
-              </span>
-              <span className="text-sm font-medium text-provn-accent">
-                {progressPercentage}%
-              </span>
-            </div>
-            <div className="w-full bg-provn-surface rounded-full h-2">
-              <motion.div
-                className="bg-gradient-to-r from-provn-accent to-orange-500 h-2 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${progressPercentage}%` }}
-                transition={{ duration: 1, ease: "easeOut" }}
-              />
-            </div>
-          </div>
+          {/* Progress calculated inline - no separate progress bar needed */}
         </ProvnCardContent>
       </ProvnCard>
 
@@ -429,7 +294,7 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <AnimatePresence>
           {filteredAchievements.map((achievement) => (
-            <AchievementCard
+            <CompactAchievementCard
               key={achievement.id}
               achievement={achievement}
             />
@@ -454,137 +319,87 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
   )
 }
 
-// Individual Achievement Card Component
-const AchievementCard: React.FC<{ achievement: Achievement }> = ({ achievement }) => {
+// Compact Achievement Card Component
+const CompactAchievementCard: React.FC<{ achievement: Achievement }> = ({ achievement }) => {
   const categoryConfig_ = categoryConfig[achievement.category]
   const rarityConfig_ = rarityConfig[achievement.rarity]
-  const IconComponent = getIcon(achievement.icon)
-  const progressPercentage = Math.min((achievement.progress / achievement.maxProgress) * 100, 100)
-
+  const IconComponent = getIconFromEmoji(achievement.icon)
+  
+  // Calculate progress from criteria
+  const criteriaKey = Object.keys(achievement.criteria)[0] as keyof typeof achievement.criteria
+  const required = achievement.criteria[criteriaKey] || 1
+  
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.3 }}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
     >
-      <ProvnCard 
-        className={`
-          relative overflow-hidden transition-all duration-300 hover:scale-105
-          ${achievement.isUnlocked ? rarityConfig_.glow : 'hover:shadow-lg'}
-          ${categoryConfig_.borderColor} border-2
-        `}
-      >
-        <ProvnCardContent className="p-6">
-          {/* Rarity Badge */}
-          <div className="absolute top-4 right-4">
-            <div className={`
-              px-2 py-1 rounded-full text-xs font-bold text-white
-              bg-gradient-to-r ${rarityConfig_.color}
-            `}>
-              {rarityConfig_.label}
+      <ProvnCard className={`hover:bg-provn-surface-2 transition-colors ${
+        achievement.isUnlocked ? 'bg-provn-surface-2/50' : ''
+      }`}>
+        <ProvnCardContent className="p-3">
+          <div className="flex items-start gap-3">
+            {/* Icon */}
+            <div className={`p-2 rounded-lg bg-provn-surface-2 ${
+              achievement.isUnlocked ? categoryConfig_.color : 'text-provn-muted'
+            }`}>
+              <IconComponent className="w-4 h-4" />
             </div>
-          </div>
-
-          {/* Lock/Unlock Indicator */}
-          <div className="absolute top-4 left-4">
-            {achievement.isUnlocked ? (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 500 }}
-              >
-                <CheckCircle className="w-5 h-5 text-green-500" />
-              </motion.div>
-            ) : (
-              <Lock className="w-5 h-5 text-provn-muted" />
-            )}
-          </div>
-
-          {/* Achievement Icon */}
-          <div className="flex justify-center mb-4 mt-8">
-            <div className={`
-              p-4 rounded-full ${categoryConfig_.bgColor}
-              ${achievement.isUnlocked ? 'animate-pulse' : ''}
-            `}>
-              <IconComponent className={`
-                w-8 h-8 bg-gradient-to-r ${categoryConfig_.color} bg-clip-text text-transparent
-                ${achievement.isUnlocked ? 'filter-none' : 'opacity-50'}
-              `} />
-            </div>
-          </div>
-
-          {/* Achievement Info */}
-          <div className="text-center mb-4">
-            <h3 className={`
-              text-lg font-bold mb-2 font-headline
-              ${achievement.isUnlocked ? 'text-provn-text' : 'text-provn-muted'}
-            `}>
-              {achievement.name}
-            </h3>
-            <p className={`
-              text-sm mb-3
-              ${achievement.isUnlocked ? 'text-provn-text' : 'text-provn-muted'}
-            `}>
-              {achievement.description}
-            </p>
-
-            {/* Points */}
-            <div className={`
-              inline-flex items-center px-3 py-1 rounded-full text-sm font-bold
-              ${achievement.isUnlocked 
-                ? 'bg-provn-accent/20 text-provn-accent' 
-                : 'bg-provn-surface text-provn-muted'
-              }
-            `}>
-              <Star className="w-3 h-3 mr-1" />
-              {achievement.points} pts
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-provn-muted">
-                Progress
-              </span>
-              <span className="text-xs font-medium text-provn-text">
-                {achievement.progress.toLocaleString()} / {achievement.maxProgress.toLocaleString()}
-              </span>
-            </div>
-            <div className="w-full bg-provn-surface rounded-full h-2">
-              <motion.div
-                className={`h-2 rounded-full bg-gradient-to-r ${categoryConfig_.color}`}
-                initial={{ width: 0 }}
-                animate={{ width: `${progressPercentage}%` }}
-                transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
-              />
-            </div>
-          </div>
-
-          {/* Unlock Date or Reward */}
-          {achievement.isUnlocked ? (
-            <div className="text-center">
-              <div className="text-xs text-provn-muted mb-1">Unlocked</div>
-              <div className="text-xs font-medium text-provn-accent">
-                {new Date(achievement.unlockedAt!).toLocaleDateString()}
+            
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between mb-1">
+                <h3 className={`text-sm font-medium font-headline truncate ${
+                  achievement.isUnlocked ? 'text-provn-text' : 'text-provn-muted'
+                }`}>
+                  {achievement.name}
+                </h3>
+                {achievement.isUnlocked && (
+                  <CheckCircle className="w-3 h-3 text-green-500 ml-1 flex-shrink-0" />
+                )}
               </div>
-              {achievement.reward && (
-                <div className="text-xs text-green-500 mt-1">
-                  {achievement.reward}
+              
+              <p className="text-xs text-provn-muted mb-2 line-clamp-2">
+                {achievement.description}
+              </p>
+              
+              {/* Progress */}
+              <div className="mb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-provn-muted">
+                    {achievement.progress}%
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className={`text-xs font-medium ${rarityConfig_.color}`}>
+                      {rarityConfig_.label}
+                    </span>
+                    <span className="text-xs text-provn-accent font-medium">
+                      +{achievement.points}
+                    </span>
+                  </div>
+                </div>
+                <div className="w-full bg-provn-surface rounded-full h-1">
+                  <div 
+                    className={`h-1 rounded-full transition-all duration-500 ${
+                      achievement.isUnlocked 
+                        ? 'bg-provn-accent' 
+                        : 'bg-provn-muted'
+                    }`}
+                    style={{ width: `${Math.min(achievement.progress, 100)}%` }}
+                  />
+                </div>
+              </div>
+              
+              {/* Unlock date */}
+              {achievement.isUnlocked && achievement.unlockedAt && (
+                <div className="text-xs text-green-500">
+                  Unlocked {new Date(achievement.unlockedAt).toLocaleDateString()}
                 </div>
               )}
             </div>
-          ) : (
-            <div className="text-center">
-              <div className="text-xs text-provn-muted">
-                {Math.round(progressPercentage)}% Complete
-              </div>
-              <div className="text-xs text-provn-accent mt-1">
-                Tier {achievement.tier}
-              </div>
-            </div>
-          )}
+          </div>
         </ProvnCardContent>
       </ProvnCard>
     </motion.div>
