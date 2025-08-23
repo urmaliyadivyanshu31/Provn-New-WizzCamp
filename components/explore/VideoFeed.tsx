@@ -26,11 +26,7 @@ export function VideoFeed({
   isAuthenticated,
   dataSource = "platform",
 }: VideoFeedProps) {
-<<<<<<< HEAD
   // Fake video data for development/demo
-  const [videos, setVideos] = useState<ExploreVideo[]>([]);
-=======
->>>>>>> 214fe1a9f933aea5ed4531b5e10fb5c55d1030f6
   const [currentIndex, setCurrentIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isScrolling, setIsScrolling] = useState(false);
