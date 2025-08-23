@@ -24,19 +24,22 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient()
     
-    // Get whitelist entries
-    const { data: whitelist, error } = await supabase
-      .from('whitelist_addresses')
+    // Get beta whitelist requests
+    const { data: requests, error } = await supabase
+      .from('beta_whitelist')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('submitted_at', { ascending: false })
 
     if (error) {
+      console.error('Database error fetching whitelist:', error)
       throw error
     }
 
     return NextResponse.json({
       success: true,
-      whitelist: whitelist || []
+      data: {
+        requests: requests || []
+      }
     })
 
   } catch (error) {
@@ -57,49 +60,58 @@ export async function POST(request: NextRequest) {
       }, { status: 401 })
     }
 
-    const { walletAddress, notes } = await request.json()
+    const { requestId, status, notes } = await request.json()
 
-    if (!walletAddress) {
+    if (!requestId || !status) {
       return NextResponse.json({
         success: false,
-        error: 'Wallet address is required'
+        error: 'Request ID and status are required'
+      }, { status: 400 })
+    }
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Status must be "approved" or "rejected"'
       }, { status: 400 })
     }
 
     const supabase = createAdminClient()
 
-    // Add to whitelist
+    // Update whitelist request status
     const { data, error } = await supabase
-      .from('whitelist_addresses')
-      .insert([{
-        wallet_address: walletAddress.toLowerCase(),
-        added_by: 'admin',
-        active: true,
-        notes: notes || 'Added via admin panel'
-      }])
+      .from('beta_whitelist')
+      .update({
+        status: status,
+        reviewed_at: new Date().toISOString(),
+        admin_notes: notes || null
+      })
+      .eq('id', requestId)
       .select()
 
     if (error) {
-      if (error.code === '23505') { // Duplicate key error
-        return NextResponse.json({
-          success: false,
-          error: 'Address already whitelisted'
-        }, { status: 400 })
-      }
+      console.error('Database error updating request:', error)
       throw error
+    }
+
+    if (!data || data.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Request not found'
+      }, { status: 404 })
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Address added to whitelist',
-      data
+      message: `Request ${status} successfully`,
+      data: data[0]
     })
 
   } catch (error) {
-    console.error('Admin add whitelist error:', error)
+    console.error('Admin update request error:', error)
     return NextResponse.json({
       success: false,
-      error: 'Failed to add to whitelist'
+      error: 'Failed to update request'
     }, { status: 500 })
   }
 }

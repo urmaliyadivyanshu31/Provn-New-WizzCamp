@@ -579,8 +579,10 @@ export default function WhitelistPage() {
         </div>
       </div>
 
-      {/* CampModal for wallet connection */}
-      <CampModal />
+      <div className="hidden">
+        {/* CampModal for wallet connection */}
+        <CampModal />
+      </div>
     </div>
   )
 }

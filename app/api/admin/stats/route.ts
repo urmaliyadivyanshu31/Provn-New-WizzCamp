@@ -24,47 +24,43 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient()
 
-    // Get platform stats
+    // Get platform stats matching admin dashboard expectations
     const [
-      { count: totalUsers },
-      { count: totalVideos },
-      { count: totalWhitelisted },
-      { data: recentActivity }
+      { count: totalWhitelistRequests },
+      { count: pendingRequests },
+      { count: totalVipAccesses },
+      { count: activeVipAccesses }
     ] = await Promise.all([
-      // Total users
+      // Total whitelist requests
       supabase
-        .from('profiles')
+        .from('beta_whitelist')
         .select('*', { count: 'exact', head: true }),
       
-      // Total videos
+      // Pending whitelist requests
       supabase
-        .from('platform_videos')
-        .select('*', { count: 'exact', head: true }),
-      
-      // Total whitelisted addresses
-      supabase
-        .from('whitelist_addresses')
+        .from('beta_whitelist')
         .select('*', { count: 'exact', head: true })
-        .eq('active', true),
+        .eq('status', 'pending'),
       
-      // Recent activity (last 10 access attempts)
-      supabase
-        .from('access_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10)
+      // Total VIP accesses (placeholder - table may not exist yet)
+      Promise.resolve({ count: 0 }),
+      
+      // Active VIP accesses (placeholder)
+      Promise.resolve({ count: 0 })
     ])
 
     const stats = {
-      totalUsers: totalUsers || 0,
-      totalVideos: totalVideos || 0,
-      totalWhitelisted: totalWhitelisted || 0,
-      recentActivity: recentActivity || []
+      totalWhitelistRequests: totalWhitelistRequests || 0,
+      pendingRequests: pendingRequests || 0,
+      totalVipAccesses: totalVipAccesses || 0,
+      activeVipAccesses: activeVipAccesses || 0,
+      totalAccessAttempts: 0, // placeholder
+      blockedAttempts: 0 // placeholder
     }
 
     return NextResponse.json({
       success: true,
-      stats
+      data: stats
     })
 
   } catch (error) {

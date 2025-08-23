@@ -158,9 +158,32 @@ export async function POST(
 
   } catch (error) {
     console.error('❌ Manual Video Sync Error:', error)
+    
+    // More detailed error handling
+    let errorMessage = 'Manual sync failed'
+    let statusCode = 500
+    
+    if (error instanceof Error) {
+      errorMessage = error.message
+      
+      // Check for specific error types
+      if (error.message.includes('Profile not found')) {
+        statusCode = 404
+      } else if (error.message.includes('Unauthorized') || error.message.includes('permission')) {
+        statusCode = 403
+      } else if (error.message.includes('network') || error.message.includes('timeout')) {
+        errorMessage = 'Network error: Please try again later'
+        statusCode = 503
+      }
+    }
+    
     return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : 'Manual sync failed'
-    }, { status: 500 })
+      error: errorMessage,
+      debug: process.env.NODE_ENV === 'development' ? {
+        originalError: error instanceof Error ? error.stack : String(error),
+        timestamp: new Date().toISOString()
+      } : undefined
+    }, { status: statusCode })
   }
 }
