@@ -11,6 +11,7 @@ import { createClient } from '@supabase/supabase-js'
 const PUBLIC_ROUTES = [
   '/whitelist',
   '/api/whitelist',
+  '/api/auth/x',    // Twitter OAuth endpoints
   '/api/health',
   '/api/admin', // Admin routes are public but have their own auth
   '/admin',

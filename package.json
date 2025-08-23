@@ -36,6 +36,7 @@
     "react-dom": "^18.2.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.5.4",
+    "twitter-api-v2": "^1.25.0",
     "viem": "^2.0.0",
     "wagmi": "^2.0.0"
   },

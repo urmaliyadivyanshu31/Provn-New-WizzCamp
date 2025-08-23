@@ -32,6 +32,7 @@ interface WalletAuthResult {
 export default function WhitelistPage() {
   const [activeTab, setActiveTab] = useState<'wallet' | 'email' | 'x'>('wallet')
   const [email, setEmail] = useState('')
+  const [twitterUsername, setTwitterUsername] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submissionResult, setSubmissionResult] = useState<SubmissionResult | null>(null)
   const [isCheckingWallet, setIsCheckingWallet] = useState(false)
@@ -51,6 +52,33 @@ export default function WhitelistPage() {
       setSubmissionResult(null)
     }
   }, [walletAddress])
+
+  // Handle URL parameters from Twitter auth redirects
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const error = urlParams.get('error')
+    const success = urlParams.get('success')
+    const message = urlParams.get('message')
+    const username = urlParams.get('username')
+
+    if (error === 'twitter_auth_failed' && message) {
+      setSubmissionResult({
+        success: false,
+        message: decodeURIComponent(message),
+        type: 'x'
+      })
+      // Clean up URL
+      window.history.replaceState({}, '', '/whitelist')
+    } else if (success === 'twitter_submitted' && username) {
+      setSubmissionResult({
+        success: true,
+        message: `Twitter account @${username} successfully submitted for review! We'll notify you when access is approved.`,
+        type: 'x'
+      })
+      // Clean up URL
+      window.history.replaceState({}, '', '/whitelist')
+    }
+  }, [])
 
   const handleWalletAuth = async () => {
     if (!walletAddress || isRedirecting) return
@@ -186,30 +214,58 @@ export default function WhitelistPage() {
     }
   }
 
-  const handleXAuth = async () => {
+  const handleXAuth = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!twitterUsername || !isValidTwitterUsername(twitterUsername)) {
+      setSubmissionResult({
+        success: false,
+        message: 'Please enter a valid Twitter username',
+        type: 'x'
+      })
+      return
+    }
+    
     setIsSubmitting(true)
+    setSubmissionResult(null)
     
     try {
-      // Redirect to X OAuth
-      const response = await fetch('/api/auth/x/authorize', {
-        method: 'GET'
+      console.log('🐦 Verifying Twitter username:', twitterUsername)
+      
+      const response = await fetch('/api/auth/x/simple-auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          username: twitterUsername.replace(/^@/, '')
+        })
       })
       
-      if (response.ok) {
-        const { authUrl } = await response.json()
-        window.location.href = authUrl
+      const result = await response.json()
+      
+      if (result.success) {
+        setSubmissionResult({
+          success: true,
+          message: result.message,
+          type: 'x'
+        })
+        setTwitterUsername('')
       } else {
         setSubmissionResult({
           success: false,
-          message: 'X authentication temporarily unavailable. Please try email instead.'
+          message: result.error || 'Failed to verify Twitter account',
+          type: 'x'
         })
-        setIsSubmitting(false)
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ Twitter auth failed:', error)
       setSubmissionResult({
         success: false,
-        message: 'X authentication failed. Please try email instead.'
+        message: 'Network error. Please check your connection and try again.',
+        type: 'x'
       })
+    } finally {
       setIsSubmitting(false)
     }
   }
@@ -217,6 +273,11 @@ export default function WhitelistPage() {
   const isValidEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email)
+  }
+
+  const isValidTwitterUsername = (username: string) => {
+    const cleanUsername = username.replace(/^@/, '')
+    return /^[a-zA-Z0-9_]{1,15}$/.test(cleanUsername)
   }
 
   // Provn Logo Component (same as in navigation)
@@ -421,36 +482,48 @@ export default function WhitelistPage() {
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="space-y-4"
                     >
-                      <div className="text-center py-4">
-                        <svg className="w-12 h-12 text-provn-accent mx-auto mb-3" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                        </svg>
-                        <p className="text-provn-muted text-sm mb-4">
-                          Connect your X account for priority access
-                        </p>
-                      </div>
+                      <form onSubmit={handleXAuth} className="space-y-4">
+                        <div className="text-center py-2">
+                          <svg className="w-12 h-12 text-provn-accent mx-auto mb-3" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                          </svg>
+                          <p className="text-provn-muted text-sm mb-4">
+                            Enter your X/Twitter username for verification
+                          </p>
+                        </div>
 
-                      <ProvnButton
-                        onClick={handleXAuth}
-                        disabled={isSubmitting}
-                        className="w-full py-3"
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <Loader className="w-4 h-4 mr-2 animate-spin" />
-                            Connecting...
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                            </svg>
-                            Connect with X
-                          </>
-                        )}
-                      </ProvnButton>
+                        <div>
+                          <input
+                            type="text"
+                            value={twitterUsername}
+                            onChange={(e) => setTwitterUsername(e.target.value)}
+                            placeholder="@username or username"
+                            required
+                            className="w-full px-4 py-3 bg-provn-bg border border-provn-border rounded-lg text-provn-text placeholder-provn-muted focus:outline-none focus:ring-2 focus:ring-provn-accent focus:border-provn-accent transition-all"
+                          />
+                        </div>
+
+                        <ProvnButton
+                          type="submit"
+                          disabled={isSubmitting || !twitterUsername}
+                          className="w-full py-3"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader className="w-4 h-4 mr-2 animate-spin" />
+                              Verifying Account...
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                              </svg>
+                              Verify X Account
+                            </>
+                          )}
+                        </ProvnButton>
+                      </form>
                     </motion.div>
                   )}
                 </AnimatePresence>
