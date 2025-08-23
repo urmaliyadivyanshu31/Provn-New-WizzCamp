@@ -3,6 +3,9 @@ import { logger } from '@/lib/logger';
 
 export function useServiceWorker() {
   useEffect(() => {
+    // Temporarily disabled due to redirect issues
+    return;
+    
     // Only run in browser environment
     if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
     

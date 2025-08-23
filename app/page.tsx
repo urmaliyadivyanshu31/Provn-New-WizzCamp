@@ -7,13 +7,15 @@ import { ProvnBadge } from "@/components/provn/badge"
 import { Navigation } from "@/components/provn/navigation"
 import { ProvnButton } from "@/components/provn/button"
 import { UserJourney } from "@/components/landing/UserJourney"
+import { CreateProfileModal } from "@/components/provn/create-profile-modal"
 import { 
   Upload, 
   Users, 
   DollarSign,
   ArrowRight,
   CheckCircle,
-  Play
+  Play,
+  Wallet
 } from "lucide-react"
 
 
@@ -70,10 +72,62 @@ export default function HomePage() {
     loading: true
   })
   
+  // Add authentication state
+  const [isConnected, setIsConnected] = useState(false)
+  const [hasProfile, setHasProfile] = useState(false)
+  const [showCreateProfile, setShowCreateProfile] = useState(false)
+  
+  // Check authentication status
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      // Check if wallet cookie exists (means user is connected and whitelisted)
+      const walletCookie = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('wallet_address='))
+      
+      if (walletCookie) {
+        const walletAddress = walletCookie.split('=')[1]
+        setIsConnected(true)
+        console.log('✅ User is connected and whitelisted:', walletAddress)
+        
+        // Check if user has profile
+        try {
+          const response = await fetch(`/api/profile/${walletAddress}`)
+          if (response.ok) {
+            const data = await response.json()
+            if (data.success && data.profile) {
+              setHasProfile(true)
+              console.log('✅ User has profile:', data.profile.handle)
+            } else {
+              setHasProfile(false)
+              console.log('⚠️ User needs to create profile')
+            }
+          } else {
+            setHasProfile(false)
+            console.log('⚠️ User needs to create profile (API error)')
+          }
+        } catch (error) {
+          console.error('Error checking profile:', error)
+          setHasProfile(false)
+        }
+      }
+    }
+    
+    checkAuthStatus()
+  }, [])
+
   // Helper function to handle protected navigation
   const handleProtectedNavigation = (href: string) => {
-    // Just redirect to the page - the guards will handle auth and profile creation
-    window.location.href = href
+    if (!isConnected) {
+      // Redirect to whitelist for authentication
+      window.location.href = '/whitelist'
+    } else if (!hasProfile) {
+      // Show profile creation modal
+      setShowCreateProfile(true)
+    } else {
+      // User is fully authenticated with profile
+      window.location.href = href
+    }
   }
 
   // Fetch real platform data
@@ -174,10 +228,17 @@ export default function HomePage() {
                 animate={isHeroInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
                 transition={{ ...normalTransition, delay: 0.1 }}
               >
-                <ProvnBadge className="bg-provn-success/10 text-provn-success border-provn-success/20 mb-6">
-                  <DollarSign className="w-4 h-4 mr-1" />
-                  Zero Platform Fees
-                </ProvnBadge>
+                {isConnected ? (
+                  <ProvnBadge className="bg-green-500/10 text-green-500 border-green-500/20 mb-6">
+                    <CheckCircle className="w-4 h-4 mr-1" />
+                    Connected & Whitelisted
+                  </ProvnBadge>
+                ) : (
+                  <ProvnBadge className="bg-provn-success/10 text-provn-success border-provn-success/20 mb-6">
+                    <DollarSign className="w-4 h-4 mr-1" />
+                    Zero Platform Fees
+                  </ProvnBadge>
+                )}
               </motion.div>
               
               <h1 className="font-headline text-5xl md:text-6xl lg:text-7xl font-bold text-provn-text leading-tight">
@@ -200,24 +261,49 @@ export default function HomePage() {
             </div>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <ProvnButton
-                size="lg"
-                onClick={() => handleProtectedNavigation("/upload")}
-                className="px-12 py-4 text-xl font-semibold group"
-              >
-                <Upload className="w-6 h-6 mr-2 group-hover:rotate-12 transition-transform" />
-                Start Earning More
-                <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
-              </ProvnButton>
-              <ProvnButton
-                variant="secondary"
-                size="lg"
-                onClick={() => handleProtectedNavigation("/dashboard")}
-                className="px-12 py-4 text-xl group"
-              >
-                <Play className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
-                See Success Stories
-              </ProvnButton>
+              {isConnected ? (
+                <>
+                  <ProvnButton
+                    size="lg"
+                    onClick={() => handleProtectedNavigation("/upload")}
+                    className="px-12 py-4 text-xl font-semibold group"
+                  >
+                    <Upload className="w-6 h-6 mr-2 group-hover:rotate-12 transition-transform" />
+                    {hasProfile ? "Upload Content" : "Complete Setup & Upload"}
+                    <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </ProvnButton>
+                  <ProvnButton
+                    variant="secondary"
+                    size="lg"
+                    onClick={() => handleProtectedNavigation("/explore")}
+                    className="px-12 py-4 text-xl group"
+                  >
+                    <Play className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
+                    Explore Platform
+                  </ProvnButton>
+                </>
+              ) : (
+                <>
+                  <ProvnButton
+                    size="lg"
+                    onClick={() => handleProtectedNavigation("/whitelist")}
+                    className="px-12 py-4 text-xl font-semibold group"
+                  >
+                    <Wallet className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
+                    Connect Wallet to Start
+                    <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </ProvnButton>
+                  <ProvnButton
+                    variant="secondary"
+                    size="lg"
+                    onClick={() => handleProtectedNavigation("/dashboard")}
+                    className="px-12 py-4 text-xl group"
+                  >
+                    <Play className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
+                    See Success Stories
+                  </ProvnButton>
+                </>
+              )}
             </div>
 
             {/* Hero Stats */}
@@ -803,6 +889,18 @@ export default function HomePage() {
           </motion.div>
         </div>
       </footer>
+
+      {/* Profile Creation Modal */}
+      <CreateProfileModal
+        isOpen={showCreateProfile}
+        onClose={() => setShowCreateProfile(false)}
+        onSuccess={(handle) => {
+          setShowCreateProfile(false)
+          setHasProfile(true)
+          console.log('✅ Profile created successfully:', handle)
+          // Optionally redirect to explore or stay on landing with updated state
+        }}
+      />
 
     </div>
   )

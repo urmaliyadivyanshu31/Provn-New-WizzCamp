@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Download, Share2, Copy, Twitter, Instagram } from 'lucide-react'
+import { X, Download, Share2, Copy, Instagram } from 'lucide-react'
 import { ProvnButton } from '@/components/provn/button'
 import { ProfileCard } from './ProfileCard'
 import { toast } from 'sonner'
@@ -157,10 +157,10 @@ export function ProfileCardModal({
     }
   }, [isOpen])
 
-  const handleShareToTwitter = () => {
+  const handleShareToX = () => {
     const text = `Check out @${profile.handle}'s profile on Provn - the decentralized content platform! 🚀`
     const url = window.location.origin + `/u/${profile.handle}`
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank')
+    window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank')
     setShowShareMenu(false)
   }
 
@@ -263,7 +263,7 @@ export function ProfileCardModal({
                     className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-provn-surface border border-provn-border rounded-lg shadow-lg py-2 min-w-[140px] z-20"
                   >
                     <button
-                      onClick={handleShareToTwitter}
+                      onClick={handleShareToX}
                       className="w-full px-4 py-2 text-left hover:bg-provn-border/30 transition-colors flex items-center gap-2 text-sm text-provn-text font-headline"
                     >
                       <div className="w-4 h-4 text-white bg-black rounded-sm flex items-center justify-center text-xs font-bold">𝕏</div>

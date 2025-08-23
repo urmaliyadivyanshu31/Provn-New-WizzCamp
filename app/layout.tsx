@@ -64,6 +64,25 @@ export default function RootLayout({
             --font-headline: ${spaceGrotesk.style.fontFamily};
           }
         `}</style>
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            // Fix service worker redirect issues
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                  registration.unregister();
+                }
+              });
+              if ('caches' in window) {
+                caches.keys().then(function(cacheNames) {
+                  return Promise.all(cacheNames.map(function(cacheName) {
+                    return caches.delete(cacheName);
+                  }));
+                });
+              }
+            }
+          `
+        }} />
       </head>
       <body className="bg-provn-bg text-provn-text antialiased" suppressHydrationWarning={true}>
         <GoogleAnalytics />

@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion"
 import { ExploreVideo } from "@/types/explore"
-import { X, Twitter, Instagram, Copy, ExternalLink, Share2, Eye, Heart } from "lucide-react"
+import { X, Instagram, Copy, ExternalLink, Share2, Eye, Heart } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { ProvnButton } from "@/components/provn/button"
@@ -11,7 +11,7 @@ interface ShareModalProps {
   isOpen: boolean
   onClose: () => void
   video: ExploreVideo
-  onShare: (platform: 'twitter' | 'instagram') => void
+  onShare: (platform: 'x' | 'instagram') => void
 }
 
 export function ShareModal({ isOpen, onClose, video, onShare }: ShareModalProps) {
@@ -21,12 +21,12 @@ export function ShareModal({ isOpen, onClose, video, onShare }: ShareModalProps)
   
   const shareText = `Check out this amazing prov by @${video.creator.handle} on Provn! 🎥✨\n\n"${video.title}"\n\n#Provn #IPNFT #Web3Creator`
 
-  const handleTwitterShare = () => {
-    // Create a Twitter card-like experience by including thumbnail
-    const twitterText = `Check out this amazing prov by @${video.creator.handle} on Provn! 🎥✨\n\n"${video.title}"\n\n${videoUrl}\n\n#Provn #IPNFT #Web3Creator`
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(twitterText)}`
-    window.open(twitterUrl, '_blank')
-    onShare('twitter')
+  const handleXShare = () => {
+    // Create an X card-like experience by including thumbnail
+    const xText = `Check out this amazing prov by @${video.creator.handle} on Provn! 🎥✨\n\n"${video.title}"\n\n${videoUrl}\n\n#Provn #IPNFT #Web3Creator`
+    const xUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(xText)}`
+    window.open(xUrl, '_blank')
+    onShare('x')
   }
 
   const handleInstagramShare = () => {
@@ -116,18 +116,20 @@ export function ShareModal({ isOpen, onClose, video, onShare }: ShareModalProps)
 
               {/* Share Options - Better aligned and consistent */}
               <div className="space-y-3">
-                {/* Twitter - Clean and professional */}
+                {/* X - Clean and professional */}
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={handleTwitterShare}
+                  onClick={handleXShare}
                   className="w-full flex items-center gap-4 p-4 bg-provn-surface-2 hover:bg-provn-surface border border-provn-border hover:border-provn-accent/30 rounded-xl transition-all duration-200 group"
                 >
-                  <div className="flex-shrink-0 w-12 h-12 bg-[#1DA1F2] rounded-xl flex items-center justify-center group-hover:shadow-lg group-hover:shadow-[#1DA1F2]/25 transition-all duration-200">
-                    <Twitter className="w-6 h-6 text-white" />
+                  <div className="flex-shrink-0 w-12 h-12 bg-black rounded-xl flex items-center justify-center group-hover:shadow-lg group-hover:shadow-black/25 transition-all duration-200">
+                    <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
                   </div>
                   <div className="flex-1 text-left min-w-0">
-                    <h4 className="font-semibold text-provn-text font-headline group-hover:text-provn-accent transition-colors">X (Twitter)</h4>
+                    <h4 className="font-semibold text-provn-text font-headline group-hover:text-provn-accent transition-colors">X</h4>
                     <p className="text-sm text-provn-muted font-headline">Share with preview card</p>
                   </div>
                   <div className="flex-shrink-0 w-5 flex justify-center">

@@ -120,20 +120,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('license_transactions')
-      .select(`
-        *,
-        ${detailed ? `
-        platform_videos!inner(
-          token_id,
-          title,
-          description,
-          video_url,
-          thumbnail_url,
-          creator_address,
-          profiles(handle, display_name, avatar_url)
-        )
-        ` : ''}
-      `)
+      .select('*')
       .order('created_at', { ascending: false })
 
     if (tokenId) {
@@ -187,8 +174,8 @@ export async function GET(request: NextRequest) {
 
     const { count: totalCount } = await countQuery
 
-    // Process licenses to add computed fields
-    const processedLicenses = licenses?.map((license: any) => {
+    // Process licenses and add detailed data if requested
+    let processedLicenses = licenses?.map((license: any) => {
       const now = new Date()
       const expiresAt = new Date(license.expires_at)
       const isExpired = expiresAt <= now
@@ -205,6 +192,53 @@ export async function GET(request: NextRequest) {
         }
       }
     })
+
+    // If detailed data is requested, fetch video and profile information
+    if (detailed && processedLicenses?.length) {
+      try {
+        const tokenIds = [...new Set(processedLicenses.map((license: any) => license.token_id))]
+        
+        // Fetch video data for all token IDs
+        const { data: videos } = await supabase
+          .from('platform_videos')
+          .select('token_id, title, description, video_url, thumbnail_url, creator_address')
+          .in('token_id', tokenIds)
+        
+        // Get unique creator addresses
+        const creatorAddresses = [...new Set(videos?.map((video: any) => video.creator_address).filter(Boolean))]
+        
+        // Fetch profile data for creators
+        let profiles: any[] = []
+        if (creatorAddresses.length > 0) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('wallet_address, handle, display_name, avatar_url')
+            .in('wallet_address', creatorAddresses)
+          profiles = profileData || []
+        }
+        
+        // Combine the data
+        processedLicenses = processedLicenses.map((license: any) => {
+          const video = videos?.find((v: any) => v.token_id === license.token_id)
+          let profile = null
+          
+          if (video?.creator_address) {
+            profile = profiles.find((p: any) => p.wallet_address === video.creator_address)
+          }
+          
+          return {
+            ...license,
+            platform_videos: video ? {
+              ...video,
+              profiles: profile
+            } : null
+          }
+        })
+      } catch (detailError) {
+        console.warn('⚠️ Failed to fetch detailed license data:', detailError)
+        // Continue with basic data if detailed fetch fails
+      }
+    }
 
     console.log(`✅ Licenses API: Retrieved ${processedLicenses?.length || 0} licenses`)
 

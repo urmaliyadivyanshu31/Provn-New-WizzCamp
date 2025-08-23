@@ -15,7 +15,7 @@ interface VideoOverlayProps {
   video: ExploreVideo
   isAuthenticated: boolean
   onLike: () => Promise<void>
-  onShare: (video: ExploreVideo, platform: 'twitter' | 'instagram') => void
+  onShare: (video: ExploreVideo, platform: 'x' | 'instagram') => void
   onDetails: () => void
 }
 
@@ -55,7 +55,7 @@ const VideoOverlay = memo(function VideoOverlay({
     setShowShareModal(true)
   }
 
-  const handleShareSelect = (platform: 'twitter' | 'instagram') => {
+  const handleShareSelect = (platform: 'x' | 'instagram') => {
     onShare(video, platform)
     setShowShareModal(false)
   }

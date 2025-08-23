@@ -261,19 +261,17 @@ export function Navigation({ currentPage }: NavigationProps) {
                   </motion.button>
                 </>
               ) : (
-                // <motion.button
-                //   onClick={openModal}
-                //   className="relative px-4 py-2 rounded-lg font-medium transition-all duration-200 text-provn-muted hover:text-provn-text hover:bg-provn-surface/30 flex items-center gap-2"
-                //   whileHover={{ scale: 1.05 }}
-                //   whileTap={{ scale: 0.95 }}
-                // >
-                //   <Wallet className="w-4 h-4" />
-                //   Connect Wallet
-                // </motion.button>
-                <CampModal />
+                <motion.button
+                  onClick={openModal}
+                  className="relative px-4 py-2 rounded-lg font-medium transition-all duration-200 text-provn-muted hover:text-provn-text hover:bg-provn-surface/30 flex items-center gap-2"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Wallet className="w-4 h-4" />
+                  Connect Wallet
+                </motion.button>
               )}
             </motion.div>
-            <div></div>
             {/* Mobile menu button */}
             <motion.div
               className="md:hidden"
@@ -299,13 +297,10 @@ export function Navigation({ currentPage }: NavigationProps) {
             </motion.div>
           </div>
         </div>
-        {/* CampModal for wallet connection/disconnection */}
-        <div className="fixed inset-0 z-[9999] pointer-events-none">
-          {/* <div className="w-full h-full">
-            <CampModal />
-          </div> */}
-        </div>
-        {/* Mobile Menu */}
+        {/* CampModal for wallet connection */}
+        <div className="hidden">
+  <CampModal />
+</div>        {/* Mobile Menu */}
         <motion.div
           initial={false}
           animate={isMenuOpen ? "open" : "closed"}
@@ -459,26 +454,6 @@ export function Navigation({ currentPage }: NavigationProps) {
                 </motion.button>
               )}
               
-              {/* Fallback: Direct CampModal for mobile */}
-              <div className="mt-4 w-full">
-                <div className="w-full">
-                  <CampModal />
-                </div>
-                {/* Test button to manually trigger modal */}
-                {/* <button
-                  onClick={() => {
-                    console.log("🔍 Mobile: Testing direct modal trigger");
-                    try {
-                      openModal();
-                    } catch (error) {
-                      console.error("🔍 Mobile: Error opening modal:", error);
-                    }
-                  }}
-                  className="w-full mt-2 p-2 text-xs bg-red-500 text-white rounded"
-                >
-                  Test Modal
-                </button> */}
-              </div>
             </div>
           </div>
         </motion.div>

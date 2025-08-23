@@ -58,7 +58,7 @@ export interface LicenseTerms {
 }
 
 export interface ShareOptions {
-  platform: 'twitter' | 'instagram'
+  platform: 'x' | 'instagram'
   video: ExploreVideo
   customText?: string
 }

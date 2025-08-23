@@ -69,7 +69,7 @@ export function useVideoInteractions() {
     }
   }
 
-  const shareVideo = async (videoId: string, platform: 'twitter' | 'instagram', isPlatformVideo: boolean = false): Promise<boolean> => {
+  const shareVideo = async (videoId: string, platform: 'x' | 'instagram', isPlatformVideo: boolean = false): Promise<boolean> => {
     try {
       // Use platform video API for platform videos, regular API for others
       const endpoint = isPlatformVideo ? `/api/platform-videos/${videoId}/share` : `/api/videos/${videoId}/share`

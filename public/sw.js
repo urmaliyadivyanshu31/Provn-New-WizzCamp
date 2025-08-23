@@ -3,12 +3,10 @@ const CACHE_NAME = 'provn-cache-v1';
 const STATIC_CACHE_NAME = 'provn-static-v1';
 const DYNAMIC_CACHE_NAME = 'provn-dynamic-v1';
 
-// Resources to cache immediately
+// Resources to cache immediately - only cache existing resources
 const STATIC_ASSETS = [
   '/',
-  '/explore',
-  '/manifest.json',
-  // Add critical CSS and JS files here
+  // Only cache existing resources to avoid errors
 ];
 
 // Video/media cache configuration

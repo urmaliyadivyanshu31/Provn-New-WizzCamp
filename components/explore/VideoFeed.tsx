@@ -322,7 +322,7 @@ export function VideoFeed({
 
   const handleShare = async (
     video: ExploreVideo,
-    platform: "twitter" | "instagram"
+    platform: "x" | "instagram"
   ) => {
     // Since explore feed uses platform videos, pass isPlatformVideo=true
     await shareVideo(video.tokenId, platform, true);
@@ -452,7 +452,7 @@ const MemoizedVirtualVideoItem = React.memo(({
   isVisible: boolean;
   scrollProgress?: number;
   onLike: () => Promise<void>;
-  onShare: (video: ExploreVideo, platform: "twitter" | "instagram") => void;
+  onShare: (video: ExploreVideo, platform: "x" | "instagram") => void;
   onDetails: () => void;
 }) => {
   // Performance measurement
