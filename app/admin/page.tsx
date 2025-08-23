@@ -131,6 +131,8 @@ export default function AdminDashboard() {
     }
 
     addDebugInfo('Admin access granted')
+    // Set a default admin key for the recognized admin wallet
+    setAdminKey('YIhYXVkShLmbQoxmdcUW8gbpYEIVWl0c')
     setIsAdminVerified(true)
     setIsLoading(false)
   }
