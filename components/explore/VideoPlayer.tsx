@@ -245,10 +245,6 @@ const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: Vi
       {/* Video Element with Smart Fitting */}
       <video
         ref={videoRef}
-<<<<<<< HEAD
-        className="w-fit  max-h-[calc(100vh-100px)] max-w-[390px] object-contain cursor-pointer mt-3 rounded-sm"
-        src={videoSrc}
-=======
         className="w-full h-full"
         style={{
           // Smart fitting: contain for portrait videos, cover for landscape
@@ -261,7 +257,6 @@ const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: Vi
           pointerEvents: 'auto'
         }}
         src={videoSrc || undefined}
->>>>>>> 214fe1a9f933aea5ed4531b5e10fb5c55d1030f6
         poster={posterSrc || undefined}
         muted={isMuted}
         loop
