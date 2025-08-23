@@ -185,26 +185,34 @@ export async function fetchTwitterProfile(
   byId: boolean = false
 ): Promise<TwitterProfile | null> {
   try {
-    const userFields = [
-      'id',
-      'username',
-      'name',
-      'verified',
-      'description',
-      'profile_image_url',
-      'location',
-      'created_at',
-      'public_metrics'
-    ]
-    
     let response
     if (byId) {
       response = await client.v2.user(identifier, {
-        'user.fields': userFields
+        'user.fields': [
+          'id',
+          'username',
+          'name',
+          'verified',
+          'description',
+          'profile_image_url',
+          'location',
+          'created_at',
+          'public_metrics'
+        ]
       })
     } else {
       response = await client.v2.userByUsername(identifier, {
-        'user.fields': userFields
+        'user.fields': [
+          'id',
+          'username',
+          'name',
+          'verified',
+          'description',
+          'profile_image_url',
+          'location',
+          'created_at',
+          'public_metrics'
+        ]
       })
     }
     

@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
     const accountValidation = validateTwitterAccount(userProfile)
     if (!accountValidation.isValid) {
       console.warn('⚠️ Twitter account validation failed:', accountValidation.reason)
-      return createErrorRedirect(accountValidation.message)
+      return createErrorRedirect(accountValidation.message || 'Account validation failed')
     }
     
     // Submit whitelist request
