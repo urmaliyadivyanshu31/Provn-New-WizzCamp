@@ -8,7 +8,7 @@ import { createAdminClient } from '@/lib/supabase'
  * Handles the callback from Twitter OAuth, exchanges tokens,
  * fetches user profile, and submits whitelist request.
  */
-
+// fixed errors
 interface TwitterUserProfile {
   id: string
   username: string
