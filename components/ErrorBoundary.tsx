@@ -10,6 +10,11 @@ interface ErrorBoundaryState {
   errorInfo?: React.ErrorInfo;
 }
 
+
+
+
+
+
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode; fallback?: React.ComponentType<{ error: Error; retry: () => void }> },
   ErrorBoundaryState
