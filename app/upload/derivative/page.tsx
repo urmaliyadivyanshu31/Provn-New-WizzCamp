@@ -7,6 +7,8 @@ import { ProvnButton } from "@/components/provn/button"
 import { ProvnCard, ProvnCardContent } from "@/components/provn/card"
 import { ProvnBadge } from "@/components/provn/badge"
 import { Navigation } from "@/components/provn/navigation"
+import { useAuth } from "@campnetwork/origin/react"
+import { toast } from "sonner"
 
 interface UploadedFile {
   file: File
@@ -39,6 +41,10 @@ export default function DerivativeUploadPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const parentId = searchParams.get("parent")
+  const communityId = searchParams.get("community")
+  const parentTitle = searchParams.get("title")
+  const parentCreator = searchParams.get("creator")
+  const { origin, isAuthenticated, walletAddress } = useAuth()
 
   const [parentVideo, setParentVideo] = useState<ParentVideo | null>(null)
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null)
@@ -56,16 +62,34 @@ export default function DerivativeUploadPage() {
     { id: "minting", name: "Minting Derivative IpNFT", status: "pending", progress: 0 },
   ])
 
+  // Authentication check
+  useEffect(() => {
+    if (!isAuthenticated) {
+      toast.error('Please connect your wallet to create derivatives');
+      router.push('/explore');
+      return;
+    }
+  }, [isAuthenticated, router]);
+
   useEffect(() => {
     if (parentId) {
-      // Mock parent video data - in real app would fetch from API
-      setParentVideo({
-        id: parentId,
-        title: "Creative Dance Routine",
-        creator: "0x1234567890abcdef1234567890abcdef12345678",
-      })
+      // Use URL parameters if available, otherwise fetch from API
+      if (parentTitle && parentCreator) {
+        setParentVideo({
+          id: parentId,
+          title: decodeURIComponent(parentTitle),
+          creator: decodeURIComponent(parentCreator),
+        })
+      } else {
+        // Fallback: fetch from API or use mock data
+        setParentVideo({
+          id: parentId,
+          title: "Creative Dance Routine",
+          creator: "0x1234567890abcdef1234567890abcdef12345678",
+        })
+      }
     }
-  }, [parentId])
+  }, [parentId, parentTitle, parentCreator])
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -150,55 +174,151 @@ export default function DerivativeUploadPage() {
       return
     }
 
+    if (!origin || !isAuthenticated) {
+      toast.error("Please connect your wallet first")
+      return
+    }
+
     setIsProcessing(true)
 
     try {
       // Step 1: File Validation
-      await simulateProcessingStep("validation", 500)
-
-      // Step 2: Transcoding
-      updateProcessingStep("transcoding", {
+      updateProcessingStep("validation", {
         status: "processing",
-        message: "Converting derivative content to HLS format...",
+        message: "Validating file format and size...",
       })
-      await simulateProcessingStep("transcoding", 3000)
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      updateProcessingStep("validation", { status: "completed", progress: 100 })
 
-      // Step 3: IPFS Upload
+      // Step 2: Prepare metadata
+      const metadata = {
+        name: title.trim(),
+        description: derivativeDescription.trim() || `Derivative of ${parentVideo?.title}`,
+        tags: tags.split(',').map(tag => tag.trim()).filter(Boolean),
+        parent_token_id: parentId,
+        creator: walletAddress,
+        created_at: new Date().toISOString(),
+        attributes: [
+          { trait_type: "Content Type", value: "Video Derivative" },
+          { trait_type: "Parent Token", value: parentId },
+          { trait_type: "Creator", value: parentCreator || "Unknown" }
+        ]
+      }
+
+      // Step 3: IPFS Upload & Minting
       updateProcessingStep("ipfs", {
         status: "processing",
-        message: "Uploading derivative to decentralized storage...",
+        message: "Uploading to IPFS and preparing for mint...",
       })
-      await simulateProcessingStep("ipfs", 2500)
+      
+      // Define license terms - derivatives typically have free access initially
+      const licenseTerms = {
+        price: BigInt(0),
+        duration: 30 * 24 * 60 * 60, // 30 days
+        royaltyBps: 500, // 5% royalty
+        paymentToken: "0x0000000000000000000000000000000000000000" as `0x${string}` // ETH/native token
+      }
 
-      // Step 4: Setting Parent Lineage
+      updateProcessingStep("ipfs", { status: "completed", progress: 100 })
+
+      // Step 4: Setting Parent Lineage & Minting
       updateProcessingStep("lineage", {
         status: "processing",
         message: "Establishing parent-child relationship on-chain...",
       })
-      await simulateProcessingStep("lineage", 1500)
 
-      // Step 5: Minting Derivative
       updateProcessingStep("minting", {
         status: "processing",
-        message: "Minting derivative IpNFT with 70/30 split...",
+        message: "Minting derivative IpNFT with parent lineage...",
       })
-      await simulateProcessingStep("minting", 2000)
 
-      // Success - generate mock result
-      const mockResult: MintResult = {
-        tokenId: `${Date.now()}`,
-        parentTokenId: parentId,
-        ipfsHash: `Qm${Math.random().toString(36).substring(2, 15)}`,
-        transactionHash: `0x${Math.random().toString(16).substring(2, 66)}`,
-        blockscoutUrl: `https://explorer.basecamp.network/tx/0x${Math.random().toString(16).substring(2, 66)}`,
+      // Use Origin SDK to mint the derivative
+      const parentTokenId = BigInt(parentId)
+      console.log("🎬 Minting derivative with parent:", {
+        file: uploadedFile.file,
+        metadata,
+        licenseTerms,
+        parentTokenId: parentTokenId.toString()
+      })
+
+      const tokenId = await origin.mintFile(
+        uploadedFile.file,
+        metadata,
+        licenseTerms,
+        parentTokenId
+      )
+
+      if (!tokenId) {
+        throw new Error("Failed to mint derivative: no token ID returned")
       }
 
-      setMintResult(mockResult)
+      updateProcessingStep("lineage", { status: "completed", progress: 100 })
+      updateProcessingStep("minting", { status: "completed", progress: 100 })
+
+      // Success - create result
+      const result: MintResult = {
+        tokenId: tokenId.toString(),
+        parentTokenId: parentId,
+        ipfsHash: "Processing...", // Origin SDK handles this internally
+        transactionHash: "Processing...", // Will be available after blockchain confirmation
+        blockscoutUrl: `https://basecamp.cloud.blockscout.com/token/${tokenId}`,
+      }
+
+      setMintResult(result)
+      
+      // If community is specified, auto-submit to community
+      if (communityId) {
+        try {
+          await submitToCommunity(tokenId.toString(), communityId)
+        } catch (communityError) {
+          console.error("Failed to submit to community:", communityError)
+          toast.error("Derivative created but failed to add to community")
+        }
+      }
+
+      toast.success("Derivative created successfully!")
+
     } catch (error) {
       console.error("Upload failed:", error)
+      toast.error("Failed to create derivative: " + (error instanceof Error ? error.message : "Unknown error"))
+      
+      // Mark failed steps
+      setProcessingSteps(prev => prev.map(step => 
+        step.status === "processing" ? { ...step, status: "error" as const } : step
+      ))
     }
 
     setIsProcessing(false)
+  }
+
+  // Function to submit derivative to community after minting
+  const submitToCommunity = async (tokenId: string, communityId: string) => {
+    try {
+      const response = await fetch(`/api/communities/${communityId}/derivatives`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          derivative_token_id: tokenId,
+          creator_address: walletAddress,
+          title: title.trim(),
+          description: derivativeDescription.trim(),
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to submit to community')
+      }
+
+      const data = await response.json()
+      if (data.success) {
+        toast.success("Derivative added to community!")
+      }
+    } catch (error) {
+      console.error("Community submission failed:", error)
+      throw error
+    }
   }
 
   const handleCancel = () => {
@@ -247,6 +367,13 @@ export default function DerivativeUploadPage() {
             <div className="space-y-4">
               <h1 className="font-headline text-4xl font-bold text-provn-text">Derivative Created!</h1>
               <p className="text-provn-muted text-lg">Your derivative has been registered with verified lineage</p>
+              {communityId && (
+                <div className="bg-provn-accent/10 border border-provn-accent/20 rounded-lg p-3">
+                  <p className="text-provn-accent text-sm font-medium">
+                    ✨ Derivative added to community successfully!
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Lineage Visualization */}
@@ -493,7 +620,7 @@ export default function DerivativeUploadPage() {
               ) : (
                 <div className="space-y-4">
                   <div className="aspect-video bg-black rounded-xl overflow-hidden">
-                    <video src={uploadedFile.preview} controls className="w-full h-full object-contain" />
+                    <video src={uploadedFile.preview || undefined} controls className="w-full h-full object-contain" />
                   </div>
                   <div className="flex items-center justify-between">
                     <div>

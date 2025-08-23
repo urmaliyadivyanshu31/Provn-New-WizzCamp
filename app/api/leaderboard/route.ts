@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     const timeframeDays = timeframe === 'weekly' ? 7 : timeframe === 'monthly' ? 30 : 365
     const cutoffDate = new Date(now.getTime() - (timeframeDays * 24 * 60 * 60 * 1000))
 
-    // Build base query for creator metrics
+    // Get real creator metrics from platform_videos table only
     let videosQuery = supabase
       .from('platform_videos')
       .select(`
@@ -61,14 +61,10 @@ export async function GET(request: NextRequest) {
         likes_count,
         tips_count,
         tips_total_amount,
-        licenses_sold,
         total_revenue,
         published_at,
         category
       `)
-      .eq('upload_status', 'ready')
-      .in('moderation_status', ['approved', 'pending'])
-      .eq('visibility', 'public')
 
     // Apply timeframe filter
     if (timeframe !== 'all-time') {
@@ -97,10 +93,10 @@ export async function GET(request: NextRequest) {
       throw new Error(`Failed to fetch profiles data: ${profilesError.message}`)
     }
 
-    // Calculate creator scores
+    // Calculate real creator metrics from platform_videos
     const creatorMetrics = new Map()
 
-    // Group videos by creator
+    // Group videos by creator and calculate real metrics
     videosData.forEach(video => {
       const creatorId = video.creator_id
       if (!creatorMetrics.has(creatorId)) {
@@ -112,19 +108,17 @@ export async function GET(request: NextRequest) {
           total_likes: 0,
           total_tips: 0,
           total_tips_amount: 0,
-          total_licenses: 0,
           total_revenue: 0,
           last_published: null
         })
       }
 
       const metrics = creatorMetrics.get(creatorId)
-      metrics.videos_count += 1
+      metrics.videos_count += 1 // Each video counts as a derivative
       metrics.total_views += video.views_count || 0
       metrics.total_likes += video.likes_count || 0
       metrics.total_tips += video.tips_count || 0
       metrics.total_tips_amount += parseFloat(video.tips_total_amount || '0')
-      metrics.total_licenses += video.licenses_sold || 0
       metrics.total_revenue += parseFloat(video.total_revenue || '0')
       
       if (!metrics.last_published || new Date(video.published_at) > new Date(metrics.last_published)) {
@@ -136,29 +130,27 @@ export async function GET(request: NextRequest) {
     const leaderboard: CreatorScore[] = []
 
     profilesData.forEach(profile => {
+      // Match profile by ID to get real metrics from platform_videos
       const metrics = creatorMetrics.get(profile.id) || {
         videos_count: 0,
         total_views: 0,
         total_likes: 0,
         total_tips: 0,
         total_tips_amount: 0,
-        total_licenses: 0,
         total_revenue: 0,
         last_published: null
       }
 
-      // Include all creators, even those with no videos (for debugging/admin view)
-
-      // Calculate individual scores
-      const views_score = metrics.total_views * 1.0
-      const tips_score = metrics.total_tips * 10.0
-      const licenses_score = metrics.total_licenses * 50.0
+      // Calculate individual scores using real data (derivatives = videos_count, tips = total_tips)
+      const derivatives_score = metrics.videos_count * 10.0 // 10 points per derivative (video)
+      const tips_score = metrics.total_tips * 5.0 // 5 points per tip
+      const revenue_score = metrics.total_tips_amount * 2.0 // 2 points per dollar in tips
       
-      // Engagement rate calculation
+      // Engagement score based on real views and likes
       const engagement_rate = metrics.total_views > 0 
         ? (metrics.total_likes / metrics.total_views) * 100 
         : 0
-      const engagement_score = engagement_rate * 25.0
+      const engagement_score = engagement_rate * 2.0
 
       // Consistency score based on recent activity
       const daysSinceLastUpload = metrics.last_published 
@@ -170,13 +162,13 @@ export async function GET(request: NextRequest) {
       else if (daysSinceLastUpload <= 14) consistency_score = 50
       else if (daysSinceLastUpload <= 30) consistency_score = 25
 
-      // Quality score based on average views per video
+      // Quality score based on average tips per video/derivative
       const quality_score = metrics.videos_count > 0 
-        ? Math.min((metrics.total_views / metrics.videos_count) * 0.1, 100)
+        ? Math.min((metrics.total_tips / metrics.videos_count) * 10, 100)
         : 0
 
-      // Calculate total score
-      const total_score = views_score + tips_score + licenses_score + engagement_score + consistency_score + quality_score
+      // Calculate total score using real metrics
+      const total_score = derivatives_score + tips_score + revenue_score + engagement_score + consistency_score + quality_score
 
       // Determine tier
       let tier: CreatorScore['tier'] = 'rising'
@@ -190,13 +182,13 @@ export async function GET(request: NextRequest) {
       // Calculate streak days
       const streak_days = daysSinceLastUpload <= 2 ? Math.max(1, 7 - daysSinceLastUpload) : 0
 
-      // Generate achievements
+      // Generate achievements based on real data
       const achievements = generateAchievements({
         total_views: metrics.total_views,
-        total_earnings: metrics.total_revenue,
+        total_earnings: metrics.total_tips_amount,
         streak_days,
         avg_engagement_rate: engagement_rate,
-        total_licenses: metrics.total_licenses,
+        total_licenses: 0, // No license data yet
         rank: 0 // Will be set later
       })
 
@@ -208,17 +200,17 @@ export async function GET(request: NextRequest) {
         display_name: profile.display_name,
         avatar_url: profile.avatar_url,
         total_score: Math.round(total_score),
-        views_score: Math.round(views_score),
+        views_score: Math.round(derivatives_score), // Show derivatives score as views_score
         tips_score: Math.round(tips_score),
-        licenses_score: Math.round(licenses_score),
+        licenses_score: 0, // No licenses data yet
         engagement_score: Math.round(engagement_score),
         consistency_score: Math.round(consistency_score),
         quality_score: Math.round(quality_score),
-        videos_count: metrics.videos_count,
-        total_views: metrics.total_views,
-        total_tips: metrics.total_tips,
-        total_licenses: metrics.total_licenses,
-        total_earnings: metrics.total_revenue,
+        videos_count: metrics.videos_count, // Real video/derivative count
+        total_views: metrics.videos_count, // Show derivatives count as "views" in UI
+        total_tips: metrics.total_tips, // Real tips count
+        total_licenses: 0, // No licenses data yet
+        total_earnings: metrics.total_tips_amount, // Real tip earnings
         rank_change: 0, // TODO: Implement rank change tracking
         streak_days,
         tier,

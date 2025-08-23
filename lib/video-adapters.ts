@@ -48,10 +48,22 @@ export function profileVideoToExploreVideo(
       views: profileVideo.views,
       likes: profileVideo.likes,
       tips: profileVideo.tips,
-      shares: 0 // Profile videos don't track shares yet
+      shares: 0, // Profile videos don't track shares yet
+      remixes: 0 // Profile videos don't track remixes yet
+    },
+    remixing: {
+      enabled: true,
+      permissionLevel: 'basic',
+      template: undefined,
+      requiresAttribution: true,
+      allowCommercialUse: false,
+      allowDerivatives: true,
+      customSettings: undefined,
+      message: undefined
     },
     isLiked: false, // We'll need to check this separately if needed
-    hasAccess: true // Assume access for profile videos
+    hasAccess: true, // Assume access for profile videos
+    canRemix: true
   }
 }
 
@@ -152,10 +164,22 @@ export function createMinimalExploreVideo(data: {
       views: 0,
       likes: 0,
       tips: 0,
-      shares: 0
+      shares: 0,
+      remixes: 0
+    },
+    remixing: {
+      enabled: true,
+      permissionLevel: 'basic',
+      template: undefined,
+      requiresAttribution: true,
+      allowCommercialUse: false,
+      allowDerivatives: true,
+      customSettings: undefined,
+      message: undefined
     },
     isLiked: false,
-    hasAccess: true
+    hasAccess: true,
+    canRemix: true
   }
 }
 
@@ -185,6 +209,10 @@ export function updateExploreVideoWithFreshData(
     metrics: {
       ...existingVideo.metrics,
       ...(freshData.metrics || {})
+    },
+    remixing: {
+      ...existingVideo.remixing,
+      ...(freshData.remixing || {})
     }
   }
 }

@@ -1,11 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { VideoPlayer } from "./VideoPlayer";
 import { VideoOverlay } from "./VideoOverlay";
 import { ExploreVideo } from "@/types/explore";
 import { useVideoInteractions } from "@/hooks/useVideoInteractions";
+import { useVideoFeed } from "@/hooks/useVideoFeed";
+import { trackVideoEvent } from "@/components/analytics/GoogleAnalytics";
 import { Loader2 } from "lucide-react";
+import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
+import { logger, perf } from "@/lib/logger";
+import { rafThrottle, PerformanceCleanup, measureRenderTime } from "@/lib/utils/performance";
+import { videoBufferManager } from "@/lib/video-buffer";
+import { performanceTracker } from "@/lib/performance-metrics";
+import { ProvnBrandLoader } from "@/components/common/LoadingStates";
 
 interface VideoFeedProps {
   onVideoDetails: (video: ExploreVideo) => void;
@@ -18,86 +26,178 @@ export function VideoFeed({
   isAuthenticated,
   dataSource = "platform",
 }: VideoFeedProps) {
+<<<<<<< HEAD
   // Fake video data for development/demo
   const [videos, setVideos] = useState<ExploreVideo[]>([]);
+=======
+>>>>>>> 214fe1a9f933aea5ed4531b5e10fb5c55d1030f6
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [hasMore, setHasMore] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isScrolling, setIsScrolling] = useState(false);
+  const [renderBuffer] = useState(5); // Increased render buffer for smoother experience
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [scrollDirection, setScrollDirection] = useState<'up' | 'down' | 'both'>('both');
+  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+  const cleanupRef = useRef(new PerformanceCleanup());
+  const lastScrollTime = useRef(0);
+  const scrollVelocity = useRef(0);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanupRef.current.cleanup();
+      videoBufferManager.clearBuffer(); // Clean up video buffer
+    };
+  }, []);
+  
+  // Get user wallet from localStorage for personalized content
+  const userWallet = typeof window !== 'undefined' ? localStorage.getItem('userWallet') : null;
+  
+  // Use React Query for data fetching with caching
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetching,
+    isLoading,
+    error
+  } = useVideoFeed({
+    dataSource,
+    userWallet: userWallet || undefined
+  });
+  
+  // Flatten paginated data into single array
+  const videos = useMemo(() => {
+    return data?.pages?.flatMap(page => page.videos) || [];
+  }, [data]);
+
+  // Aggressive preloading when videos change or current index changes
+  useEffect(() => {
+    if (videos.length > 0 && currentIndex >= 0) {
+      // Preload videos around current position
+      videoBufferManager.preloadVideosAroundPosition(
+        videos, 
+        currentIndex, 
+        scrollDirection
+      ).catch(error => {
+        console.warn('Video preloading failed:', error);
+      });
+    }
+  }, [videos, currentIndex, scrollDirection]);
 
   const { likeVideo, viewVideo, shareVideo } = useVideoInteractions();
 
-  useEffect(() => {
-    fetchVideos(0, dataSource);
-  }, [dataSource]);
+  // Memoize video interactions to prevent unnecessary re-renders
+  const memoizedInteractions = useMemo(() => ({
+    likeVideo,
+    viewVideo, 
+    shareVideo
+  }), [likeVideo, viewVideo, shareVideo]);
 
-  const fetchVideos = async (page: number = 0, source: string = dataSource) => {
-    try {
-      setLoading(true);
+  // Memoize expensive calculations
+  const visibleVideoRange = useMemo(() => {
+    const start = Math.max(0, currentIndex - renderBuffer);
+    const end = Math.min(videos.length, currentIndex + renderBuffer + 1);
+    return { start, end };
+  }, [currentIndex, renderBuffer, videos.length]);
 
-      // Build query parameters
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: "10",
-        source,
-      });
+  // Memoize video slicing for better performance
+  const visibleVideos = useMemo(() => {
+    return videos.slice(visibleVideoRange.start, visibleVideoRange.end);
+  }, [videos, visibleVideoRange.start, visibleVideoRange.end]);
 
-      const userWallet = localStorage.getItem("userWallet");
-      if (userWallet) {
-        params.append("userWallet", userWallet);
-      }
-
-      const response = await fetch(`/api/explore/feed?${params}`);
-      const data = await response.json();
-
-      if (data.success) {
-        if (page === 0) {
-          setVideos(data.videos);
-        } else {
-          setVideos((prev) => [...prev, ...data.videos]);
-        }
-        setHasMore(data.hasMore);
-
-        console.log(
-          "📺 VideoFeed: Loaded videos from",
-          data.source || "unknown",
-          {
-            count: data.videos.length,
-            page,
-            hasMore: data.hasMore,
-          }
-        );
-      }
-    } catch (error) {
-      console.error("Failed to fetch videos:", error);
-    } finally {
-      setLoading(false);
+  // Auto-fetch next page when approaching end
+  const loadMoreVideos = useCallback(() => {
+    if (hasNextPage && !isFetching) {
+      fetchNextPage();
     }
-  };
+  }, [hasNextPage, isFetching, fetchNextPage]);
 
-  // Handle scroll/swipe navigation
-  const handleScroll = useCallback(
-    (e: React.WheelEvent) => {
+  // Optimized scroll handler with momentum detection and performance tracking
+  const handleScrollThrottled = useCallback(
+    rafThrottle((e: React.WheelEvent) => {
+      const scrollStartTime = performance.now();
+      e.preventDefault();
+      
+      // Only handle scroll if not already scrolling
       if (isScrolling) return;
-
-      setIsScrolling(true);
-
-      const delta = e.deltaY;
-      if (delta > 50 && currentIndex < videos.length - 1) {
-        setCurrentIndex((prev) => prev + 1);
-        // Load more videos when near the end
-        if (currentIndex >= videos.length - 3 && hasMore) {
-          fetchVideos(Math.floor(videos.length / 10), dataSource);
+      
+      const now = Date.now();
+      const timeDelta = now - lastScrollTime.current;
+      lastScrollTime.current = now;
+      
+      // Calculate scroll velocity for momentum detection
+      const currentVelocity = Math.abs(e.deltaY) / Math.max(timeDelta, 1);
+      scrollVelocity.current = currentVelocity;
+      
+      // More conservative scroll sensitivity with velocity consideration
+      let scrollSensitivity = 400; // Base sensitivity (higher = less sensitive)
+      
+      // Reduce sensitivity for high velocity scrolls (prevent accidental skips)
+      if (currentVelocity > 2) {
+        scrollSensitivity = 600;
+      }
+      
+      const scrollDelta = e.deltaY / scrollSensitivity;
+      const newProgress = Math.max(-1, Math.min(1, scrollProgress + scrollDelta));
+      
+      // Update scroll direction for preloading optimization
+      if (scrollDelta > 0.1) {
+        setScrollDirection('down');
+      } else if (scrollDelta < -0.1) {
+        setScrollDirection('up');
+      }
+      
+      setScrollProgress(newProgress);
+      
+      // Clear previous timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      
+      // Higher threshold for video change - requires more intentional scrolling
+      const changeThreshold = currentVelocity > 3 ? 0.6 : 0.85; // Lower threshold for fast scrolls
+      
+      if (Math.abs(newProgress) >= changeThreshold) {
+        setIsScrolling(true);
+        
+        if (newProgress > 0 && currentIndex < videos.length - 1) {
+          setCurrentIndex((prev) => prev + 1);
+          // Load more videos when near the end
+          if (currentIndex >= videos.length - 5) {
+            loadMoreVideos();
+          }
+        } else if (newProgress < 0 && currentIndex > 0) {
+          setCurrentIndex((prev) => prev - 1);
         }
-      } else if (delta < -50 && currentIndex > 0) {
-        setCurrentIndex((prev) => prev - 1);
+        
+        // Force close any open modals when navigating
+        window.dispatchEvent(new CustomEvent('forceCloseModals'));
+        
+        // Reset scroll progress after transition with adaptive timing
+        const resetDelay = currentVelocity > 3 ? 200 : 400; // Faster reset for intentional scrolls
+        const timeoutId = setTimeout(() => {
+          setScrollProgress(0);
+          setIsScrolling(false);
+        }, resetDelay);
+        cleanupRef.current.addTimeoutCleanup(timeoutId);
+      } else {
+        // Reset scroll progress with shorter delay for better responsiveness
+        const timeoutId = setTimeout(() => {
+          setScrollProgress(0);
+        }, 200);
+        scrollTimeoutRef.current = timeoutId;
+        cleanupRef.current.addTimeoutCleanup(timeoutId);
       }
 
-      setTimeout(() => setIsScrolling(false), 500);
-    },
-    [currentIndex, videos.length, hasMore, isScrolling]
+      // Track scroll performance
+      const scrollProcessTime = performance.now() - scrollStartTime;
+      performanceTracker.trackScrollEvent(Math.abs(e.deltaY), scrollProcessTime);
+    }),
+    [currentIndex, videos.length, isScrolling, scrollProgress, loadMoreVideos]
   );
+
+  const handleScroll = useCallback(handleScrollThrottled, [handleScrollThrottled]);
 
   // Handle touch gestures for mobile
   const touchStartY = useRef<number>(0);
@@ -116,12 +216,15 @@ export function VideoFeed({
     if (Math.abs(deltaY) > 50 && deltaTime < 1000) {
       if (deltaY > 0 && currentIndex < videos.length - 1) {
         setCurrentIndex((prev) => prev + 1);
-        if (currentIndex >= videos.length - 3 && hasMore) {
-          fetchVideos(Math.floor(videos.length / 10), dataSource);
+        if (currentIndex >= videos.length - 3) {
+          loadMoreVideos();
         }
       } else if (deltaY < 0 && currentIndex > 0) {
         setCurrentIndex((prev) => prev - 1);
       }
+      
+      // Force close any open modals when navigating via touch
+      window.dispatchEvent(new CustomEvent('forceCloseModals'));
     }
   };
 
@@ -133,27 +236,31 @@ export function VideoFeed({
     }
   }, [currentIndex, videos, viewVideo]);
 
-  // Handle keyboard navigation
+  // Handle keyboard navigation with proper cleanup
   useEffect(() => {
     const handleKeyboardNav = (e: CustomEvent) => {
       const direction = e.detail.direction;
       if (direction === "down" && currentIndex < videos.length - 1) {
         setCurrentIndex((prev) => prev + 1);
-        if (currentIndex >= videos.length - 3 && hasMore) {
-          fetchVideos(Math.floor(videos.length / 10), dataSource);
+        if (currentIndex >= videos.length - 3) {
+          loadMoreVideos();
         }
       } else if (direction === "up" && currentIndex > 0) {
         setCurrentIndex((prev) => prev - 1);
       }
+      
+      // Force close any open modals when navigating via keyboard
+      window.dispatchEvent(new CustomEvent('forceCloseModals'));
     };
 
-    window.addEventListener("keyboardNavigation" as any, handleKeyboardNav);
-    return () =>
-      window.removeEventListener(
-        "keyboardNavigation" as any,
-        handleKeyboardNav
-      );
-  }, [currentIndex, videos.length, hasMore]);
+    cleanupRef.current.addEventListenerCleanup(
+      window,
+      "keyboardNavigation" as any,
+      handleKeyboardNav as EventListener
+    );
+  }, [currentIndex, videos.length, hasNextPage]);
+
+  const [videoStates, setVideoStates] = useState<Record<string, { isLiked?: boolean; likeCount?: number }>>({});
 
   const handleLike = async (videoId: string) => {
     if (!isAuthenticated) return;
@@ -162,88 +269,87 @@ export function VideoFeed({
     const currentVideo = videos.find((v) => v.tokenId === videoId);
     if (!currentVideo) return;
 
-    // Optimistic update - immediately update the UI
-    const newLikeCount = currentVideo.isLiked
-      ? currentVideo.metrics.likes - 1
-      : currentVideo.metrics.likes + 1;
-    const newIsLiked = !currentVideo.isLiked;
+    // Get current state (with local updates if any)
+    const currentState = videoStates[videoId] || {};
+    const currentIsLiked = currentState.isLiked ?? currentVideo.isLiked;
+    const currentLikeCount = currentState.likeCount ?? currentVideo.metrics.likes;
 
-    setVideos((prev) =>
-      prev.map((video) =>
-        video.tokenId === videoId
-          ? {
-              ...video,
-              isLiked: newIsLiked,
-              metrics: {
-                ...video.metrics,
-                likes: newLikeCount,
-              },
-            }
-          : video
-      )
-    );
+    // Optimistic update - immediately update the UI
+    const newLikeCount = currentIsLiked ? currentLikeCount - 1 : currentLikeCount + 1;
+    const newIsLiked = !currentIsLiked;
+
+    // Update local state immediately for responsive UI
+    setVideoStates(prev => ({
+      ...prev,
+      [videoId]: {
+        isLiked: newIsLiked,
+        likeCount: newLikeCount
+      }
+    }));
+
+    // Track like event
+    trackVideoEvent(newIsLiked ? 'like' : 'unlike', videoId, {
+      like_count: newLikeCount
+    });
 
     // Make the API call in the background
     try {
       const success = await likeVideo(videoId, true);
       if (!success) {
-        // Revert the optimistic update if the API call failed
-        setVideos((prev) =>
-          prev.map((video) =>
-            video.tokenId === videoId
-              ? {
-                  ...video,
-                  isLiked: currentVideo.isLiked,
-                  metrics: {
-                    ...video.metrics,
-                    likes: currentVideo.metrics.likes,
-                  },
-                }
-              : video
-          )
-        );
-        // You could show a toast error here
-        console.error("Failed to like video, reverting UI update");
+        logger.warn("Failed to like video", { videoId });
+        // Revert optimistic update
+        setVideoStates(prev => ({
+          ...prev,
+          [videoId]: {
+            isLiked: currentIsLiked,
+            likeCount: currentLikeCount
+          }
+        }));
+        
+        // Track failed like
+        trackVideoEvent('like_failed', videoId);
       }
     } catch (error) {
-      // Revert the optimistic update if there's an error
-      setVideos((prev) =>
-        prev.map((video) =>
-          video.tokenId === videoId
-            ? {
-                ...video,
-                isLiked: currentVideo.isLiked,
-                metrics: {
-                  ...video.metrics,
-                  likes: currentVideo.metrics.likes,
-                },
-              }
-            : video
-        )
-      );
-      console.error("Error liking video:", error);
+      logger.error("Error liking video", { videoId, error });
+      // Revert optimistic update
+      setVideoStates(prev => ({
+        ...prev,
+        [videoId]: {
+          isLiked: currentIsLiked,
+          likeCount: currentLikeCount
+        }
+      }));
+      
+      // Track error
+      trackVideoEvent('like_error', videoId);
     }
   };
 
   const handleShare = async (
     video: ExploreVideo,
-    platform: "twitter" | "instagram"
+    platform: "x" | "instagram"
   ) => {
     // Since explore feed uses platform videos, pass isPlatformVideo=true
     await shareVideo(video.tokenId, platform, true);
-    setVideos((prev) =>
-      prev.map((v) =>
-        v.tokenId === video.tokenId
-          ? { ...v, metrics: { ...v.metrics, shares: v.metrics.shares + 1 } }
-          : v
-      )
-    );
+    // TODO: Implement optimistic updates for shares with React Query mutations
   };
 
-  if (loading && videos.length === 0) {
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-black text-white">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2 font-headline">Failed to load videos</h2>
+          <p className="text-gray-400 font-headline">Please try again later</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading && videos.length === 0) {
     return (
       <div className="flex items-center justify-center h-screen bg-black">
-        <Loader2 className="w-8 h-8 animate-spin text-white" />
+        <ProvnBrandLoader size="lg" message="Loading videos..." variant="brand" />
       </div>
     );
   }
@@ -252,8 +358,8 @@ export function VideoFeed({
     return (
       <div className="flex items-center justify-center h-screen bg-black text-white">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">No videos available</h2>
-          <p className="text-gray-400">Check back later for new content!</p>
+          <h2 className="text-2xl font-bold mb-2 font-headline">No provs available</h2>
+          <p className="text-gray-400 font-headline">Check back later for new content!</p>
         </div>
       </div>
     );
@@ -262,47 +368,53 @@ export function VideoFeed({
   return (
     <div
       ref={containerRef}
-      className="relative h-screen w-full overflow-hidden touch-pan-y select-none"
+      className="relative h-screen w-full overflow-hidden select-none"
       onWheel={handleScroll}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       style={{
         WebkitTouchCallout: "none",
         WebkitUserSelect: "none",
-        touchAction: "pan-y",
+        touchAction: "none", // Disable browser touch actions for custom handling
       }}
     >
-      {videos.map((video, index) => (
-        <div
-          key={video.tokenId}
-          className={`absolute inset-0 transition-transform duration-300 ease-out video-item ${
-            index === currentIndex
-              ? "translate-y-0"
-              : index < currentIndex
-              ? "-translate-y-full"
-              : "translate-y-full"
-          }`}
-        >
-          <VideoPlayer
-            video={video}
-            isActive={index === currentIndex}
-            isVisible={Math.abs(index - currentIndex) <= 1}
-          />
+      {visibleVideos.map((video, relativeIndex) => {
+        const actualIndex = visibleVideoRange.start + relativeIndex;
+        const isVisible = Math.abs(actualIndex - currentIndex) <= 1;
+        
+        // Apply local state updates to video
+        const videoState = videoStates[video.tokenId] || {};
+        const updatedVideo = {
+          ...video,
+          isLiked: videoState.isLiked ?? video.isLiked,
+          metrics: {
+            ...video.metrics,
+            likes: videoState.likeCount ?? video.metrics.likes
+          }
+        };
 
-          <VideoOverlay
-            video={video}
+        return (
+          <MemoizedVirtualVideoItem
+            key={`${video.tokenId}-${actualIndex}`}
+            video={updatedVideo}
+            index={actualIndex}
+            currentIndex={currentIndex}
             isAuthenticated={isAuthenticated}
-            onLike={() => handleLike(video.tokenId)}
+            isVisible={isVisible}
+            scrollProgress={scrollProgress}
+            onLike={async () => await handleLike(video.tokenId)}
             onShare={handleShare}
             onDetails={() => onVideoDetails(video)}
           />
-        </div>
-      ))}
+        );
+      })}
 
       {/* Loading indicator for infinite scroll */}
-      {loading && videos.length > 0 && (
+      {isFetching && videos.length > 0 && (
         <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2">
-          <Loader2 className="w-6 h-6 animate-spin text-white" />
+          <div className="bg-black/50 backdrop-blur-sm rounded-full px-4 py-2">
+            <ProvnBrandLoader size="sm" message="Loading more..." variant="brand" />
+          </div>
         </div>
       )}
 
@@ -325,3 +437,109 @@ export function VideoFeed({
     </div>
   );
 }
+
+// Highly optimized virtual video item component
+const MemoizedVirtualVideoItem = React.memo(({
+  video,
+  index,
+  currentIndex,
+  isAuthenticated,
+  isVisible,
+  scrollProgress,
+  onLike,
+  onShare,
+  onDetails
+}: {
+  video: ExploreVideo;
+  index: number;
+  currentIndex: number;
+  isAuthenticated: boolean;
+  isVisible: boolean;
+  scrollProgress?: number;
+  onLike: () => Promise<void>;
+  onShare: (video: ExploreVideo, platform: "x" | "instagram") => void;
+  onDetails: () => void;
+}) => {
+  // Performance measurement
+  const renderTimer = useMemo(() => measureRenderTime(`VideoItem-${video.tokenId}`), [video.tokenId]);
+  const { elementRef, isIntersecting } = useIntersectionObserver({
+    threshold: 0.5,
+    rootMargin: '50px'
+  });
+
+  // Memoized transform calculation for better performance
+  const transform = useMemo(() => {
+    const progress = scrollProgress || 0;
+    // Apply easing to make scroll feel less sensitive
+    const easedProgress = progress * Math.abs(progress); // Quadratic easing
+    
+    if (index === currentIndex) {
+      // Current video moves based on scroll progress
+      return `translateY(${-easedProgress * 80}%)`; // Reduced from 100% to 80%
+    } else if (index === currentIndex - 1) {
+      // Previous video
+      return `translateY(${-100 + (-easedProgress * 80)}%)`;
+    } else if (index === currentIndex + 1) {
+      // Next video
+      return `translateY(${100 + (-easedProgress * 80)}%)`;
+    } else if (index < currentIndex) {
+      return 'translateY(-100%)';
+    } else {
+      return 'translateY(100%)';
+    }
+  }, [index, currentIndex, scrollProgress]);
+
+  // Memoized transition property
+  const transition = useMemo(() => {
+    return Math.abs(scrollProgress || 0) < 0.1 
+      ? 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)' 
+      : 'none';
+  }, [scrollProgress]);
+
+  // End performance measurement
+  useEffect(() => {
+    renderTimer.end();
+  }, [renderTimer]);
+
+  return (
+    <div
+      ref={elementRef}
+      className="absolute inset-0 video-item"
+      style={{
+        transform,
+        transition,
+      }}
+    >
+      {(isVisible || isIntersecting) && (
+        <>
+          <VideoPlayer
+            video={video}
+            isActive={index === currentIndex}
+            isVisible={isVisible}
+          />
+          <VideoOverlay
+            video={video}
+            isAuthenticated={isAuthenticated}
+            onLike={onLike}
+            onShare={onShare}
+            onDetails={onDetails}
+          />
+        </>
+      )}
+    </div>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison function for better memoization
+  return (
+    prevProps.video.tokenId === nextProps.video.tokenId &&
+    prevProps.index === nextProps.index &&
+    prevProps.currentIndex === nextProps.currentIndex &&
+    prevProps.isAuthenticated === nextProps.isAuthenticated &&
+    prevProps.isVisible === nextProps.isVisible &&
+    Math.abs((prevProps.scrollProgress || 0) - (nextProps.scrollProgress || 0)) < 0.01 &&
+    prevProps.video.metrics.likes === nextProps.video.metrics.likes &&
+    prevProps.video.isLiked === nextProps.video.isLiked
+  );
+});
+
+MemoizedVirtualVideoItem.displayName = 'MemoizedVirtualVideoItem';

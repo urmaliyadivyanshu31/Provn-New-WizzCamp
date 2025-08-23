@@ -1,16 +1,13 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { ExploreVideo } from "@/types/explore"
-import { 
-  X, 
-  ExternalLink, 
-  Flag, 
-  Users, 
-  Calendar, 
-  Shield, 
-  Coins,
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ExploreVideo } from "@/types/explore";
+import {
+  X,
+  ExternalLink,
+  Flag,
+  Shield,
   Eye,
   Heart,
   Share2,
@@ -18,557 +15,328 @@ import {
   Copy,
   CheckCircle,
   AlertTriangle,
-  Play,
-  Loader2
-} from "lucide-react"
-import { ProvnButton } from "@/components/provn/button"
-import { useOriginLicensing } from "@/hooks/useOriginLicensing"
-import { toast } from "sonner"
-import { ipfsGateway } from "@/lib/ipfs-gateway"
+  Award,
+  Clock,
+  Hash,
+  Calendar,
+  User,
+  Zap,
+  Scissors,
+  Plus
+} from "lucide-react";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { LicenseStatusBadge } from "@/components/licenses/LicenseStatusBadge";
 
 interface VideoDetailsModalProps {
-  video: ExploreVideo
-  isOpen: boolean
-  onClose: () => void
-  isAuthenticated: boolean
+  video: ExploreVideo;
+  isOpen: boolean;
+  onClose: () => void;
+  isAuthenticated: boolean;
 }
 
 export function VideoDetailsModal({ video, isOpen, onClose, isAuthenticated }: VideoDetailsModalProps) {
-  const [activeTab, setActiveTab] = useState<'creator' | 'ip' | 'licensing'>('creator')
-  const [licensePeriods, setLicensePeriods] = useState(1)
-  const [videoSrc, setVideoSrc] = useState<string>("")
-  const [posterSrc, setPosterSrc] = useState<string>("")
-  const [videoLoading, setVideoLoading] = useState(true)
-  const [videoError, setVideoError] = useState(false)
+  const router = useRouter();
   
-  const { buyLicense, loading: licenseLoading } = useOriginLicensing()
-
-  // Optimize IPFS URLs when modal opens or video changes
-  useEffect(() => {
-    if (!isOpen || !video) return
-
-    const optimizeVideoUrls = async () => {
-      setVideoLoading(true)
-      setVideoError(false)
-
-      try {
-        // Get optimal video URL with fallback mechanisms
-        if (video.videoUrl) {
-          try {
-            const optimizedVideoUrl = await ipfsGateway.getOptimalUrl(video.videoUrl, true)
-            setVideoSrc(optimizedVideoUrl)
-          } catch (error) {
-            console.warn('Failed to get optimal video URL, trying direct:', error)
-            try {
-              const directUrl = await ipfsGateway.getOptimalUrl(video.videoUrl, false)
-              setVideoSrc(directUrl)
-            } catch (directError) {
-              console.error('Failed to get direct URL, using original:', directError)
-              setVideoSrc(video.videoUrl)
-            }
-          }
-        }
-
-        // Optimize thumbnail URL
-        if (video.thumbnailUrl) {
-          try {
-            const optimizedThumbnailUrl = await ipfsGateway.getOptimalUrl(video.thumbnailUrl, true)
-            setPosterSrc(optimizedThumbnailUrl)
-          } catch (error) {
-            console.warn('Failed to optimize thumbnail, using original:', error)
-            setPosterSrc(video.thumbnailUrl)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to optimize video URLs:', error)
-        setVideoError(true)
-      } finally {
-        setVideoLoading(false)
-      }
-    }
-
-    optimizeVideoUrls()
-  }, [isOpen, video?.videoUrl, video?.thumbnailUrl])
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric'
-    })
-  }
+    });
+  };
 
   const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`
-  }
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  const formatCAMP = (amount: number) => {
+    return `${amount.toFixed(amount < 1 ? 2 : 1)} CAMP`;
+  };
 
   const copyToClipboard = async (text: string, label: string) => {
     try {
-      await navigator.clipboard.writeText(text)
-      toast.success(`${label} copied to clipboard!`)
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copied!`);
     } catch (error) {
-      toast.error('Failed to copy to clipboard')
+      toast.error('Failed to copy');
     }
-  }
+  };
 
-  const handleBuyLicense = async () => {
+  const handleViewOnExplorer = () => {
+    if (video.ipInfo.transactionHash) {
+      window.open(`https://basecamp.cloud.blockscout.com/tx/${video.ipInfo.transactionHash}`, '_blank');
+    }
+  };
+
+  const handleReport = () => {
+    toast.info('Report functionality coming soon');
+  };
+
+  const handleCreateDerivative = () => {
     if (!isAuthenticated) {
-      toast.error('Please connect your wallet first')
-      return
+      toast.error('Please connect your wallet to create derivatives');
+      return;
     }
-
-    try {
-      const success = await buyLicense(video.tokenId, licensePeriods)
-      if (success) {
-        toast.success('License purchased successfully!')
-        onClose()
-      }
-    } catch (error) {
-      console.error('Failed to buy license:', error)
+    
+    if (!video.remixing.enabled) {
+      toast.error('This content does not allow derivatives');
+      return;
     }
-  }
+    
+    // Navigate to derivative upload with parent tokenId
+    const url = `/upload/derivative?parent=${video.tokenId}&title=${encodeURIComponent(video.title)}&creator=${encodeURIComponent(video.creator.handle)}`;
+    onClose(); // Close modal first
+    router.push(url);
+    toast.success('Redirecting to derivative creation...');
+  };
 
-  const totalLicenseCost = video.licensing.price * licensePeriods
+  if (!isOpen) return null;
 
   return (
     <AnimatePresence>
-      {isOpen && (
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
-          onClick={onClose}
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.95, opacity: 0, y: 20 }}
+          className="bg-provn-surface border border-provn-border rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-md mx-2 sm:mx-4 overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
         >
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="bg-provn-surface border border-provn-border rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-provn-border">
-              <h2 className="text-xl font-bold text-provn-text">Video Details</h2>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-provn-surface-2 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-provn-muted" />
-              </button>
+          {/* Header */}
+          <div className="flex items-center justify-between p-3 sm:p-4 border-b border-provn-border">
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-provn-text font-headline">
+                Content Details
+              </h2>
+              <p className="text-xs text-provn-muted font-headline">
+                IP-NFT Information & Stats
+              </p>
             </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-provn-surface-2 rounded-lg transition-colors touch-manipulation"
+            >
+              <X className="w-4 h-4 text-provn-muted hover:text-provn-text" />
+            </button>
+          </div>
 
-            {/* Video Player Section */}
-            <div className="border-b border-provn-border">
-              <div className="aspect-video bg-black relative">
-                {videoLoading ? (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black">
-                    <div className="text-center space-y-3">
-                      <Loader2 className="w-8 h-8 text-white animate-spin mx-auto" />
-                      <p className="text-white/80 text-sm">Loading video...</p>
-                    </div>
-                  </div>
-                ) : videoError ? (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black">
-                    <div className="text-center space-y-3">
-                      <AlertTriangle className="w-8 h-8 text-red-400 mx-auto" />
-                      <p className="text-red-400 text-sm">Failed to load video</p>
-                      <ProvnButton 
-                        size="sm" 
-                        onClick={() => window.open(video.videoUrl, '_blank')}
-                      >
-                        Open Original
-                      </ProvnButton>
-                    </div>
-                  </div>
+          <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+            {/* Video Preview */}
+            <div className="flex items-center gap-3 p-3 bg-provn-surface-2 rounded-lg">
+              <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
+                {video.thumbnailUrl ? (
+                  <img
+                    src={video.thumbnailUrl}
+                    alt={video.title}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  <video
-                    src={videoSrc}
-                    poster={posterSrc}
-                    controls
-                    className="w-full h-full"
-                    crossOrigin="anonymous"
-                    preload="metadata"
-                    onError={(e) => {
-                      console.error('Video load error in modal:', e)
-                      const target = e.target as HTMLVideoElement
-                      if (video?.videoUrl) {
-                        const errorHandler = ipfsGateway.createErrorHandler(video.videoUrl)
-                        errorHandler(target)
-                      } else {
-                        setVideoError(true)
-                      }
-                    }}
-                    onLoadStart={() => console.log('Modal video load started')}
-                    onLoadedData={() => console.log('Modal video data loaded')}
-                    onCanPlay={() => {
-                      console.log('Modal video can play')
-                      setVideoLoading(false)
-                    }}
-                  >
-                    Your browser does not support the video tag.
-                  </video>
+                  <div className="w-full h-full bg-provn-accent/20 flex items-center justify-center">
+                    <Hash className="w-6 h-6 text-provn-accent" />
+                  </div>
                 )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-provn-text text-sm truncate font-headline">
+                  {video.title}
+                </h3>
+                <p className="text-xs text-provn-muted font-headline">
+                  by @{video.creator.handle}
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${
+                    video.ipInfo.status === 'verified'
+                      ? 'bg-green-500/10 text-green-400'
+                      : 'bg-yellow-500/10 text-yellow-400'
+                  }`}>
+                    {video.ipInfo.status === 'verified' ? (
+                      <>
+                        <CheckCircle className="w-3 h-3" />
+                        Verified IP
+                      </>
+                    ) : (
+                      <>
+                        <AlertTriangle className="w-3 h-3" />
+                        Pending
+                      </>
+                    )}
+                  </div>
+                  {isAuthenticated && (
+                    <LicenseStatusBadge 
+                      tokenId={video.tokenId} 
+                      variant="full"
+                      className="text-xs"
+                    />
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex border-b border-provn-border">
-              <button
-                onClick={() => setActiveTab('creator')}
-                className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
-                  activeTab === 'creator'
-                    ? 'text-provn-accent border-b-2 border-provn-accent bg-provn-accent/5'
-                    : 'text-provn-muted hover:text-provn-text'
-                }`}
-              >
-                Creator
-              </button>
-              <button
-                onClick={() => setActiveTab('ip')}
-                className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
-                  activeTab === 'ip'
-                    ? 'text-provn-accent border-b-2 border-provn-accent bg-provn-accent/5'
-                    : 'text-provn-muted hover:text-provn-text'
-                }`}
-              >
-                IP Information
-              </button>
-              <button
-                onClick={() => setActiveTab('licensing')}
-                className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
-                  activeTab === 'licensing'
-                    ? 'text-provn-accent border-b-2 border-provn-accent bg-provn-accent/5'
-                    : 'text-provn-muted hover:text-provn-text'
-                }`}
-              >
-                Licensing
-              </button>
-            </div>
 
-            {/* Content */}
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
-              {/* Creator Tab */}
-              {activeTab === 'creator' && (
-                <div className="space-y-6">
-                  {/* Creator Header */}
-                  <div className="flex items-center gap-4">
-                    {video.creator.avatarUrl ? (
-                      <img
-                        src={video.creator.avatarUrl}
-                        alt={video.creator.handle}
-                        className="w-16 h-16 rounded-full object-cover border-2 border-provn-border"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-provn-accent to-provn-accent/80 flex items-center justify-center border-2 border-provn-border">
-                        <span className="text-white font-bold text-xl">
-                          {video.creator.displayName?.[0]?.toUpperCase() || video.creator.handle[0]?.toUpperCase()}
-                        </span>
-                      </div>
-                    )}
+
+            {/* IP-NFT Details */}
+            <div>
+              <label className="block text-sm font-headline text-provn-text mb-2 flex items-center gap-1">
+                <Shield className="w-4 h-4 text-blue-400" />
+                IP-NFT Details
+              </label>
+              <div className="space-y-2">
+                {/* Token ID */}
+                <div className="bg-provn-surface-2 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-provn-muted font-headline">Token ID</span>
+                    <button
+                      onClick={() => copyToClipboard(video.tokenId, 'Token ID')}
+                      className="p-1 hover:bg-provn-surface rounded transition-colors"
+                    >
+                      <Copy className="w-3 h-3 text-provn-muted" />
+                    </button>
+                  </div>
+                  <div className="font-mono text-xs text-provn-text font-headline">
+                    #{video.tokenId.length > 16 
+                      ? `${video.tokenId.slice(0, 8)}...${video.tokenId.slice(-6)}`
+                      : video.tokenId
+                    }
+                  </div>
+                </div>
+
+                {/* Content Type & Date */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-provn-surface-2 rounded-lg p-3">
+                    <div className="text-xs text-provn-muted font-headline mb-1">Content Type</div>
+                    <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${
+                      video.ipInfo.type === 'original'
+                        ? 'bg-green-500/10 text-green-400'
+                        : 'bg-purple-500/10 text-purple-400'
+                    }`}>
+                      <Award className="w-3 h-3" />
+                      {video.ipInfo.type === 'original' ? 'Original' : 'Remix'}
+                    </div>
+                  </div>
+                  <div className="bg-provn-surface-2 rounded-lg p-3">
+                    <div className="text-xs text-provn-muted font-headline mb-1">Minted</div>
+                    <div className="flex items-center gap-1 text-xs text-provn-text font-headline">
+                      <Calendar className="w-3 h-3" />
+                      {formatDate(video.ipInfo.mintDate)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Creator Info */}
+                <div className="bg-provn-surface-2 rounded-lg p-3">
+                  <div className="text-xs text-provn-muted font-headline mb-1">Creator</div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-provn-accent/20 flex items-center justify-center">
+                      <User className="w-3 h-3 text-provn-accent" />
+                    </div>
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-xl font-bold text-provn-text">
-                          {video.creator.displayName || video.creator.handle}
-                        </h3>
-                        {video.ipInfo.status === 'verified' && (
-                          <CheckCircle className="w-5 h-5 text-blue-500" />
-                        )}
+                      <div className="text-xs font-medium text-provn-text font-headline">
+                        {video.creator.displayName}
                       </div>
-                      <p className="text-provn-muted">@{video.creator.handle}</p>
-                    </div>
-                  </div>
-
-                  {/* Creator Stats */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-provn-surface-2 rounded-lg p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Users className="w-4 h-4 text-provn-muted" />
-                        <span className="text-sm text-provn-muted">Followers</span>
-                      </div>
-                      <p className="text-xl font-bold text-provn-text">
-                        {video.creator.followers.toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="bg-provn-surface-2 rounded-lg p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Calendar className="w-4 h-4 text-provn-muted" />
-                        <span className="text-sm text-provn-muted">Joined</span>
-                      </div>
-                      <p className="text-xl font-bold text-provn-text">
-                        {formatDate(video.creator.joinedDate)}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Wallet Address */}
-                  <div className="bg-provn-surface-2 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-semibold text-provn-text mb-1">Wallet Address</h4>
-                        <p className="text-provn-muted font-mono">
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-provn-muted font-headline">
                           {formatAddress(video.creator.walletAddress)}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => copyToClipboard(video.creator.walletAddress, 'Wallet address')}
-                          className="p-2 hover:bg-provn-surface rounded-lg transition-colors"
-                        >
-                          <Copy className="w-4 h-4 text-provn-muted" />
-                        </button>
-                        <a
-                          href={`https://basecamp.cloud.blockscout.com/address/${video.creator.walletAddress}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-2 hover:bg-provn-surface rounded-lg transition-colors"
-                        >
-                          <ExternalLink className="w-4 h-4 text-provn-muted" />
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Video Description */}
-                  <div>
-                    <h4 className="font-semibold text-provn-text mb-2">Description</h4>
-                    <p className="text-provn-muted leading-relaxed">{video.description}</p>
-                  </div>
-
-                  {/* Tags */}
-                  <div>
-                    <h4 className="font-semibold text-provn-text mb-2">Tags</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {video.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="px-3 py-1 bg-provn-accent/10 text-provn-accent rounded-full text-sm"
-                        >
-                          #{tag}
                         </span>
-                      ))}
+                        <button
+                          onClick={() => copyToClipboard(video.creator.walletAddress, 'Creator address')}
+                          className="p-0.5 hover:bg-provn-surface rounded transition-colors"
+                        >
+                          <Copy className="w-3 h-3 text-provn-muted hover:text-provn-accent" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              )}
-
-              {/* IP Information Tab */}
-              {activeTab === 'ip' && (
-                <div className="space-y-6">
-                  {/* IP Status */}
-                  <div className="bg-provn-surface-2 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-semibold text-provn-text mb-1">IpNFT ID</h4>
-                        <p className="text-provn-muted font-mono">#{video.tokenId.slice(0, 6)}...{video.tokenId.slice(-4)}</p>
-                      </div>
-                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        video.ipInfo.status === 'verified'
-                          ? 'bg-green-500/10 text-green-500'
-                          : 'bg-yellow-500/10 text-yellow-500'
-                      }`}>
-                        {video.ipInfo.status === 'verified' ? (
-                          <div className="flex items-center gap-1">
-                            <CheckCircle className="w-4 h-4" />
-                            Verified
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1">
-                            <AlertTriangle className="w-4 h-4" />
-                            Pending
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Content Type */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-provn-surface-2 rounded-lg p-4">
-                      <h4 className="font-semibold text-provn-text mb-1">Type</h4>
-                      <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm font-medium ${
-                        video.ipInfo.type === 'original'
-                          ? 'bg-green-500/10 text-green-500'
-                          : 'bg-purple-500/10 text-purple-500'
-                      }`}>
-                        <Shield className="w-3 h-3" />
-                        {video.ipInfo.type === 'original' ? 'Original' : 'Derivative'}
-                      </div>
-                    </div>
-                    <div className="bg-provn-surface-2 rounded-lg p-4">
-                      <h4 className="font-semibold text-provn-text mb-1">Minted</h4>
-                      <p className="text-provn-muted">{formatDate(video.ipInfo.mintDate)}</p>
-                    </div>
-                  </div>
-
-                  {/* Parent Info (if derivative) */}
-                  {video.ipInfo.parentId && (
-                    <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-4">
-                      <h4 className="font-semibold text-provn-text mb-2">Parent IP-NFT</h4>
-                      <p className="text-provn-muted">This is a derivative work based on IP-NFT #{video.ipInfo.parentId?.slice(0, 6)}...{video.ipInfo.parentId?.slice(-4)}</p>
-                    </div>
-                  )}
-
-                  {/* Engagement Stats */}
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="text-center">
-                      <div className="flex items-center justify-center w-12 h-12 bg-blue-500/10 rounded-lg mx-auto mb-2">
-                        <Eye className="w-6 h-6 text-blue-500" />
-                      </div>
-                      <p className="font-bold text-provn-text">{video.metrics.views.toLocaleString()}</p>
-                      <p className="text-sm text-provn-muted">Views</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="flex items-center justify-center w-12 h-12 bg-red-500/10 rounded-lg mx-auto mb-2">
-                        <Heart className="w-6 h-6 text-red-500" />
-                      </div>
-                      <p className="font-bold text-provn-text">{video.metrics.likes.toLocaleString()}</p>
-                      <p className="text-sm text-provn-muted">Likes</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="flex items-center justify-center w-12 h-12 bg-green-500/10 rounded-lg mx-auto mb-2">
-                        <Share2 className="w-6 h-6 text-green-500" />
-                      </div>
-                      <p className="font-bold text-provn-text">{video.metrics.shares.toLocaleString()}</p>
-                      <p className="text-sm text-provn-muted">Shares</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="flex items-center justify-center w-12 h-12 bg-yellow-500/10 rounded-lg mx-auto mb-2">
-                        <DollarSign className="w-6 h-6 text-yellow-500" />
-                      </div>
-                      <p className="font-bold text-provn-text">{video.metrics.tips.toLocaleString()}</p>
-                      <p className="text-sm text-provn-muted">Tips</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Licensing Tab */}
-              {activeTab === 'licensing' && (
-                <div className="space-y-6">
-                  {/* License Info */}
-                  <div className="bg-provn-surface-2 rounded-lg p-4">
-                    <h4 className="font-semibold text-provn-text mb-4">Remix License</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-provn-muted">Price per period</p>
-                        <p className="font-bold text-provn-text">{video.licensing.price} wCAMP</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-provn-muted">Duration</p>
-                        <p className="font-bold text-provn-text">{Math.floor(video.licensing.duration / 86400)} days</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-provn-muted">Royalty</p>
-                        <p className="font-bold text-provn-text">{video.licensing.royalty}%</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-provn-muted">Payment Token</p>
-                        <p className="font-bold text-provn-text">wCAMP</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* License Purchase */}
-                  {video.licensing.price > 0 && (
-                    <div className="bg-gradient-to-br from-provn-accent/5 to-provn-success/5 border border-provn-accent/20 rounded-lg p-6">
-                      <h4 className="font-semibold text-provn-text mb-4">Purchase License</h4>
-                      <p className="text-provn-muted mb-4">
-                        Purchase a license to create derivative works based on this content.
-                      </p>
-                      
-                      {/* Period Selection */}
-                      <div className="mb-4">
-                        <label className="block text-sm font-medium text-provn-text mb-2">
-                          License Periods
-                        </label>
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="number"
-                            min="1"
-                            max="12"
-                            value={licensePeriods}
-                            onChange={(e) => setLicensePeriods(parseInt(e.target.value) || 1)}
-                            className="w-20 px-3 py-2 bg-provn-surface border border-provn-border rounded-lg text-provn-text focus:outline-none focus:ring-2 focus:ring-provn-accent"
-                          />
-                          <span className="text-provn-muted">
-                            × {Math.floor(video.licensing.duration / 86400)} days each
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Total Cost */}
-                      <div className="bg-provn-surface rounded-lg p-3 mb-4">
-                        <div className="flex justify-between">
-                          <span className="text-provn-muted">Total Cost:</span>
-                          <span className="font-bold text-provn-accent">{totalLicenseCost} wCAMP</span>
-                        </div>
-                      </div>
-
-                      <ProvnButton
-                        onClick={handleBuyLicense}
-                        disabled={!isAuthenticated || licenseLoading}
-                        className="w-full"
-                      >
-                        {licenseLoading ? (
-                          'Processing...'
-                        ) : (
-                          <>
-                            <Coins className="w-4 h-4 mr-2" />
-                            Get License ({totalLicenseCost} wCAMP)
-                          </>
-                        )}
-                      </ProvnButton>
-
-                      {!isAuthenticated && (
-                        <p className="text-sm text-provn-muted text-center mt-2">
-                          Connect your wallet to purchase a license
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {video.licensing.price === 0 && (
-                    <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-4">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-green-500" />
-                        <span className="font-semibold text-green-500">Free License</span>
-                      </div>
-                      <p className="text-provn-muted mt-1">
-                        This content is available for free remixing and derivative works.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
+              </div>
             </div>
 
-            {/* Footer Actions */}
-            <div className="flex gap-3 p-6 border-t border-provn-border">
-              <ProvnButton
-                variant="secondary"
-                onClick={() => window.open(`https://basecamp.cloud.blockscout.com/token/0x5a3f832b47b948dA27aE788E96A0CD7BB0dCd1c1/instance/${video.tokenId}`, '_blank')}
-                className="flex-1"
-              >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                View on Blockscout
-              </ProvnButton>
+            {/* Licensing Info - Only show if remixing is enabled and price is set */}
+            {video.remixing.enabled && video.licensing?.price && video.licensing.price > 0 && (
+              <div>
+                <label className="block text-sm font-headline text-provn-text mb-2 flex items-center gap-1">
+                  <DollarSign className="w-4 h-4 text-yellow-400" />
+                  License Available
+                </label>
+                <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-sm font-medium text-provn-text font-headline capitalize">
+                        {video.remixing.template || 'Basic'} License
+                      </div>
+                      <div className="text-xs text-provn-muted font-headline">
+                        30 days usage rights
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-provn-accent font-headline">
+                        {formatCAMP(video.licensing.price)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {video.remixing.requiresAttribution && (
+                      <span className="bg-blue-500/10 text-blue-400 text-xs px-2 py-0.5 rounded-full font-headline">
+                        Attribution
+                      </span>
+                    )}
+                    {video.remixing.allowCommercialUse && (
+                      <span className="bg-green-500/10 text-green-400 text-xs px-2 py-0.5 rounded-full font-headline">
+                        Commercial OK
+                      </span>
+                    )}
+                    {video.remixing.allowDerivatives && (
+                      <span className="bg-purple-500/10 text-purple-400 text-xs px-2 py-0.5 rounded-full font-headline">
+                        Modifications OK
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="space-y-2 pt-1 sm:pt-2">
+              {/* Primary Action - Create Derivative (if remixing is enabled) */}
+              {video.remixing.enabled && (
+                <button
+                  onClick={handleCreateDerivative}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-provn-accent to-provn-accent/80 hover:from-provn-accent/90 hover:to-provn-accent/70 text-provn-bg font-semibold rounded-lg transition-all font-headline touch-manipulation shadow-lg hover:shadow-xl"
+                >
+                  <Scissors className="w-4 h-4" />
+                  Create Derivative
+                </button>
+              )}
               
-              <ProvnButton
-                variant="secondary"
-                onClick={() => {
-                  // TODO: Implement report functionality
-                  toast.info('Report functionality coming soon')
-                }}
-                className="px-6"
-              >
-                <Flag className="w-4 h-4 mr-2" />
-                Report
-              </ProvnButton>
+              {/* Secondary Actions */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={handleViewOnExplorer}
+                  disabled={!video.ipInfo.transactionHash}
+                  className="flex items-center justify-center gap-2 py-2.5 px-3 text-sm border border-provn-border text-provn-muted hover:text-provn-text hover:border-provn-accent/50 rounded-lg transition-all font-headline touch-manipulation disabled:opacity-50"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Explorer
+                </button>
+                <button
+                  onClick={handleReport}
+                  className="flex items-center justify-center gap-2 py-2.5 px-3 text-sm border border-provn-border text-provn-muted hover:text-provn-text hover:border-provn-accent/50 rounded-lg transition-all font-headline touch-manipulation"
+                >
+                  <Flag className="w-4 h-4" />
+                  Report
+                </button>
+              </div>
             </div>
-          </motion.div>
+
+            {/* Footer */}
+            <div className="text-center pt-2 border-t border-provn-border">
+              <p className="text-xs text-provn-muted font-headline">
+                Powered by Origin SDK • BaseCAMP Network
+              </p>
+            </div>
+          </div>
         </motion.div>
-      )}
+      </div>
     </AnimatePresence>
-  )
+  );
 }

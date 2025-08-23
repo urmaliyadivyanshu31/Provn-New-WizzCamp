@@ -5,6 +5,17 @@ const nextConfig = {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },
+
+  // Redirects from old profile URLs to new structure
+  async redirects() {
+    return [
+      {
+        source: '/profile/:identifier',
+        destination: '/u/:identifier',
+        permanent: true,
+      },
+    ];
+  },
   
   // Handle ES modules and external packages
   serverExternalPackages: ['viem', 'wagmi'],

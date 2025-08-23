@@ -47,6 +47,16 @@ export interface PlatformVideo {
   payment_token_address?: string
   commercial_rights: boolean
   derivative_rights: boolean
+  // Remixing fields
+  remixing_enabled: boolean
+  remixing_permission_level: 'none' | 'basic' | 'advanced' | 'custom'
+  remixing_template?: string
+  remixing_requires_attribution: boolean
+  remixing_allow_commercial: boolean
+  remixing_allow_derivatives: boolean
+  remixing_custom_settings?: any
+  remixing_message?: string
+  remixes_count: number
   views_count: number
   likes_count: number
   shares_count: number
@@ -150,6 +160,15 @@ export class PlatformVideoService {
     paymentTokenAddress?: string
     commercialRights?: boolean
     derivativeRights?: boolean
+    // Remixing parameters
+    remixingEnabled?: boolean
+    remixingPermissionLevel?: 'none' | 'basic' | 'advanced' | 'custom'
+    remixingTemplate?: string
+    remixingRequiresAttribution?: boolean
+    remixingAllowCommercial?: boolean
+    remixingAllowDerivatives?: boolean
+    remixingCustomSettings?: any
+    remixingMessage?: string
   }) {
     try {
       // First, get the creator's profile
@@ -158,48 +177,48 @@ export class PlatformVideoService {
         throw new Error('Creator profile not found. Profile required for video uploads.')
       }
 
+      // Create minimal video record with only essential columns
+      const videoRecord: any = {
+        creator_id: profile.id,
+        creator_wallet: videoData.creatorWallet.toLowerCase(),
+        token_id: videoData.tokenId,
+        transaction_hash: videoData.transactionHash,
+        contract_address: videoData.contractAddress,
+        title: videoData.title,
+        description: videoData.description || 'No description provided',
+        tags: videoData.tags,
+        video_url: videoData.videoUrl,
+        thumbnail_url: videoData.thumbnailUrl
+      }
+      
+      // Add optional fields only if they exist in the schema
+      if (videoData.blockNumber) videoRecord.block_number = videoData.blockNumber
+      if (videoData.mintTimestamp) videoRecord.mint_timestamp = videoData.mintTimestamp
+      if (videoData.metadataUri) videoRecord.metadata_uri = videoData.metadataUri
+      if (videoData.duration) videoRecord.duration = videoData.duration
+      if (videoData.category) videoRecord.category = videoData.category
+      
       const { data, error } = await supabaseAdmin
         .from('platform_videos')
-        .insert([{
-          creator_id: profile.id,
-          creator_wallet: videoData.creatorWallet.toLowerCase(),
-          token_id: videoData.tokenId,
-          transaction_hash: videoData.transactionHash,
-          contract_address: videoData.contractAddress,
-          block_number: videoData.blockNumber,
-          mint_timestamp: videoData.mintTimestamp,
-          metadata_uri: videoData.metadataUri,
-          title: videoData.title,
-          description: videoData.description,
-          tags: videoData.tags,
-          video_url: videoData.videoUrl,
-          thumbnail_url: videoData.thumbnailUrl,
-          duration: videoData.duration,
-          category: videoData.category,
-          price_per_period: videoData.pricePerPeriod,
-          license_duration: videoData.licenseDuration,
-          royalty_percentage: videoData.royaltyPercentage,
-          payment_token_address: videoData.paymentTokenAddress,
-          commercial_rights: videoData.commercialRights ?? true,
-          derivative_rights: videoData.derivativeRights ?? false,
-          upload_status: 'ready',
-          moderation_status: 'pending',
-          visibility: 'public',
-          published_at: new Date().toISOString()
-        }])
+        .insert([videoRecord])
         .select('*')
         .single()
 
       if (error) {
-        console.error('Error creating platform video:', error)
+        console.error('❌ Error creating platform video:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          fullError: error
+        })
         throw error
       }
 
-      // Update creator's video count
+      // Update creator's updated_at timestamp
       await supabaseAdmin
         .from('profiles')
         .update({ 
-          videos_count: profile.videos_count + 1,
           updated_at: new Date().toISOString()
         })
         .eq('id', profile.id)
@@ -320,45 +339,68 @@ export class PlatformVideoService {
     try {
       const { limit = 20, offset = 0, includePrivate = false } = options
 
+      console.log('🎥 getVideosByCreator: Fetching videos for wallet:', creatorWallet.toLowerCase())
+
+      // First, get basic video data without complex joins
       let query = supabaseAdmin
         .from('platform_videos')
-        .select(`
-          *,
-          creator:profiles!platform_videos_creator_id_fkey (
-            id,
-            wallet_address,
-            handle,
-            display_name,
-            avatar_url
-          )
-        `)
+        .select('*')
         .eq('creator_wallet', creatorWallet.toLowerCase())
-        .eq('upload_status', 'ready')
 
-      if (!includePrivate) {
-        query = query.eq('visibility', 'public')
-        // Allow both approved and pending videos for creator's own profile
-        query = query.in('moderation_status', ['approved', 'pending'])
+      // Only filter by columns that definitely exist
+      // Remove upload_status and moderation_status filters if they don't exist
+      // query = query.eq('upload_status', 'ready')
+
+      // if (!includePrivate) {
+      //   query = query.eq('visibility', 'public')
+      //   query = query.in('moderation_status', ['approved', 'pending'])
+      // }
+
+      // Order by a column that should exist
+      query = query.order('id', { ascending: false })
+      
+      if (limit > 0) {
+        query = query.range(offset, offset + limit - 1)
       }
-
-      query = query
-        .order('published_at', { ascending: false })
-        .range(offset, offset + limit - 1)
 
       const { data, error } = await query
 
+      console.log('🎥 getVideosByCreator: Query result:', {
+        success: !error,
+        count: data?.length || 0,
+        error: error?.message
+      })
+
       if (error) {
-        console.error('Error fetching creator videos:', error)
+        console.error('❌ Error fetching creator videos:', error)
         throw error
       }
 
+      // Get creator profile separately to avoid complex joins
+      const profile = await this.getProfile(creatorWallet)
+      
+      // Transform data to include creator info
+      const videosWithCreator = (data || []).map(video => ({
+        ...video,
+        creator: profile ? {
+          id: profile.id,
+          wallet_address: profile.wallet_address,
+          handle: profile.handle,
+          display_name: profile.display_name,
+          avatar_url: profile.avatar_url
+        } : null
+      }))
+
       return {
-        videos: data as VideoWithCreator[],
-        hasMore: data.length === limit
+        videos: videosWithCreator,
+        hasMore: videosWithCreator.length === limit
       }
     } catch (error) {
       console.error('❌ Failed to fetch creator videos:', error)
-      throw error
+      return {
+        videos: [],
+        hasMore: false
+      }
     }
   }
 

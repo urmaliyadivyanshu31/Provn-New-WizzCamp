@@ -16,15 +16,157 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
+# Environment files - ALL environment files should be ignored
 .env*
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+env.*
+env.basecamp
+env.provn
+env.example
 
+# Implementation and setup documentation - should not be in public repo
 SETUP_INSTRUCTIONS.md
+SUPABASE_SETUP.md
+PROVN_DEPLOYMENT.md
+DEPLOYMENT_STEPS.md
+IMPLEMENTATION_SUMMARY.md
+PROFILE_SETUP.md
+TECH.md
+COMPACT_TIP_MODAL_REDESIGN.md
+TIP_MODAL_IMPROVEMENTS.md
+package-updates.md
+
+# Setup and configuration scripts
 setup-env.sh
+setup-env.sh
+*.sh
+
+# Test files and scripts
+test-*.js
+test-*.ts
+test-*.tsx
+*test*.js
+*test*.ts
+*test*.tsx
+debug-*.js
+debug-*.ts
+debug-*.tsx
+*.test.js
+*.test.ts
+*.test.tsx
+*.spec.js
+*.spec.ts
+*.spec.tsx
+
+# Database and migration files (may contain sensitive info)
+/sql/
+/supabase/migrations/
+*.sql
+*.migration
+
+# Wallet and private keys
+wallet-info.json
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Uploads and temporary files
+/uploads/
+/temp/
+*.tmp
+*.temp
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
 
 # vercel
 .vercel
@@ -32,3 +174,48 @@ setup-env.sh
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude AI conversation files
+.claude/
+
+# Temporary and cache files
+*.cache
+*.tmp
+temp/
+cache/
+
+# Build artifacts
+dist/
+build/
+out/
+
+# Local development files
+.local/
+local/
+
+# Database dumps and backups
+*.dump
+*.backup
+*.bak
+*.sqlite
+*.db
+
+# API keys and secrets
+secrets/
+secrets.json
+config.local.*
+
+# Additional cleanup - keep repository professional
+.DS_Store
+.vscode/
+*.sql
+/supabase/migrations/
+/supabase/config.toml
+/sql/
+package-updates.md
+env.*
+!env.example
+
+# Scripts - only allow specific useful ones
+/scripts/*
+!/scripts/generate-twitter-assets.js

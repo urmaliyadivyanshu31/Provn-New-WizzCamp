@@ -9,6 +9,10 @@ import { Badge } from "@/components/provn/badge";
 import { useAuth } from "@campnetwork/origin/react";
 import { toast } from "sonner";
 import { ProfileEditModal } from "@/components/provn/profile-edit-modal";
+import { ProfileCard } from "@/components/profile/ProfileCard";
+import { ProfileCardModal } from "@/components/profile/ProfileCardModal";
+import { Profile } from "@/lib/supabase";
+import { ProfileSkeleton } from "@/components/common/LoadingStates";
 
 interface UserProfile {
   id: number;
@@ -47,6 +51,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [showProfileCard, setShowProfileCard] = useState(false);
 
   // Check if this is the current user's profile
   const isOwnProfile = currentUserAddress && 
@@ -68,7 +73,10 @@ export default function ProfilePage() {
         const data = await response.json();
 
         if (data.success) {
-          setProfile(data.user);
+          // Redirect to new URL structure
+          const profileHandle = data.user.handle;
+          window.location.replace(`/u/${profileHandle}`);
+          return;
         } else {
           toast.error('Profile not found');
         }
@@ -148,13 +156,25 @@ export default function ProfilePage() {
     return '📄';
   };
 
+  // Convert UserProfile to Profile format for ProfileCard
+  const convertToProfile = (userProfile: UserProfile): Profile => {
+    return {
+      id: userProfile.id.toString(),
+      wallet_address: userProfile.walletAddress,
+      handle: userProfile.handle,
+      display_name: userProfile.displayName || undefined,
+      bio: userProfile.bio || undefined,
+      avatar_url: userProfile.avatarUrl || undefined,
+      created_at: userProfile.joinedDate,
+      updated_at: userProfile.joinedDate
+    };
+  };
+
   if (loading) {
     return (
       <>
         <Navigation currentPage="profile" />
-        <div className="min-h-screen bg-provn-bg flex items-center justify-center">
-          <div className="text-provn-text">Loading profile...</div>
-        </div>
+        <ProfileSkeleton />
       </>
     );
   }
@@ -197,7 +217,7 @@ export default function ProfilePage() {
                 {/* Avatar */}
                 <div className="relative">
                   <img
-                    src={profile.avatarUrl || '/placeholder-avatar.png'}
+                    src={profile.avatarUrl && profile.avatarUrl.trim() !== '' ? profile.avatarUrl : '/placeholder-avatar.png'}
                     alt={profile.handle}
                     className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-provn-bg object-cover bg-provn-surface"
                   />
@@ -319,6 +339,18 @@ export default function ProfilePage() {
                   </div>
                 )}
               </div>
+
+              {/* Profile Card Section - Available to everyone */}
+              <div className="mt-8 flex justify-center">
+                <Button
+                  variant="secondary" 
+                  onClick={() => setShowProfileCard(true)}
+                  className="px-6 py-3 flex items-center gap-2 bg-gradient-to-r from-provn-accent/10 to-provn-accent/5 hover:from-provn-accent/20 hover:to-provn-accent/10 border border-provn-accent/30 text-provn-accent"
+                >
+                  ✨
+                  View Profile Card
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -357,14 +389,14 @@ export default function ProfilePage() {
                   >
                     {content.fileType.startsWith('image/') ? (
                       <img
-                        src={content.thumbnailUrl}
+                        src={content.thumbnailUrl || undefined}
                         alt={content.title}
                         className="w-full h-full object-cover"
                       />
                     ) : content.fileType.startsWith('video/') ? (
                       <div className="w-full h-full relative">
                         <video
-                          src={content.thumbnailUrl}
+                          src={content.thumbnailUrl || undefined}
                           className="w-full h-full object-cover"
                           muted
                         />
@@ -409,6 +441,17 @@ export default function ProfilePage() {
             bannerUrl: profile.bannerUrl,
           }}
           onSave={handleSaveProfile}
+        />
+      )}
+
+      {/* Profile Card Modal */}
+      {profile && (
+        <ProfileCardModal
+          isOpen={showProfileCard}
+          onClose={() => setShowProfileCard(false)}
+          profile={convertToProfile(profile)}
+          title="Profile Card"
+          subtitle="Download or share your beautiful profile card"
         />
       )}
     </>

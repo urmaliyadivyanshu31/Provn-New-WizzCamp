@@ -158,7 +158,7 @@ export function ProfileEditModal({ isOpen, onClose, profile, onSave }: ProfileEd
       <div className="relative w-full max-w-2xl max-h-[90vh] mx-4 bg-provn-surface rounded-2xl border border-provn-border overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-provn-border">
-          <h2 className="text-xl font-bold text-provn-text">Edit Profile</h2>
+          <h2 className="text-xl font-bold text-provn-text font-headline">Edit Profile</h2>
           <ProvnButton
             variant="secondary"
             size="sm"

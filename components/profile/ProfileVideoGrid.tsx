@@ -179,12 +179,12 @@ export function ProfileVideoGrid({
           </div>
           <div className="space-y-2">
             <h3 className="text-xl font-semibold text-provn-text font-headline">
-              {isOwnProfile ? 'No videos yet' : 'No videos found'}
+              {isOwnProfile ? 'No provs yet' : 'No provs found'}
             </h3>
             <p className="text-provn-muted font-headline">
               {isOwnProfile 
-                ? 'Upload your first video to get started!'
-                : 'This profile hasn\'t uploaded any videos yet.'
+                ? 'Upload your first prov to get started!'
+                : 'This profile hasn\'t uploaded any provs yet.'
               }
             </p>
           </div>
@@ -209,7 +209,7 @@ export function ProfileVideoGrid({
                   ) : (
                     <>
                       <RefreshCw className="w-4 h-4 mr-2" />
-                      Sync Videos
+                      Sync Provs
                     </>
                   )}
                 </ProvnButton>
@@ -227,7 +227,7 @@ export function ProfileVideoGrid({
       {isOwnProfile && userHandle && (
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold text-provn-text font-headline">
-            Your Videos
+            Your Provs
           </h3>
           <ProvnButton 
             variant="secondary" 
@@ -243,7 +243,7 @@ export function ProfileVideoGrid({
             ) : (
               <>
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Sync Videos
+                Sync Provs
               </>
             )}
           </ProvnButton>

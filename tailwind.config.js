@@ -60,6 +60,18 @@ module.exports = {
           '4': 'var(--chart-4)',
           '5': 'var(--chart-5)',
         },
+        gold: {
+          50: '#fffdf2',
+          100: '#fef9e5',
+          200: '#fef2c6',
+          300: '#fde68a',
+          400: '#fcd34d',
+          500: '#f59e0b',
+          600: '#d97706',
+          700: '#b45309',
+          800: '#92400e',
+          900: '#78350f',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

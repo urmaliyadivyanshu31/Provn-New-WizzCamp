@@ -12,11 +12,42 @@
 .video-container {
   scroll-snap-type: y mandatory;
   scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
 .video-item {
   scroll-snap-align: start;
   scroll-snap-stop: always;
+  will-change: transform; /* Optimize for animations */
+  -webkit-backface-visibility: hidden; /* Prevent flickering */
+  backface-visibility: hidden;
+}
+
+/* Trackpad-friendly video controls */
+video {
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+  cursor: pointer;
+}
+
+video:hover {
+  cursor: pointer;
+}
+
+/* Smooth transitions for video feed */
+.video-feed-transition {
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Trackpad scroll enhancements */
+@media (pointer: fine) {
+  /* For devices with precise pointing (trackpad/mouse) */
+  .video-container {
+    overscroll-behavior-y: contain; /* Prevent bounce scrolling */
+  }
+  
+  .video-item {
+    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
 }
 
 /* Touch-friendly button sizes for mobile */
@@ -66,6 +97,10 @@
 @media (prefers-reduced-motion: reduce) {
   .video-transition {
     transition: none;
+  }
+  
+  .video-item {
+    transition: transform 0.2s ease-out; /* Faster, simpler transition */
   }
   
   .action-button {

@@ -51,7 +51,7 @@ export class IPFSGatewayService {
   ]
 
   /**
-   * Get the best available IPFS URL with automatic fallbacks
+   * Get the best available IPFS URL with parallel gateway testing for maximum speed
    * Uses proxy service to bypass CORS/CORB restrictions
    */
   async getOptimalUrl(ipfsHashOrUrl: string, useProxy = true): Promise<string> {
@@ -66,33 +66,77 @@ export class IPFSGatewayService {
       return cached.url
     }
 
-    // Find first available gateway
-    for (const gateway of this.gateways) {
-      if (this.throttler.canMakeRequest(gateway.url)) {
-        const directUrl = `${gateway.url}/ipfs/${hash}`
-        
-        // Use proxy service to bypass CORS/CORB issues
-        const url = useProxy 
-          ? `/api/proxy/video?url=${encodeURIComponent(directUrl)}`
-          : directUrl
-        
-        // Cache the successful URL
-        this.cache.set(cacheKey, { url, timestamp: Date.now() })
-        
-        console.log(`🌐 Using ${gateway.name} gateway${useProxy ? ' via proxy' : ''} for IPFS content`)
-        return url
-      }
+    // Try parallel requests to find fastest gateway
+    const fastestUrl = await this.findFastestGateway(hash, useProxy)
+    
+    // Cache the successful URL
+    this.cache.set(cacheKey, { url: fastestUrl, timestamp: Date.now() })
+    
+    return fastestUrl
+  }
+
+  /**
+   * Test multiple gateways in parallel and return the fastest responding one
+   */
+  private async findFastestGateway(hash: string, useProxy: boolean): Promise<string> {
+    const availableGateways = this.gateways.filter(gateway => 
+      this.throttler.canMakeRequest(gateway.url)
+    )
+
+    if (availableGateways.length === 0) {
+      // All gateways throttled, use highest priority
+      const fallbackGateway = this.gateways[0]
+      const directUrl = `${fallbackGateway.url}/ipfs/${hash}`
+      console.warn(`⚠️ All gateways throttled, using ${fallbackGateway.name} as fallback`)
+      return useProxy 
+        ? `/api/proxy/video?url=${encodeURIComponent(directUrl)}`
+        : directUrl
     }
 
-    // If all gateways are throttled, use the highest priority one
-    const fallbackGateway = this.gateways[0]
-    const directUrl = `${fallbackGateway.url}/ipfs/${hash}`
-    const fallbackUrl = useProxy 
-      ? `/api/proxy/video?url=${encodeURIComponent(directUrl)}`
-      : directUrl
-    
-    console.warn(`⚠️ All gateways throttled, using ${fallbackGateway.name}${useProxy ? ' via proxy' : ''} as fallback`)
-    return fallbackUrl
+    // Race condition: test multiple gateways simultaneously
+    const racePromises = availableGateways.map(async (gateway) => {
+      const directUrl = `${gateway.url}/ipfs/${hash}`
+      const testUrl = useProxy 
+        ? `/api/proxy/video?url=${encodeURIComponent(directUrl)}`
+        : directUrl
+
+      try {
+        const startTime = performance.now()
+        
+        // Quick HEAD request to test availability and speed
+        const response = await fetch(testUrl, {
+          method: 'HEAD',
+          signal: AbortSignal.timeout(2000) // 2 second timeout for speed test
+        })
+        
+        const responseTime = performance.now() - startTime
+
+        if (response.ok) {
+          console.log(`🚀 Gateway ${gateway.name} responded in ${responseTime.toFixed(0)}ms`)
+          return { url: testUrl, gateway: gateway.name, responseTime }
+        } else {
+          throw new Error(`HTTP ${response.status}`)
+        }
+      } catch (error) {
+        console.warn(`❌ Gateway ${gateway.name} failed speed test:`, error)
+        throw error
+      }
+    })
+
+    try {
+      // Use Promise.race to get the fastest responding gateway
+      const fastest = await Promise.race(racePromises)
+      console.log(`⚡ Fastest gateway: ${fastest.gateway} (${fastest.responseTime.toFixed(0)}ms)`)
+      return fastest.url
+    } catch {
+      // If all parallel requests fail, fall back to first available
+      const fallbackGateway = availableGateways[0]
+      const directUrl = `${fallbackGateway.url}/ipfs/${hash}`
+      console.warn(`⚠️ All gateways failed speed test, using ${fallbackGateway.name} as fallback`)
+      return useProxy 
+        ? `/api/proxy/video?url=${encodeURIComponent(directUrl)}`
+        : directUrl
+    }
   }
 
   /**

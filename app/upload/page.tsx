@@ -8,7 +8,10 @@ import { ProvnButton } from "@/components/provn/button";
 import { ProvnCard, ProvnCardContent } from "@/components/provn/card";
 import { ProvnBadge } from "@/components/provn/badge";
 import { Navigation } from "@/components/provn/navigation";
+import { FullyProtectedRoute } from "@/components/guards/ProtectedRoute";
 import { CampModal } from "@campnetwork/origin/react";
+import { RemixingSettings } from "@/components/upload/RemixingSettings";
+import { RemixingConfiguration } from "@/types/remixing";
 import {
   Video,
   Loader2,
@@ -16,8 +19,10 @@ import {
   Copy,
   Share2,
   ExternalLink,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ProvnBrandLoader } from "@/components/common/LoadingStates";
 
 interface LicenseTerms {
   price: string;
@@ -64,6 +69,16 @@ export default function UploadPage() {
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [allowRemixing, setAllowRemixing] = useState(true);
+  const [remixingConfig, setRemixingConfig] = useState<RemixingConfiguration>({
+    enabled: true,
+    permissionLevel: 'basic',
+    requiresAttribution: true,
+    allowCommercialUse: false,
+    allowDerivatives: true,
+    price: 0,
+    duration: 2592000 // Default: 30 days in seconds
+  });
+  const [showRemixingSettings, setShowRemixingSettings] = useState(false);
   const [mintResult, setMintResult] = useState<MintResult | null>(null);
 
   const metadata: VideoMetadata = {
@@ -71,11 +86,12 @@ export default function UploadPage() {
     description: "",
   };
 
+  // Generate license terms from remixing configuration
   const license: LicenseTerms = {
-    price: "0",
-    duration: "2629800",
-    royalty: "0",
-    paymentToken: "0x0000000000000000000000000000000000000000",
+    price: (remixingConfig.price || 0).toString(),
+    duration: (remixingConfig.duration || 2592000).toString(),
+    royalty: "0", // TODO: Add royalty support if needed
+    paymentToken: "0x0000000000000000000000000000000000000000", // ETH/Native token
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -119,6 +135,11 @@ export default function UploadPage() {
         handleFileSelect(fakeEvent);
       }
     }
+  };
+
+  const handleRemixingConfigSave = (config: RemixingConfiguration) => {
+    setRemixingConfig(config);
+    toast.success('Remixing settings updated!');
   };
 
   const handleMint = async () => {
@@ -209,6 +230,7 @@ export default function UploadPage() {
                     royalty: license.royalty,
                     paymentToken: license.paymentToken,
                   },
+                  remixing: remixingConfig,
                   mintTimestamp: new Date().toISOString(),
                 };
 
@@ -362,8 +384,12 @@ export default function UploadPage() {
   // Render success state
   if (mintResult) {
     return (
-      <div className="font-headline min-h-screen bg-provn-bg">
-        <Navigation currentPage="upload" />
+      <FullyProtectedRoute
+        authMessage="Connect your wallet to view your minted video results."
+        profileMessage="Create your profile to access your uploaded content."
+      >
+        <div className="font-headline min-h-screen bg-provn-bg">
+          <Navigation currentPage="upload" />
 
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center space-y-12">
@@ -499,7 +525,7 @@ export default function UploadPage() {
                     <div className="font-mono text-xs text-provn-muted bg-provn-surface-2 px-2.5 py-1.5 rounded border border-provn-border">
                       {mintResult.ipfsHash === "processing" ? (
                         <div className="flex items-center gap-1.5">
-                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <ProvnBrandLoader size="sm" variant="simple" />
                           Processing...
                         </div>
                       ) : (
@@ -553,7 +579,7 @@ export default function UploadPage() {
                     <div className="font-mono text-xs text-provn-muted bg-provn-surface-2 px-2.5 py-1.5 rounded border border-provn-border">
                       {mintResult.transactionHash === "processing" ? (
                         <div className="flex items-center gap-1.5">
-                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <ProvnBrandLoader size="sm" variant="simple" />
                           Processing...
                         </div>
                       ) : mintResult.transactionHash &&
@@ -612,14 +638,19 @@ export default function UploadPage() {
             </div>
           </div>
         </main>
-      </div>
+        </div>
+      </FullyProtectedRoute>
     );
   }
 
   // Render main upload form
   return (
-    <div className="font-headline min-h-screen bg-provn-bg">
-      <Navigation currentPage="upload" />
+    <FullyProtectedRoute
+      authMessage="Connect your wallet to start creating and minting videos as IP-NFTs on Provn."
+      profileMessage="Create your profile to upload videos and build your creator presence on the platform."
+    >
+      <div className="font-headline min-h-screen bg-provn-bg">
+        <Navigation currentPage="upload" />
 
       {/* Upload Form */}
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -681,7 +712,7 @@ export default function UploadPage() {
                 <div className="space-y-4">
                   <div className="aspect-video bg-black rounded-xl overflow-hidden">
                     <video
-                      src={preview}
+                      src={preview || undefined}
                       controls
                       className="w-full h-full object-contain"
                     />
@@ -777,28 +808,46 @@ export default function UploadPage() {
               </div>
 
               <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    id="allow-remixing"
-                    checked={allowRemixing}
-                    onChange={(e) => setAllowRemixing(e.target.checked)}
-                    className="w-4 h-4 text-provn-accent bg-provn-surface-2 border-provn-border rounded focus:ring-provn-accent focus:ring-2"
-                  />
-                  <label
-                    htmlFor="allow-remixing"
-                    className="text-provn-text font-medium"
-                  >
-                    Allow Remixing
-                  </label>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      id="allow-remixing"
+                      checked={remixingConfig.enabled}
+                      onChange={(e) => setRemixingConfig(prev => ({ ...prev, enabled: e.target.checked }))}
+                      className="w-4 h-4 text-provn-accent bg-provn-surface-2 border-provn-border rounded focus:ring-provn-accent focus:ring-2"
+                    />
+                    <label
+                      htmlFor="allow-remixing"
+                      className="text-provn-text font-medium"
+                    >
+                      Allow Licensing
+                    </label>
+                  </div>
+                  {remixingConfig.enabled && (
+                    <ProvnButton
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowRemixingSettings(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Configure
+                    </ProvnButton>
+                  )}
                 </div>
+                {remixingConfig.enabled && remixingConfig.template && (
+                  <div className="ml-7 text-sm text-provn-muted">
+                    <p>License Type: <span className="capitalize text-provn-accent font-medium">{remixingConfig.template}</span></p>
+                  </div>
+                )}
 
                 <div className="ml-7 space-y-2">
                   <p className="text-provn-muted text-sm">
-                    License Price: Free (0 wCAMP)
+                    License Price: {remixingConfig.template ? `${remixingConfig.price || 0} CAMP` : 'Free (0 CAMP)'}
                   </p>
                   <p className="text-provn-muted text-xs">
-                    This video will be minted as a free IP-NFT on the BaseCAMP
+                    This video will be minted as a {remixingConfig.template ? 'licensed' : 'free'} IP-NFT on the BaseCAMP
                     network.
                   </p>
                 </div>
@@ -833,8 +882,8 @@ export default function UploadPage() {
               >
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Minting Video...
+                    <ProvnBrandLoader size="sm" variant="simple" />
+                    <span className="ml-2">Minting Video...</span>
                   </>
                 ) : (
                   <>
@@ -875,6 +924,15 @@ export default function UploadPage() {
 
       {/* CampModal for Origin SDK wallet connection */}
       {/* <CampModal /> */}
-    </div>
+
+        {/* Remixing Settings Modal */}
+        <RemixingSettings
+          isOpen={showRemixingSettings}
+          onClose={() => setShowRemixingSettings(false)}
+          onSave={handleRemixingConfigSave}
+          initialConfig={remixingConfig}
+        />
+      </div>
+    </FullyProtectedRoute>
   );
 }

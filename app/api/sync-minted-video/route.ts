@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
       thumbnailUrl,
       metadataUri,
       license,
+      remixing,
       blockNumber,
       mintTimestamp
     } = body
@@ -194,7 +195,16 @@ export async function POST(request: NextRequest) {
       royaltyPercentage: license?.royalty ? parseInt(license.royalty) : undefined,
       paymentTokenAddress: license?.paymentToken,
       commercialRights: true,
-      derivativeRights: false
+      derivativeRights: false,
+      // Remixing configuration
+      remixingEnabled: remixing?.enabled ?? true,
+      remixingPermissionLevel: remixing?.permissionLevel || 'basic',
+      remixingTemplate: remixing?.template,
+      remixingRequiresAttribution: remixing?.requiresAttribution ?? true,
+      remixingAllowCommercial: remixing?.allowCommercialUse ?? false,
+      remixingAllowDerivatives: remixing?.allowDerivatives ?? true,
+      remixingCustomSettings: remixing?.customSettings,
+      remixingMessage: remixing?.message
     })
 
     const duration = Date.now() - startTime
@@ -225,6 +235,35 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error) {
       console.error('❌ Video Sync API: Error message:', error.message)
       console.error('❌ Video Sync API: Error stack:', error.stack)
+      
+      // Check for specific database constraint errors
+      if (error.message.includes('valid_video_url')) {
+        console.error('❌ Video Sync API: Invalid video URL constraint violation')
+        return NextResponse.json({
+          success: true,
+          message: 'Video minted successfully but sync failed due to invalid video URL',
+          synced: false,
+          error: 'Video URL must be a valid HTTP/HTTPS URL',
+          step,
+          duration: `${duration}ms`,
+          action_required: 'Ensure video URL is a valid HTTP/HTTPS URL',
+          constraint_violation: 'valid_video_url'
+        }, { status: 200 })
+      }
+      
+      if (error.message.includes('valid_title')) {
+        console.error('❌ Video Sync API: Invalid title constraint violation')
+        return NextResponse.json({
+          success: true,
+          message: 'Video minted successfully but sync failed due to invalid title',
+          synced: false,
+          error: 'Title must be 1-200 characters long',
+          step,
+          duration: `${duration}ms`,
+          action_required: 'Ensure title is between 1 and 200 characters',
+          constraint_violation: 'valid_title'
+        }, { status: 200 })
+      }
       
       // Special handling for payload too large errors
       if (error.message.includes('413') || error.message.includes('Request too large') || error.message.includes('Content Too Large')) {

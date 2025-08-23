@@ -1,81 +1,31 @@
 "use client"
 import React, { useRef, useState, useEffect } from "react"
 import { motion, useScroll, useTransform, useInView } from "framer-motion"
+import { rafThrottle } from "@/lib/utils/performance"
+import { fastTransition, normalTransition, slideUpFast, fadeInFast, optimizedViewport } from "@/lib/utils/animation-config"
 import { ProvnBadge } from "@/components/provn/badge"
 import { Navigation } from "@/components/provn/navigation"
 import { ProvnButton } from "@/components/provn/button"
+import { UserJourney } from "@/components/landing/UserJourney"
+import { CreateProfileModal } from "@/components/provn/create-profile-modal"
 import { 
   Upload, 
   Users, 
   DollarSign,
   ArrowRight,
   CheckCircle,
-  Play
+  Play,
+  Wallet
 } from "lucide-react"
 
 
-// Creator Success Story Component
-const CreatorStory = ({ 
-  name, 
-  avatar, 
-  platform, 
-  oldEarnings, 
-  newEarnings, 
-  timeframe,
-  quote 
-}: {
-  name: string
-  avatar: string  
-  platform: string
-  oldEarnings: string
-  newEarnings: string
-  timeframe: string
-  quote: string
-}) => {
-  return (
-    <motion.div
-      whileHover={{ y: -5 }}
-      className="bg-provn-surface border border-provn-border rounded-2xl p-6 h-full"
-    >
-      <div className="flex items-center mb-4">
-        <div className="w-12 h-12 bg-provn-accent rounded-full flex items-center justify-center mr-3">
-          <span className="text-provn-bg font-bold text-lg">{avatar}</span>
-        </div>
-        <div>
-          <h4 className="font-semibold text-provn-text">{name}</h4>
-          <p className="text-sm text-provn-muted">Former {platform} Creator</p>
-        </div>
-      </div>
-      
-      <blockquote className="text-provn-text mb-4 italic">
-        "{quote}"
-      </blockquote>
-      
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-provn-muted">{platform} ({timeframe}):</span>
-          <span className="text-red-400">{oldEarnings}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-provn-muted">Provn ({timeframe}):</span>
-          <span className="text-provn-success font-bold">{newEarnings}</span>
-        </div>
-        <div className="pt-2 border-t border-provn-border">
-          <div className="text-provn-accent font-bold text-right">
-            +{Math.round(((parseFloat(newEarnings.replace('$', '').replace('K', '000')) - parseFloat(oldEarnings.replace('$', '').replace('K', '000'))) / parseFloat(oldEarnings.replace('$', '').replace('K', '000'))) * 100)}% increase
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  )
-}
 
 // Platform Metrics Component  
 const LiveMetrics = ({ creatorsCount, videosCount }: { creatorsCount: number, videosCount: number }) => {
   const metrics = [
     { label: "Active Creators", value: creatorsCount.toString(), icon: Users },
     { label: "Total Earnings", value: "$2.3M", icon: DollarSign },
-    { label: "Videos Protected", value: videosCount.toString(), icon: CheckCircle },
+    { label: "PROVN Protected", value: videosCount.toString(), icon: CheckCircle },
     { label: "Zero Platform Fees", value: "100%", icon: CheckCircle }
   ]
 
@@ -88,8 +38,8 @@ const LiveMetrics = ({ creatorsCount, videosCount }: { creatorsCount: number, vi
             key={metric.label}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: index * 0.1 }}
-            viewport={{ once: true }}
+            transition={{ ...fastTransition, delay: index * 0.03 }}
+            viewport={optimizedViewport}
             className="bg-provn-surface border border-provn-border rounded-xl p-4 text-center"
           >
             <Icon className="w-8 h-8 text-provn-accent mx-auto mb-2" />
@@ -108,51 +58,131 @@ const LiveMetrics = ({ creatorsCount, videosCount }: { creatorsCount: number, vi
 
 export default function HomePage() {
   const { scrollYProgress } = useScroll()
+  // Optimize scroll-based transforms to reduce repaints
   const headerOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0.8])
   
   const heroRef = useRef(null)
-  const isHeroInView = useInView(heroRef, { once: true })
+  const isHeroInView = useInView(heroRef, { once: true, margin: "0px 0px -100px 0px" })
   
-  // Real platform data
+  
+  // Real platform data with loading state
   const [platformData, setPlatformData] = useState({
-    creatorsCount: 4, // Default fallback
-    videosCount: 3   // Default fallback
+    creatorsCount: 0, // Start with 0, will be updated with real data
+    videosCount: 0,   // Start with 0, will be updated with real data
+    loading: true
   })
   
+  // Add authentication state
+  const [isConnected, setIsConnected] = useState(false)
+  const [hasProfile, setHasProfile] = useState(false)
+  const [showCreateProfile, setShowCreateProfile] = useState(false)
+  
+  // Check authentication status
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      // Check if wallet cookie exists (means user is connected and whitelisted)
+      const walletCookie = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('wallet_address='))
+      
+      if (walletCookie) {
+        const walletAddress = walletCookie.split('=')[1]
+        setIsConnected(true)
+        console.log('✅ User is connected and whitelisted:', walletAddress)
+        
+        // Check if user has profile
+        try {
+          const response = await fetch(`/api/profile/${walletAddress}`)
+          if (response.ok) {
+            const data = await response.json()
+            if (data.success && data.profile) {
+              setHasProfile(true)
+              console.log('✅ User has profile:', data.profile.handle)
+            } else {
+              setHasProfile(false)
+              console.log('⚠️ User needs to create profile')
+            }
+          } else {
+            setHasProfile(false)
+            console.log('⚠️ User needs to create profile (API error)')
+          }
+        } catch (error) {
+          console.error('Error checking profile:', error)
+          setHasProfile(false)
+        }
+      }
+    }
+    
+    checkAuthStatus()
+  }, [])
+
+  // Helper function to handle protected navigation
+  const handleProtectedNavigation = (href: string) => {
+    if (!isConnected) {
+      // Redirect to whitelist for authentication
+      window.location.href = '/whitelist'
+    } else if (!hasProfile) {
+      // Show profile creation modal
+      setShowCreateProfile(true)
+    } else {
+      // User is fully authenticated with profile
+      window.location.href = href
+    }
+  }
+
   // Fetch real platform data
   useEffect(() => {
     const fetchPlatformData = async () => {
       try {
+        console.log('🔄 Fetching platform data...')
+        
         const [creatorsResponse, videosResponse] = await Promise.all([
           fetch('/api/leaderboard?limit=1000'), // Get all creators
-          fetch('/api/platform-stats') // We'll create this endpoint
+          fetch('/api/platform-stats') // Get videos count
         ])
         
-        const creatorsData = await creatorsResponse.json()
-        
-        if (creatorsData.success) {
-          setPlatformData(prev => ({
-            ...prev,
-            creatorsCount: creatorsData.data.stats.total_creators
-          }))
-        }
-        
-        // Try to get video count from existing endpoint or use fallback
-        try {
-          const videosData = await videosResponse.json()
-          if (videosData.success) {
+        // Handle creators data
+        if (creatorsResponse.ok) {
+          const creatorsData = await creatorsResponse.json()
+          if (creatorsData.success && creatorsData.data?.stats?.total_creators) {
+            console.log('✅ Creators count:', creatorsData.data.stats.total_creators)
             setPlatformData(prev => ({
               ...prev,
-              videosCount: videosData.videosCount
+              creatorsCount: Math.max(creatorsData.data.stats.total_creators, 4) // Minimum 4 for display
             }))
+          } else {
+            console.warn('❌ Invalid creators data:', creatorsData)
           }
-        } catch (e) {
-          // Keep fallback value if endpoint doesn't exist
+        } else {
+          console.error('❌ Creators API failed:', creatorsResponse.status)
+        }
+        
+        // Handle videos data
+        if (videosResponse.ok) {
+          const videosData = await videosResponse.json()
+          if (videosData.success && typeof videosData.videosCount === 'number') {
+            console.log('✅ Videos count:', videosData.videosCount)
+            setPlatformData(prev => ({
+              ...prev,
+              videosCount: Math.max(videosData.videosCount, 3) // Minimum 3 for display
+            }))
+          } else {
+            console.warn('❌ Invalid videos data:', videosData)
+          }
+        } else {
+          console.error('❌ Videos API failed:', videosResponse.status)
         }
         
       } catch (error) {
-        console.error('Failed to fetch platform data:', error)
-        // Keep fallback values
+        console.error('❌ Failed to fetch platform data:', error)
+        // Set minimum fallback values for better UX
+        setPlatformData(prev => ({
+          ...prev,
+          creatorsCount: Math.max(prev.creatorsCount, 4),
+          videosCount: Math.max(prev.videosCount, 3)
+        }))
+      } finally {
+        setPlatformData(prev => ({ ...prev, loading: false }))
       }
     }
     
@@ -166,7 +196,7 @@ export default function HomePage() {
       {/* Hero Section - Creator Focused */}
       <motion.section 
         ref={heroRef}
-        className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 overflow-hidden"
+        className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 overflow-hidden pt-20 md:pt-16"
         style={{ opacity: headerOpacity }}
       >
         {/* Background Elements */}
@@ -189,19 +219,26 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={isHeroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-            transition={{ duration: 0.8 }}
+            transition={normalTransition}
             className="space-y-8"
           >
             <div className="space-y-6">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={isHeroInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
+                transition={{ ...normalTransition, delay: 0.1 }}
               >
-                <ProvnBadge className="bg-provn-success/10 text-provn-success border-provn-success/20 mb-6">
-                  <DollarSign className="w-4 h-4 mr-1" />
-                  Zero Platform Fees
-                </ProvnBadge>
+                {isConnected ? (
+                  <ProvnBadge className="bg-green-500/10 text-green-500 border-green-500/20 mb-6">
+                    <CheckCircle className="w-4 h-4 mr-1" />
+                    Connected & Whitelisted
+                  </ProvnBadge>
+                ) : (
+                  <ProvnBadge className="bg-provn-success/10 text-provn-success border-provn-success/20 mb-6">
+                    <DollarSign className="w-4 h-4 mr-1" />
+                    Zero Platform Fees
+                  </ProvnBadge>
+                )}
               </motion.div>
               
               <h1 className="font-headline text-5xl md:text-6xl lg:text-7xl font-bold text-provn-text leading-tight">
@@ -213,36 +250,67 @@ export default function HomePage() {
               </h1>
               
               <p className="text-xl font-headline md:text-2xl text-provn-muted leading-relaxed max-w-3xl mx-auto">
-                Join <strong className="text-provn-text">{platformData.creatorsCount}+ Elite Creators</strong> who've escaped platform fees and built true content ownership on Provn.
+                Join <strong className="text-provn-text">
+                  {platformData.loading ? (
+                    <span className="inline-block animate-pulse bg-provn-accent/20 text-transparent rounded">XX+</span>
+                  ) : (
+                    `${platformData.creatorsCount}+`
+                  )} Elite Creators
+                </strong> who've escaped platform fees and built true content ownership on Provn.
               </p>
             </div>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <ProvnButton
-                size="lg"
-                onClick={() => (window.location.href = "/upload")}
-                className="px-12 py-4 text-xl font-semibold group"
-              >
-                <Upload className="w-6 h-6 mr-2 group-hover:rotate-12 transition-transform" />
-                Start Earning More
-                <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
-              </ProvnButton>
-              <ProvnButton
-                variant="secondary"
-                size="lg"
-                onClick={() => (window.location.href = "/dashboard")}
-                className="px-12 py-4 text-xl group"
-              >
-                <Play className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
-                See Success Stories
-              </ProvnButton>
+              {isConnected ? (
+                <>
+                  <ProvnButton
+                    size="lg"
+                    onClick={() => handleProtectedNavigation("/upload")}
+                    className="px-12 py-4 text-xl font-semibold group"
+                  >
+                    <Upload className="w-6 h-6 mr-2 group-hover:rotate-12 transition-transform" />
+                    {hasProfile ? "Upload Content" : "Complete Setup & Upload"}
+                    <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </ProvnButton>
+                  <ProvnButton
+                    variant="secondary"
+                    size="lg"
+                    onClick={() => handleProtectedNavigation("/explore")}
+                    className="px-12 py-4 text-xl group"
+                  >
+                    <Play className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
+                    Explore Platform
+                  </ProvnButton>
+                </>
+              ) : (
+                <>
+                  <ProvnButton
+                    size="lg"
+                    onClick={() => handleProtectedNavigation("/whitelist")}
+                    className="px-12 py-4 text-xl font-semibold group"
+                  >
+                    <Wallet className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
+                    Connect Wallet to Start
+                    <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </ProvnButton>
+                  <ProvnButton
+                    variant="secondary"
+                    size="lg"
+                    onClick={() => handleProtectedNavigation("/dashboard")}
+                    className="px-12 py-4 text-xl group"
+                  >
+                    <Play className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
+                    See Success Stories
+                  </ProvnButton>
+                </>
+              )}
             </div>
 
             {/* Hero Stats */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={isHeroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
+              transition={{ ...normalTransition, delay: 0.2 }}
               className="flex flex-wrap justify-center gap-12 pt-12 border-t border-provn-border/30"
             >
               <div className="text-center">
@@ -254,13 +322,189 @@ export default function HomePage() {
                 <div className="text-sm text-provn-muted mt-1">Platform Fees</div>
               </div>
               <div className="text-center">
-                <div className="text-4xl font-bold text-provn-text font-headline">{platformData.videosCount}+</div>
-                <div className="text-sm text-provn-muted mt-1">Videos Protected</div>
+                <div className="text-4xl font-bold text-provn-text font-headline">
+                  {platformData.loading ? (
+                    <span className="inline-block animate-pulse bg-provn-accent/20 text-transparent rounded">XX+</span>
+                  ) : (
+                    `${platformData.videosCount}+`
+                  )}
+                </div>
+                <div className="text-sm text-provn-muted mt-1">Provs Protected</div>
               </div>
             </motion.div>
           </motion.div>
         </div>
       </motion.section>
+
+      {/* Platform Demo Section */}
+      <section className="py-24 relative overflow-hidden">
+        {/* Background Elements */}
+        <div className="absolute inset-0">
+          <motion.div
+            animate={{ 
+              rotate: [0, 360],
+              scale: [1, 1.2, 1]
+            }}
+            transition={{ 
+              rotate: { duration: 30, repeat: Infinity, ease: "linear" },
+              scale: { duration: 12, repeat: Infinity, ease: "easeInOut" }
+            }}
+            className="absolute -top-40 -left-40 w-80 h-80 bg-provn-accent/10 rounded-full blur-3xl"
+          />
+          <motion.div
+            animate={{ 
+              rotate: [360, 0],
+              scale: [1, 1.1, 1]
+            }}
+            transition={{ 
+              rotate: { duration: 25, repeat: Infinity, ease: "linear" },
+              scale: { duration: 10, repeat: Infinity, ease: "easeInOut" }
+            }}
+            className="absolute -bottom-40 -right-40 w-96 h-96 bg-provn-success/8 rounded-full blur-3xl"
+          />
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          {/* Section Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={normalTransition}
+            viewport={optimizedViewport}
+            className="text-center mb-16"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              viewport={optimizedViewport}
+            >
+              <ProvnBadge className="bg-provn-accent/10 text-provn-accent border-provn-accent/20 mb-6">
+                <Play className="w-4 h-4 mr-1" />
+                Platform Walkthrough
+              </ProvnBadge>
+            </motion.div>
+            
+            <h2 className="font-headline text-4xl md:text-6xl font-bold text-provn-text mb-6 leading-tight">
+              Exploring the Provn Platform:{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-provn-accent to-provn-accent/80">
+                A New Era
+              </span>{" "}
+              for Content Creators
+            </h2>
+            <p className="text-xl font-headline md:text-2xl text-provn-muted max-w-3xl mx-auto leading-relaxed">
+              Watch how creators are revolutionizing their earnings with zero platform fees
+            </p>
+          </motion.div>
+
+          {/* Video Container */}
+          <motion.div
+            initial={{ opacity: 0, y: 40, scale: 0.95 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            viewport={optimizedViewport}
+            className="relative"
+          >
+            {/* Decorative elements */}
+            <div className="absolute inset-0 bg-gradient-to-br from-provn-accent/20 to-provn-success/20 rounded-3xl blur-2xl transform rotate-1"></div>
+            <div className="absolute inset-0 bg-gradient-to-tl from-provn-accent/10 to-transparent rounded-3xl blur-xl transform -rotate-1"></div>
+            
+            {/* Video wrapper with glassmorphism effect */}
+            <div className="relative bg-gradient-to-br from-provn-surface/90 to-provn-surface/70 backdrop-blur-xl border border-provn-border/50 rounded-3xl p-8 shadow-2xl">
+              <div className="relative">
+                {/* Video container with rounded corners */}
+                <div className="relative overflow-hidden rounded-2xl bg-provn-surface border border-provn-border/30">
+                  {/* Video option with iframe */}
+                  <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
+                    <iframe 
+                      src="https://www.loom.com/embed/e228fc775d8645e2a4bb68922dea8104?sid=1293affb-0e46-4184-b566-979fded63daa" 
+                      style={{ 
+                        position: 'absolute', 
+                        top: 0, 
+                        left: 0, 
+                        width: '100%', 
+                        height: '100%',
+                        border: 'none',
+                        borderRadius: '1rem'
+                      }}
+                      allow="fullscreen"
+                      title="Exploring the Provn Platform: A New Era for Content Creators"
+                    />
+                  </div>
+
+                  {/* Alternative: Thumbnail GIF (uncomment to use instead of iframe) */}
+                  {/* 
+                  <div className="relative group cursor-pointer" onClick={() => window.open('https://www.loom.com/share/e228fc775d8645e2a4bb68922dea8104', '_blank')}>
+                    <img 
+                      src="https://cdn.loom.com/sessions/thumbnails/e228fc775d8645e2a4bb68922dea8104-d62552280dee495c-full-play.gif"
+                      alt="Exploring the Provn Platform: A New Era for Content Creators - Watch Video"
+                      className="w-full rounded-2xl transition-all duration-300 group-hover:scale-105"
+                      style={{ maxWidth: '100%', height: 'auto' }}
+                    />
+                    <div className="absolute inset-0 bg-black/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                      <div className="bg-provn-accent/90 rounded-full p-4">
+                        <Play className="w-8 h-8 text-white" />
+                      </div>
+                    </div>
+                  </div>
+                  */}
+                </div>
+
+                {/* Floating stats overlay */}
+                <motion.div
+                  initial={{ opacity: 0, x: 30 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ ...normalTransition, delay: 0.3 }}
+                  viewport={optimizedViewport}
+                  className="absolute -top-4 -right-4 bg-gradient-to-br from-provn-success/90 to-provn-success/80 backdrop-blur-sm border border-provn-success/20 rounded-xl p-4 text-center shadow-lg"
+                >
+                  <div className="text-2xl font-bold text-white font-headline">100%</div>
+                  <div className="text-xs text-white/80">Earnings Kept</div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, x: -30 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ ...normalTransition, delay: 0.4 }}
+                  viewport={optimizedViewport}
+                  className="absolute -bottom-4 -left-4 bg-gradient-to-br from-provn-accent/90 to-provn-accent/80 backdrop-blur-sm border border-provn-accent/20 rounded-xl p-4 text-center shadow-lg"
+                >
+                  <div className="text-2xl font-bold text-white font-headline">0%</div>
+                  <div className="text-xs text-white/80">Platform Fees</div>
+                </motion.div>
+              </div>
+
+              {/* Bottom action area */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ ...normalTransition, delay: 0.5 }}
+                viewport={optimizedViewport}
+                className="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center"
+              >
+                <ProvnButton
+                  onClick={() => handleProtectedNavigation("/upload")}
+                  className="px-8 py-3 text-lg group"
+                >
+                  <Upload className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform" />
+                  Start Your Journey
+                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                </ProvnButton>
+                <ProvnButton
+                  variant="secondary"
+                  onClick={() => handleProtectedNavigation("/explore")}
+                  className="px-8 py-3 text-lg group"
+                >
+                  <Play className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                  Explore Platform
+                </ProvnButton>
+              </motion.div>
+            </div>
+          </motion.div>
+
+          {/* Features highlight */}
+        </div>
+      </section>
 
       {/* Revenue Revolution */}
       <section className="py-32 relative">
@@ -271,8 +515,8 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
+            transition={normalTransition}
+            viewport={optimizedViewport}
             className="text-center mb-20"
           >
             <h2 className="font-headline text-5xl md:text-7xl font-bold text-provn-text mb-8 leading-tight">
@@ -294,7 +538,7 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              viewport={{ once: true }}
+              viewport={optimizedViewport}
               className="relative bg-gradient-to-br from-provn-surface/80 to-provn-surface/40 backdrop-blur-2xl border border-provn-border/30 rounded-3xl p-12 shadow-2xl"
             >
               <div className="text-center mb-12">
@@ -311,8 +555,8 @@ export default function HomePage() {
                 <motion.div
                   initial={{ opacity: 0, x: -30 }}
                   whileInView={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.8, delay: 0.4 }}
-                  viewport={{ once: true }}
+                  transition={{ ...normalTransition, delay: 0.2 }}
+                  viewport={optimizedViewport}
                   className="space-y-8"
                 >
                   <div className="text-center">
@@ -362,8 +606,8 @@ export default function HomePage() {
                 <motion.div
                   initial={{ opacity: 0, x: 30 }}
                   whileInView={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.8, delay: 0.6 }}
-                  viewport={{ once: true }}
+                  transition={{ ...normalTransition, delay: 0.3 }}
+                  viewport={optimizedViewport}
                   className="relative"
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-provn-accent/20 to-provn-success/20 rounded-2xl blur-2xl"></div>
@@ -405,69 +649,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Creator Success Stories */}
-      <section id="creator-stories" className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          viewport={{ once: true }}
-          className="text-center mb-16"
-        >
-          <h2 className="font-headline text-4xl md:text-6xl font-bold text-provn-text mb-6">
-            Real Creators, Real Results
-          </h2>
-          <p className="text-xl text-provn-muted max-w-3xl mx-auto">
-            See how creators are earning 40-80% more by switching to Provn's zero-fee platform
-          </p>
-        </motion.div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <CreatorStory
-            name="Sarah Chen"
-            avatar="SC"
-            platform="YouTube"
-            oldEarnings="$2.1K"
-            newEarnings="$3.8K"
-            timeframe="monthly"
-            quote="I was losing almost half my revenue to YouTube's cut. Provn let me keep everything and actually grow my audience faster."
-          />
-          <CreatorStory
-            name="Marcus Rivera"
-            avatar="MR"
-            platform="TikTok"
-            oldEarnings="$850"
-            newEarnings="$1.5K"
-            timeframe="monthly"
-            quote="The creator fund was a joke. On Provn, I make real money from day one, and I own my content forever."
-          />
-          <CreatorStory
-            name="Elena Vasquez"
-            avatar="EV"
-            platform="Instagram"
-            oldEarnings="$1.2K"
-            newEarnings="$2.3K"
-            timeframe="monthly"
-            quote="No algorithm games, no shadow bans. Just pure creator economics. Provn gave me my independence back."
-          />
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          viewport={{ once: true }}
-          className="text-center mt-12"
-        >
-          <ProvnButton
-            onClick={() => (window.location.href = "/upload")}
-            className="px-8 py-3 text-lg"
-          >
-            Join These Successful Creators
-            <ArrowRight className="w-5 h-5 ml-2" />
-          </ProvnButton>
-        </motion.div>
-      </section>
+      {/* User Journey Section */}
+      <UserJourney onGetStarted={() => handleProtectedNavigation("/upload")} />
 
       {/* Platform Comparison */}
       <section className="py-24 bg-provn-surface/30">
@@ -475,8 +658,8 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
+            transition={normalTransition}
+            viewport={optimizedViewport}
             className="text-center mb-16"
           >
             <h2 className="font-headline text-4xl md:text-6xl font-bold text-provn-text mb-6">
@@ -492,7 +675,7 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            viewport={{ once: true }}
+            viewport={optimizedViewport}
             className="bg-provn-surface border border-provn-border rounded-2xl overflow-hidden max-w-4xl mx-auto"
           >
             <div className="grid grid-cols-4 bg-provn-surface-2 p-4">
@@ -528,8 +711,8 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            viewport={{ once: true }}
+            transition={{ ...fastTransition, delay: 0.3 }}
+            viewport={optimizedViewport}
             className="text-center mt-8"
           >
             <div className="text-2xl font-bold text-provn-success mb-2">
@@ -546,7 +729,7 @@ export default function HomePage() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          viewport={{ once: true }}
+          viewport={optimizedViewport}
           className="text-center mb-16"
         >
           <h2 className="font-headline text-4xl md:text-6xl font-bold text-provn-text mb-6">
@@ -566,8 +749,8 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
+            transition={normalTransition}
+            viewport={optimizedViewport}
           >
             <h2 className="font-headline text-4xl md:text-6xl font-bold text-provn-text mb-6">
               Ready to Keep 100% of Your Earnings?
@@ -579,7 +762,7 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <ProvnButton
                 size="lg"
-                onClick={() => (window.location.href = "/upload")}
+                onClick={() => handleProtectedNavigation("/upload")}
                 className="px-12 py-4 text-xl font-semibold group"
               >
                 <Upload className="w-6 h-6 mr-2 group-hover:rotate-12 transition-transform" />
@@ -593,7 +776,7 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            viewport={{ once: true }}
+            viewport={optimizedViewport}
             className="flex flex-wrap justify-center gap-4 pt-8"
           >
             <ProvnBadge variant="success" className="text-sm px-4 py-2">
@@ -618,8 +801,8 @@ export default function HomePage() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
+            transition={normalTransition}
+            viewport={optimizedViewport}
             className="text-center space-y-12"
           >
             {/* Dominant Logo */}
@@ -677,6 +860,19 @@ export default function HomePage() {
           </motion.div>
         </div>
       </footer>
+
+      {/* Profile Creation Modal */}
+      <CreateProfileModal
+        isOpen={showCreateProfile}
+        onClose={() => setShowCreateProfile(false)}
+        onSuccess={(handle) => {
+          setShowCreateProfile(false)
+          setHasProfile(true)
+          console.log('✅ Profile created successfully:', handle)
+          // Optionally redirect to explore or stay on landing with updated state
+        }}
+      />
+
     </div>
   )
 }

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Provn Icon + Text + Beta</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            padding: 40px;
+        }
+        
+        .icon {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #ff6d01, #e56100);
+            border-radius: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 20px 40px rgba(255, 109, 1, 0.3);
+        }
+        
+        .icon::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 109, 1, 0.3);
+            border-radius: 24px;
+            filter: blur(20px);
+            z-index: -1;
+        }
+        
+        .inner-square {
+            width: 60px;
+            height: 60px;
+            background: #0a0a0a;
+            border-radius: 12px;
+            transform: rotate(12deg);
+        }
+        
+        .text-container {
+            display: flex;
+            align-items: baseline;
+            gap: 16px;
+        }
+        
+        .brand-text {
+            font-size: 72px;
+            font-weight: 800;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+        }
+        
+        .brand-text .prov {
+            color: #f5f5f5;
+        }
+        
+        .brand-text .n {
+            color: #ff6d01;
+        }
+        
+        .beta-text {
+            color: #b3b3b3;
+            font-size: 36px;
+            font-weight: 400;
+            margin-left: -8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo-container">
+        <div class="icon">
+            <div class="inner-square"></div>
+        </div>
+        <div class="text-container">
+            <div class="brand-text">
+                <span class="prov">Prov</span><span class="n">n</span>
+            </div>
+            <div class="beta-text">BETA</div>
+        </div>
+    </div>
+</body>
+</html>

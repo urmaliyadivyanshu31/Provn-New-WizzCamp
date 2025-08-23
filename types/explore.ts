@@ -1,3 +1,5 @@
+import { RemixingConfiguration } from './remixing'
+
 export interface ExploreVideo {
   tokenId: string
   title: string
@@ -20,6 +22,7 @@ export interface ExploreVideo {
     mintDate: string
     parentId?: string
     platformOrigin?: boolean // true = uploaded via Provn platform, false = external blockchain video
+    transactionHash?: string // Blockchain transaction hash for the IP-NFT minting
   }
   licensing: {
     price: number // in wCAMP
@@ -27,14 +30,17 @@ export interface ExploreVideo {
     royalty: number
     paymentToken: string
   }
+  remixing: RemixingConfiguration
   metrics: {
     views: number
     likes: number
     tips: number
     shares: number
+    remixes?: number
   }
   isLiked?: boolean
   hasAccess?: boolean
+  canRemix?: boolean
 }
 
 export interface VideoInteraction {
@@ -52,7 +58,7 @@ export interface LicenseTerms {
 }
 
 export interface ShareOptions {
-  platform: 'twitter' | 'instagram'
+  platform: 'x' | 'instagram'
   video: ExploreVideo
   customText?: string
 }

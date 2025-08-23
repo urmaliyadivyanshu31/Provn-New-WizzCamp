@@ -5,8 +5,10 @@ import { motion, AnimatePresence } from "framer-motion"
 import { X, User, AtSign, FileText, Image as ImageIcon, Upload, Trash2 } from "lucide-react"
 import { ProvnButton } from "./button"
 import { ProvnCard, ProvnCardContent } from "./card"
+import { ProfileCardModal } from "@/components/profile/ProfileCardModal"
 import { toast } from "sonner"
 import { useAuth } from "@campnetwork/origin/react"
+import { Profile } from "@/lib/supabase"
 
 interface CreateProfileModalProps {
   isOpen: boolean
@@ -45,6 +47,8 @@ export function CreateProfileModal({ isOpen, onClose, onSuccess }: CreateProfile
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [handleAvailable, setHandleAvailable] = useState<boolean | null>(null)
   const [isCheckingHandle, setIsCheckingHandle] = useState(false)
+  const [showProfileCard, setShowProfileCard] = useState(false)
+  const [createdProfile, setCreatedProfile] = useState<Profile | null>(null)
 
   // Reset form when modal opens
   useEffect(() => {
@@ -61,6 +65,8 @@ export function CreateProfileModal({ isOpen, onClose, onSuccess }: CreateProfile
         uploading: false
       })
       setHandleAvailable(null)
+      setShowProfileCard(false)
+      setCreatedProfile(null)
     }
   }, [isOpen])
 
@@ -221,8 +227,22 @@ export function CreateProfileModal({ isOpen, onClose, onSuccess }: CreateProfile
 
       if (data.success) {
         toast.success('Profile created successfully!')
-        onSuccess(formData.handle)
-        onClose()
+        
+        // Create profile object for the profile card
+        const profile: Profile = {
+          id: data.profile?.id || crypto.randomUUID(),
+          wallet_address: walletAddress,
+          handle: formData.handle,
+          display_name: formData.display_name || undefined,
+          bio: formData.bio || undefined,
+          avatar_url: avatarUrl || undefined,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+        
+        setCreatedProfile(profile)
+        setShowProfileCard(true)
+        // Don't close immediately - wait for profile card modal to close
       } else {
         // Show specific error messages based on response
         if (response.status === 409) {
@@ -290,6 +310,16 @@ export function CreateProfileModal({ isOpen, onClose, onSuccess }: CreateProfile
       case 'invalid': return 'text-red-500'
       default: return 'text-provn-muted'
     }
+  }
+
+  const handleProfileCardClose = () => {
+    setShowProfileCard(false)
+    setCreatedProfile(null)
+    // Now call the original success callback and close the modal
+    if (createdProfile) {
+      onSuccess(createdProfile.handle)
+    }
+    onClose()
   }
 
   if (!isOpen) return null
@@ -481,6 +511,15 @@ export function CreateProfileModal({ isOpen, onClose, onSuccess }: CreateProfile
           </ProvnCard>
         </motion.div>
       </motion.div>
+      
+      {/* Profile Card Modal - shows after successful creation */}
+      {createdProfile && (
+        <ProfileCardModal
+          isOpen={showProfileCard}
+          onClose={handleProfileCardClose}
+          profile={createdProfile}
+        />
+      )}
     </AnimatePresence>
   )
 }

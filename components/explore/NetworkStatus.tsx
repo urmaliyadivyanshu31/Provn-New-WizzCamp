@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { Network, AlertCircle, CheckCircle } from 'lucide-react'
 import { useAuth } from '@campnetwork/origin/react'
 import { ensureEthersAvailable, createProvider } from '@/utils/ethers-utils'
+import { switchToBaseCampNetwork, BASE_CAMP_CHAIN_ID, isMobileDevice } from '@/utils/network-utils'
 
 interface NetworkStatusProps {
   className?: string
@@ -18,8 +19,6 @@ export function NetworkStatus({ className = "" }: NetworkStatusProps) {
   const [ethersLoading, setEthersLoading] = useState(true)
   const { origin, isAuthenticated } = useAuth()
 
-  const BASE_CAMP_CHAIN_ID = "123420001114"
-  const BASE_CAMP_CHAIN_ID_HEX = "0x75b7b8b2"
 
   const checkNetwork = async () => {
     if (!isAuthenticated || !origin) {
@@ -47,7 +46,7 @@ export function NetworkStatus({ className = "" }: NetworkStatusProps) {
         return
       }
       
-      const provider = createProvider()
+      const provider = await createProvider()
       const network = await provider.getNetwork()
       const chainId = network.chainId.toString()
       
@@ -56,64 +55,28 @@ export function NetworkStatus({ className = "" }: NetworkStatusProps) {
       
     } catch (err) {
       setError("Failed to check network")
-      console.error("Network check error:", err)
     } finally {
       setIsLoading(false)
     }
   }
 
   const switchToBaseCAMP = async () => {
-    if (!window.ethereum) return
+    setIsLoading(true)
+    setError("")
     
-    try {
-      setIsLoading(true)
-      setError("")
-      
-      // Try to switch to BaseCAMP network
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: BASE_CAMP_CHAIN_ID_HEX }]
-      })
-      
-      // Wait a moment and recheck
-      setTimeout(checkNetwork, 1000)
-      
-    } catch (switchError: any) {
-      // If the network doesn't exist, add it
-      if (switchError.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: BASE_CAMP_CHAIN_ID_HEX,
-              chainName: 'BaseCAMP',
-              nativeCurrency: {
-                name: 'CAMP',
-                symbol: 'CAMP',
-                decimals: 18
-              },
-              rpcUrls: [
-                'https://rpc.basecamp.t.raas.gelato.cloud',
-                'https://rpc-campnetwork.xyz'
-              ],
-              blockExplorerUrls: ['https://basecamp.cloud.blockscout.com/']
-            }]
-          })
-          
-          // Wait a moment and recheck
-          setTimeout(checkNetwork, 1000)
-          
-        } catch (addError) {
-          setError("Failed to add BaseCAMP network")
-          console.error("Add network error:", addError)
-        }
-      } else {
-        setError("Failed to switch network")
-        console.error("Switch network error:", switchError)
-      }
-    } finally {
-      setIsLoading(false)
+    const result = await switchToBaseCampNetwork();
+    
+    if (result.success) {
+      // Wait longer on mobile for network switch to complete
+      const waitTime = isMobileDevice() ? 2500 : 1000;
+      setTimeout(() => {
+        checkNetwork();
+      }, waitTime);
+    } else {
+      setError(result.error || "Failed to switch network");
     }
+    
+    setIsLoading(false);
   }
 
   useEffect(() => {
@@ -164,10 +127,18 @@ export function NetworkStatus({ className = "" }: NetworkStatusProps) {
   }
 
   if (error) {
+    const mobile = isMobileDevice();
     return (
-      <div className={`flex items-center gap-2 text-sm text-red-500 ${className}`}>
-        <AlertCircle className="w-4 h-4" />
-        <span>{error}</span>
+      <div className={`text-sm text-red-500 ${className}`}>
+        <div className="flex items-center gap-2 mb-1">
+          <AlertCircle className="w-4 h-4" />
+          <span>{error}</span>
+        </div>
+        {mobile && (
+          <div className="text-xs text-gray-400 mt-1">
+            💡 On mobile: Open your wallet app → Networks → Add Network → Enter BaseCAMP details manually
+          </div>
+        )}
       </div>
     )
   }

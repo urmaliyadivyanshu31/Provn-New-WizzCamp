@@ -13,11 +13,13 @@ import { useProfileVideos } from "@/hooks/useProfileVideos"
 import { toast } from "sonner"
 import { Profile } from "@/lib/supabase"
 import { Copy, ExternalLink, Edit } from "lucide-react"
-import { ProfileLoadingState, ErrorState, EmptyState } from "@/components/provn/loading-states"
+import { ErrorState, EmptyState } from "@/components/common/LoadingStates"
+import { ProvnBrandLoader } from "@/components/common/LoadingStates"
 import { ProfileSkeleton } from "@/components/provn/profile-skeleton"
 import { AnimatedBackground } from "@/components/provn/animated-background"
 import { ProfileEditModal } from "@/components/provn/profile-edit-modal"
 import { ProfileVideoGrid } from "@/components/profile/ProfileVideoGrid"
+import { ProfileCardModal } from "@/components/profile/ProfileCardModal"
 import { motion } from "framer-motion"
 
 export default function ProfilePage() {
@@ -34,6 +36,7 @@ export default function ProfilePage() {
   const [copiedAddress, setCopiedAddress] = useState(false)
   const [copiedHandle, setCopiedHandle] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [showProfileCard, setShowProfileCard] = useState(false)
 
   // Check if this is the current user's profile
   const isOwnProfile = currentUserAddress && 
@@ -46,6 +49,14 @@ export default function ProfilePage() {
       router.push('/')
     }
   }, [error, loading, router])
+
+  // Update document title with profile info
+  useEffect(() => {
+    if (profile) {
+      const title = `${profile.display_name || profile.handle} (@${profile.handle}) - Provn`
+      document.title = title
+    }
+  }, [profile])
 
     const handleCopyAddress = async () => {
     if (!profile) return
@@ -117,7 +128,11 @@ export default function ProfilePage() {
   }
 
   if (loading) {
-    return <ProfileLoadingState />
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-provn-bg">
+        <ProvnBrandLoader size="lg" message="Loading profile" />
+      </div>
+    )
   }
 
   if (!profile) {
@@ -247,44 +262,57 @@ export default function ProfilePage() {
                 </div>
                 
                 {/* Action Buttons */}
-                <div className="flex gap-3 self-start">
-                  {isOwnProfile ? (
-                    <>
+                <div className="flex flex-col gap-3 self-start">
+                  <div className="flex gap-3">
+                    {isOwnProfile ? (
+                      <>
+                        <ProvnButton 
+                          variant="secondary"
+                          onClick={() => setIsEditModalOpen(true)}
+                          className="px-6 py-3"
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit Profile
+                        </ProvnButton>
+                        <ProvnButton 
+                          variant="secondary"
+                          onClick={() => router.push('/dashboard')}
+                          className="px-6 py-3"
+                        >
+                          Dashboard
+                        </ProvnButton>
+                      </>
+                    ) : (
                       <ProvnButton 
-                        variant="secondary"
-                        onClick={() => setIsEditModalOpen(true)}
-                        className="px-6 py-3"
+                        variant={isFollowing ? "secondary" : "primary"}
+                        onClick={isFollowing ? unfollowUser : followUser}
+                        disabled={followLoading}
+                        className={`px-4 py-2 transition-all duration-200 hover:scale-105 ${
+                          followLoading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg'
+                        }`}
                       >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit Profile
+                        {followLoading ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                            <span>Loading...</span>
+                          </div>
+                        ) : isFollowing ? (
+                          'Following'
+                        ) : (
+                          'Follow'
+                        )}
                       </ProvnButton>
-                      <ProvnButton 
-                        variant="secondary"
-                        onClick={() => router.push('/dashboard')}
-                        className="px-6 py-3"
-                      >
-                        Dashboard
-                      </ProvnButton>
-                    </>
-                  ) : (
+                    )}
+                  </div>
+                  
+                  {/* Profile Card Button - Only visible to profile owner */}
+                  {isOwnProfile && (
                     <ProvnButton 
-                      variant={isFollowing ? "secondary" : "primary"}
-                      onClick={isFollowing ? unfollowUser : followUser}
-                      disabled={followLoading}
-                      className={`px-4 py-2 transition-all duration-200 hover:scale-105 ${
-                        followLoading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg'
-                      }`}
+                      variant="secondary"
+                      onClick={() => setShowProfileCard(true)}
+                      className="px-6 py-3 bg-gradient-to-r from-provn-accent/10 to-provn-accent/5 hover:from-provn-accent/20 hover:to-provn-accent/10 border border-provn-accent/30 text-provn-accent"
                     >
-                      {followLoading ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                          <span>Loading...</span>
-                        </div>
-                      ) : isFollowing ? (
-                        'Following'
-                      ) : (
-                        'Follow'
-                      )}
+                      ✨ View Profile Card
                     </ProvnButton>
                   )}
                 </div>
@@ -515,12 +543,7 @@ export default function ProfilePage() {
                                   </div>
                                   <div className="text-sm text-provn-muted font-headline">Tips</div>
                                 </div>
-                                <div className="bg-provn-surface rounded-lg p-4 text-center">
-                                  <div className="text-2xl font-bold text-provn-text font-headline">
-                                    {videoStats?.blockchainOnly.toLocaleString() || analytics?.licenses.toLocaleString()}
-                                  </div>
-                                  <div className="text-sm text-provn-muted font-headline">IP-NFTs</div>
-                                </div>
+                                
                               </div>
 
                               {/* Content Performance & Revenue */}
@@ -549,7 +572,7 @@ export default function ProfilePage() {
                                     <div className="flex justify-between">
                                       <span className="text-provn-muted font-headline">Earnings per Video</span>
                                       <span className="text-provn-text font-headline font-semibold">
-                                        {analytics.avgEarningsPerVideo} wCAMP
+                                        {analytics.avgEarningsPerVideo} PROVN
                                       </span>
                                     </div>
                                   </div>
@@ -573,16 +596,16 @@ export default function ProfilePage() {
                                     <div className="flex justify-between pt-2 border-t border-provn-border/30">
                                       <span className="text-provn-text font-headline font-semibold">Total Tips Received</span>
                                       <span className="text-provn-accent font-headline font-semibold">
-                                        {analytics.tips} wCAMP
+                                        {analytics.tips}
                                       </span>
                                     </div>
                                   </div>
                                 </div>
                               </div>
 
-                              {/* Top Performing Videos */}
+                              {/* Top Performing Provs */}
                               <div className="bg-provn-surface rounded-lg p-6">
-                                <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Top Performing Videos</h3>
+                                <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Top Performing Provs</h3>
                                 <div className="space-y-3">
                                   {analytics.topVideos.length > 0 ? (
                                     analytics.topVideos.map((video, index) => (
@@ -602,7 +625,7 @@ export default function ProfilePage() {
                                     ))
                                   ) : (
                                     <div className="text-center py-8 text-provn-muted font-headline">
-                                      No videos yet
+                                      No provs yet
                                     </div>
                                   )}
                                 </div>
@@ -632,6 +655,15 @@ export default function ProfilePage() {
             bannerUrl: '' // Add banner support later if needed
           }}
           onSave={handleSaveProfile}
+        />
+      )}
+
+      {/* Profile Card Modal */}
+      {profile && (
+        <ProfileCardModal
+          isOpen={showProfileCard}
+          onClose={() => setShowProfileCard(false)}
+          profile={profile}
         />
       )}
     </>

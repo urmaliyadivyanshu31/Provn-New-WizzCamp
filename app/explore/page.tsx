@@ -1,17 +1,19 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, Suspense } from "react"
 import { Navigation } from "@/components/provn/navigation"
 import { VideoFeed } from "@/components/explore/VideoFeed"
 import { VideoDetailsModal } from "@/components/explore/VideoDetailsModal"
+import { FullyProtectedRoute } from "@/components/guards/ProtectedRoute"
 import { useAuth } from "@campnetwork/origin/react"
 import { ExploreVideo } from "@/types/explore"
+import { ExploreErrorBoundary } from "@/components/common/ErrorBoundary"
+import { VideoFeedSkeleton } from "@/components/common/LoadingStates"
 import "@/styles/explore.css"
 
 export default function ExplorePage() {
   const [selectedVideo, setSelectedVideo] = useState<ExploreVideo | null>(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
-  // Always use platform data source for real videos
   const { isAuthenticated, walletAddress } = useAuth()
 
   const handleVideoDetails = (video: ExploreVideo) => {
@@ -66,16 +68,23 @@ export default function ExplorePage() {
   }, [isDetailsModalOpen])
 
   return (
-    <>
+    <FullyProtectedRoute
+      authMessage="Connect your wallet to explore amazing videos and interact with creators on Provn."
+      profileMessage="Create your profile to explore videos, like content, and build your creator presence."
+    >
       <Navigation currentPage="explore" />
       
-      {/* Full screen video feed */}
+      {/* Full screen video feed with error boundary */}
       <div className="fixed inset-x-0 top-16 bottom-0 bg-black video-container">
-        <VideoFeed 
-          onVideoDetails={handleVideoDetails}
-          isAuthenticated={isAuthenticated}
-          dataSource="platform"
-        />
+        <ExploreErrorBoundary>
+          <Suspense fallback={<VideoFeedSkeleton />}>
+            <VideoFeed 
+              onVideoDetails={handleVideoDetails}
+              isAuthenticated={isAuthenticated}
+              dataSource="platform"
+            />
+          </Suspense>
+        </ExploreErrorBoundary>
       </div>
 
 
@@ -88,6 +97,6 @@ export default function ExplorePage() {
           isAuthenticated={isAuthenticated}
         />
       )}
-    </>
+    </FullyProtectedRoute>
   )
 }
