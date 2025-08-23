@@ -96,8 +96,16 @@ export async function GET(request: NextRequest) {
       return createErrorRedirect(accountValidation.message || 'Account validation failed')
     }
     
-  // Do NOT submit to DB here. Redirect to frontend for wallet address input.
-  return createSuccessRedirect(userProfile.username)
+    // Submit whitelist request
+    const whitelistResult = await submitTwitterWhitelistRequest(userProfile, request)
+    
+    if (whitelistResult.success) {
+      console.log('✅ Twitter whitelist request submitted successfully')
+      return createSuccessRedirect(userProfile.username)
+    } else {
+      console.error('❌ Failed to submit whitelist request:', whitelistResult.error)
+      return createErrorRedirect(whitelistResult.error || 'Failed to submit access request')
+    }
     
   } catch (error: any) {
     console.error('❌ Twitter OAuth callback error:', error)
