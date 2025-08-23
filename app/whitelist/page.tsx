@@ -536,7 +536,7 @@ export default function WhitelistPage() {
                             type="text"
                             value={twitterUsername}
                             onChange={(e) => setTwitterUsername(e.target.value)}
-                            placeholder="@username or username"
+                            placeholder="@username"
                             required
                             className="w-full px-4 py-3 bg-provn-bg border border-provn-border rounded-lg text-provn-text placeholder-provn-muted focus:outline-none focus:ring-2 focus:ring-provn-accent focus:border-provn-accent transition-all"
                           />
