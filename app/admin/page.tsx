@@ -65,6 +65,7 @@ export default function AdminDashboard() {
   const { walletAddress, isAuthenticated } = useAuth()
   const [isAdminVerified, setIsAdminVerified] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [debugInfo, setDebugInfo] = useState<string[]>([])
   const [adminKey, setAdminKey] = useState('')
   
   // Data states
@@ -99,36 +100,49 @@ export default function AdminDashboard() {
   }, [walletAddress, isAuthenticated])
 
   useEffect(() => {
-    if (isAdminVerified) {
+    if (isAdminVerified && adminKey && walletAddress) {
       loadDashboardData()
       const interval = setInterval(loadDashboardData, 30000) // Refresh every 30 seconds
       return () => clearInterval(interval)
     }
-  }, [isAdminVerified])
+  }, [isAdminVerified, adminKey, walletAddress])
+
+  const addDebugInfo = (info: string) => {
+    setDebugInfo(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${info}`])
+  }
 
   const checkAdminAccess = async () => {
+    addDebugInfo(`checkAdminAccess called - isAuthenticated: ${isAuthenticated}, walletAddress: ${walletAddress?.slice(0, 6)}...`)
+    
     if (!isAuthenticated || !walletAddress) {
+      addDebugInfo('Not authenticated or no wallet address')
       setIsLoading(false)
       return
     }
 
     // Check if user is admin (you may want to implement proper admin check)
     const adminWallets = process.env.NEXT_PUBLIC_ADMIN_WALLETS?.split(',') || []
+    addDebugInfo(`Admin wallets configured: ${adminWallets.length}`)
+    
     if (adminWallets.length > 0 && !adminWallets.includes(walletAddress.toLowerCase())) {
+      addDebugInfo('Wallet not in admin list')
       setIsLoading(false)
       return
     }
 
+    addDebugInfo('Admin access granted')
     setIsAdminVerified(true)
     setIsLoading(false)
   }
 
   const loadDashboardData = async () => {
     if (!adminKey || !walletAddress) {
+      addDebugInfo('❌ Missing adminKey or walletAddress')
       console.error('❌ Missing adminKey or walletAddress:', { adminKey: !!adminKey, walletAddress })
       return
     }
 
+    addDebugInfo(`🔄 Loading dashboard data with key: ${adminKey.substring(0, 4)}***`)
     console.log('🔄 Loading dashboard data with key:', adminKey.substring(0, 4) + '***')
 
     try {
@@ -376,6 +390,19 @@ export default function AdminDashboard() {
               >
                 🧪 Test API Connection
               </ProvnButton>
+              
+              {/* Debug info display */}
+              {debugInfo.length > 0 && (
+                <div className="mt-4 p-3 bg-gray-900 rounded text-xs text-green-400 font-mono">
+                  <div className="text-white mb-2">Debug Info:</div>
+                  {debugInfo.map((info, idx) => (
+                    <div key={idx}>{info}</div>
+                  ))}
+                  <div className="text-yellow-400 mt-2">
+                    adminKey: {adminKey ? 'SET' : 'MISSING'} | walletAddress: {walletAddress || 'MISSING'}
+                  </div>
+                </div>
+              )}
             </div>
           </ProvnCardContent>
         </ProvnCard>
