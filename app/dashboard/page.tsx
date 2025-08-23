@@ -6,7 +6,7 @@ import { ProvnButton } from "@/components/provn/button"
 import { ProvnCard, ProvnCardContent } from "@/components/provn/card"
 import { FullyProtectedRoute } from "@/components/guards/ProtectedRoute"
 import { useAuth } from '@campnetwork/origin/react'
-import { AchievementsPanel } from "@/components/gamification/AchievementsPanel"
+import AchievementsPanel from "@/components/gamification/AchievementsPanel"
 import { PremiumLeaderboard } from "@/components/leaderboard/PremiumLeaderboard"
 import { LicenseManager } from "@/components/licenses/LicenseManager"
 import { Trophy, Award, Package } from "lucide-react"

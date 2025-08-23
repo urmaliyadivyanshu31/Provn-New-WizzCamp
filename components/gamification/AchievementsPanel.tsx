@@ -414,7 +414,7 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
 
             {/* Unlocked Only Toggle */}
             <ProvnButton
-              variant={showUnlockedOnly ? "default" : "secondary"}
+              variant={showUnlockedOnly ? "primary" : "secondary"}
               onClick={() => setShowUnlockedOnly(!showUnlockedOnly)}
               className="px-4"
             >
