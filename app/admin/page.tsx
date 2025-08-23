@@ -342,9 +342,39 @@ export default function AdminDashboard() {
                   }
                 }}
                 disabled={!adminKey}
-                className="w-full"
+                className="w-full mb-2"
               >
                 Access Dashboard
+              </ProvnButton>
+              
+              {/* Debug test button */}
+              <ProvnButton
+                variant="secondary"
+                onClick={async () => {
+                  if (!adminKey || !walletAddress) return
+                  
+                  console.log('🧪 Testing API directly...')
+                  try {
+                    const response = await fetch('/api/admin/stats', {
+                      headers: {
+                        'x-admin-key': adminKey,
+                        'x-admin-wallet': walletAddress,
+                        'Content-Type': 'application/json'
+                      }
+                    })
+                    
+                    const data = await response.json()
+                    console.log('✅ Direct API test result:', data)
+                    alert(`API Test Result:\\nStatus: ${response.status}\\nData: ${JSON.stringify(data, null, 2)}`)
+                  } catch (error) {
+                    console.error('❌ Direct API test failed:', error)
+                    alert(`API Test Failed: ${error}`)
+                  }
+                }}
+                disabled={!adminKey}
+                className="w-full text-xs"
+              >
+                🧪 Test API Connection
               </ProvnButton>
             </div>
           </ProvnCardContent>
