@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 
@@ -10,6 +11,8 @@ import { createAdminClient } from '@/lib/supabase'
  */
 
 export async function POST(request: NextRequest) {
+
+  
   try {
     const { username, walletAddress } = await request.json()
     console.log('🐦 Received Twitter auth request for username:', username)
@@ -64,8 +67,7 @@ export async function POST(request: NextRequest) {
     }
     
     const profile = profileData.profile
-    
-    // Validate account quality
+
     const validation = validateTwitterAccount(profile)
     
     if (!validation.isValid) {
@@ -199,8 +201,8 @@ function validateTwitterAccount(profile: any) {
  */
 async function submitTwitterWhitelist(profile: any, request: NextRequest, walletAddress?: string) {
   try {
-    console.log("walletAddress",walletAddress)
-    console.log("profik",profile)
+    console.log("walletAddress", walletAddress)
+    console.log("profile", profile)
     const supabase = createAdminClient()
     const clientIP = getClientIP(request)
     
@@ -230,7 +232,7 @@ async function submitTwitterWhitelist(profile: any, request: NextRequest, wallet
       .from('beta_whitelist')
       .insert({
         twitter_username: profile.username,
-        wallet_address: walletAddress?.trim() || null,
+        wallet_address: walletAddress,
         submission_type: 'twitter',
         status: 'pending',
         submitted_at: new Date().toISOString(),

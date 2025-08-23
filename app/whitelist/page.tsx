@@ -57,13 +57,19 @@ export default function WhitelistPage() {
     }
   }, [walletAddress]);
 
-  // Handle URL parameters from Twitter auth redirects
+  // Handle URL parameters from Twitter auth redirects and set tab from query
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const error = urlParams.get("error");
     const success = urlParams.get("success");
     const message = urlParams.get("message");
     const username = urlParams.get("username");
+    const tab = urlParams.get("tab");
+
+    // Set tab from query param if valid
+    if (tab === "wallet" || tab === "email" || tab === "x") {
+      setActiveTab(tab);
+    }
 
     if (error === "twitter_auth_failed" && message) {
       setSubmissionResult({
@@ -362,7 +368,7 @@ export default function WhitelistPage() {
     }
   }, []);
 
-  const handleXFinalSubmit = async (e:any) => {
+  const handleXFinalSubmit = async (e: any) => {
     e.preventDefault();
     // Validate walletAddress
     // POST { username: xUser.username, walletAddress } to /api/auth/x/simple-auth
