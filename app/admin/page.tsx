@@ -132,8 +132,8 @@ export default function AdminDashboard() {
     }
 
     addDebugInfo('Admin access granted')
-    // Set a default admin key for the recognized admin wallet
-    setAdminKey('YIhYXVkShLmbQoxmdcUW8gbpYEIVWl0c')
+    // Set the correct admin key for the recognized admin wallet
+    setAdminKey('sk_provn_admin_2024_7669aB66996022A0d2fAFcdB1c4Dc20FB3dc1961_secure')
     setIsAdminVerified(true)
     setIsLoading(false)
   }
@@ -181,7 +181,19 @@ export default function AdminDashboard() {
 
       if (whitelistRes.ok) {
         const whitelistData = await whitelistRes.json()
-        setWhitelistRequests(whitelistData.data?.requests || [])
+        // Map snake_case database fields to camelCase interface
+        const mappedWhitelistRequests = (whitelistData.data?.requests || []).map((request: any) => ({
+          id: request.id,
+          email: request.email,
+          twitterUsername: request.twitter_username,
+          walletAddress: request.wallet_address,
+          submissionType: request.submission_type,
+          status: request.status,
+          submittedAt: request.submitted_at,
+          ipAddress: request.ip_address,
+          metadata: request.metadata
+        }))
+        setWhitelistRequests(mappedWhitelistRequests)
       }
 
       if (vipRes.ok) {

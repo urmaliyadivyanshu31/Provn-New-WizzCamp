@@ -6,6 +6,14 @@ function validateAdminKey(request: NextRequest): boolean {
   const adminKey = request.headers.get('x-admin-key')
   const expectedKey = process.env.ADMIN_API_KEY
   
+  console.log('🔐 Admin key validation:', {
+    hasAdminKey: !!adminKey,
+    adminKeyPreview: adminKey?.substring(0, 4) + '***',
+    hasExpectedKey: !!expectedKey,
+    expectedKeyPreview: expectedKey?.substring(0, 4) + '***',
+    keysMatch: adminKey === expectedKey
+  })
+  
   if (!adminKey || !expectedKey || adminKey !== expectedKey) {
     return false
   }
@@ -83,8 +91,8 @@ export async function POST(request: NextRequest) {
       .from('beta_whitelist')
       .update({
         status: status,
-        reviewed_at: new Date().toISOString(),
-        admin_notes: notes || null
+        approved_at: new Date().toISOString(),
+        approved_by: 'admin'
       })
       .eq('id', requestId)
       .select()
@@ -149,7 +157,7 @@ export async function PATCH(request: NextRequest) {
       .from('beta_whitelist')
       .update({
         status: status,
-        reviewed_at: new Date().toISOString()
+        approved_at: new Date().toISOString()
       })
       .eq('id', requestId)
       .select()
@@ -195,7 +203,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Request ${action}d successfully`,
+      message: `Request ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
       data: data[0]
     })
 
