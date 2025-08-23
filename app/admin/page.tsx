@@ -40,6 +40,7 @@ interface WhitelistRequest {
   id: string
   email?: string
   twitterUsername?: string
+  walletAddress?: string
   submissionType: 'email' | 'twitter'
   status: 'pending' | 'approved' | 'rejected'
   submittedAt: string
@@ -880,9 +881,9 @@ export default function AdminDashboard() {
                     <thead>
                       <tr className="border-b border-provn-border">
                         <th className="text-left py-3 text-provn-muted text-sm font-medium">Contact</th>
+                        <th className="text-left py-3 text-provn-muted text-sm font-medium">Wallet Address</th>
                         <th className="text-left py-3 text-provn-muted text-sm font-medium">Type</th>
                         <th className="text-left py-3 text-provn-muted text-sm font-medium">Submitted</th>
-                        <th className="text-left py-3 text-provn-muted text-sm font-medium">IP Address</th>
                         <th className="text-left py-3 text-provn-muted text-sm font-medium">Status</th>
                         <th className="text-left py-3 text-provn-muted text-sm font-medium">Actions</th>
                       </tr>
@@ -911,6 +912,23 @@ export default function AdminDashboard() {
                             </div>
                           </td>
                           <td className="py-3">
+                            {request.walletAddress ? (
+                              <div className="flex items-center">
+                                <span className="font-mono text-provn-text text-sm">
+                                  {request.walletAddress.slice(0, 6)}...{request.walletAddress.slice(-4)}
+                                </span>
+                                <button
+                                  onClick={() => copyToClipboard(request.walletAddress || '')}
+                                  className="ml-2 text-provn-muted hover:text-provn-text"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-provn-muted text-xs">Not provided</span>
+                            )}
+                          </td>
+                          <td className="py-3">
                             <span className={`px-2 py-1 rounded text-xs font-medium ${
                               request.submissionType === 'email' 
                                 ? 'bg-blue-400/20 text-blue-400' 
@@ -921,9 +939,6 @@ export default function AdminDashboard() {
                           </td>
                           <td className="py-3 text-provn-muted text-sm">
                             {new Date(request.submittedAt).toLocaleString()}
-                          </td>
-                          <td className="py-3 text-provn-muted text-sm font-mono">
-                            {request.ipAddress}
                           </td>
                           <td className="py-3">
                             <span className={`px-2 py-1 rounded text-xs font-medium ${

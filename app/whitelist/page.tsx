@@ -32,7 +32,9 @@ interface WalletAuthResult {
 export default function WhitelistPage() {
   const [activeTab, setActiveTab] = useState<'wallet' | 'email' | 'x'>('wallet')
   const [email, setEmail] = useState('')
+  const [emailWalletAddress, setEmailWalletAddress] = useState('')
   const [twitterUsername, setTwitterUsername] = useState('')
+  const [twitterWalletAddress, setTwitterWalletAddress] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submissionResult, setSubmissionResult] = useState<SubmissionResult | null>(null)
   const [isCheckingWallet, setIsCheckingWallet] = useState(false)
@@ -175,6 +177,14 @@ export default function WhitelistPage() {
       return
     }
 
+    if (!emailWalletAddress || !isValidWalletAddress(emailWalletAddress)) {
+      setSubmissionResult({
+        success: false,
+        message: 'Please enter a valid wallet address'
+      })
+      return
+    }
+
     setIsSubmitting(true)
     
     try {
@@ -185,7 +195,8 @@ export default function WhitelistPage() {
         },
         body: JSON.stringify({
           type: 'email',
-          email: email.toLowerCase().trim()
+          email: email.toLowerCase().trim(),
+          walletAddress: emailWalletAddress.toLowerCase().trim()
         })
       })
 
@@ -198,6 +209,7 @@ export default function WhitelistPage() {
           type: 'email'
         })
         setEmail('')
+        setEmailWalletAddress('')
       } else {
         setSubmissionResult({
           success: false,
@@ -225,6 +237,15 @@ export default function WhitelistPage() {
       })
       return
     }
+
+    if (!twitterWalletAddress || !isValidWalletAddress(twitterWalletAddress)) {
+      setSubmissionResult({
+        success: false,
+        message: 'Please enter a valid wallet address',
+        type: 'x'
+      })
+      return
+    }
     
     setIsSubmitting(true)
     setSubmissionResult(null)
@@ -238,7 +259,8 @@ export default function WhitelistPage() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          username: twitterUsername.replace(/^@/, '')
+          username: twitterUsername.replace(/^@/, ''),
+          walletAddress: twitterWalletAddress.toLowerCase().trim()
         })
       })
       
@@ -251,6 +273,7 @@ export default function WhitelistPage() {
           type: 'x'
         })
         setTwitterUsername('')
+        setTwitterWalletAddress('')
       } else {
         setSubmissionResult({
           success: false,
@@ -278,6 +301,10 @@ export default function WhitelistPage() {
   const isValidTwitterUsername = (username: string) => {
     const cleanUsername = username.replace(/^@/, '')
     return /^[a-zA-Z0-9_]{1,15}$/.test(cleanUsername)
+  }
+
+  const isValidWalletAddress = (address: string) => {
+    return /^0x[a-fA-F0-9]{40}$/.test(address)
   }
 
   // Provn Logo Component (same as in navigation)
@@ -457,9 +484,20 @@ export default function WhitelistPage() {
                           />
                         </div>
 
+                        <div>
+                          <input
+                            type="text"
+                            value={emailWalletAddress}
+                            onChange={(e) => setEmailWalletAddress(e.target.value)}
+                            placeholder="Enter your wallet address (0x...)"
+                            required
+                            className="w-full px-4 py-3 bg-provn-bg border border-provn-border rounded-lg text-provn-text placeholder-provn-muted focus:outline-none focus:ring-2 focus:ring-provn-accent focus:border-provn-accent transition-all font-mono text-sm"
+                          />
+                        </div>
+
                         <ProvnButton
                           type="submit"
-                          disabled={isSubmitting || !email}
+                          disabled={isSubmitting || !email || !emailWalletAddress}
                           className="w-full py-3"
                         >
                           {isSubmitting ? (
@@ -504,9 +542,20 @@ export default function WhitelistPage() {
                           />
                         </div>
 
+                        <div>
+                          <input
+                            type="text"
+                            value={twitterWalletAddress}
+                            onChange={(e) => setTwitterWalletAddress(e.target.value)}
+                            placeholder="Enter your wallet address (0x...)"
+                            required
+                            className="w-full px-4 py-3 bg-provn-bg border border-provn-border rounded-lg text-provn-text placeholder-provn-muted focus:outline-none focus:ring-2 focus:ring-provn-accent focus:border-provn-accent transition-all font-mono text-sm"
+                          />
+                        </div>
+
                         <ProvnButton
                           type="submit"
-                          disabled={isSubmitting || !twitterUsername}
+                          disabled={isSubmitting || !twitterUsername || !twitterWalletAddress}
                           className="w-full py-3"
                         >
                           {isSubmitting ? (

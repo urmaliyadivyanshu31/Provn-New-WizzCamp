@@ -11,12 +11,20 @@ import { createAdminClient } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
-    const { username } = await request.json()
+    const { username, walletAddress } = await request.json()
     
     if (!username || typeof username !== 'string') {
       return NextResponse.json({
         success: false,
         error: 'Twitter username is required'
+      }, { status: 400 })
+    }
+
+    // Validate wallet address if provided
+    if (walletAddress && !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid wallet address format'
       }, { status: 400 })
     }
     
@@ -74,7 +82,7 @@ export async function POST(request: NextRequest) {
     })
     
     // Submit to whitelist
-    const whitelistResult = await submitTwitterWhitelist(profile, request)
+    const whitelistResult = await submitTwitterWhitelist(profile, request, walletAddress)
     
     if (!whitelistResult.success) {
       return NextResponse.json({
@@ -188,7 +196,7 @@ function validateTwitterAccount(profile: any) {
 /**
  * Submit Twitter whitelist entry
  */
-async function submitTwitterWhitelist(profile: any, request: NextRequest) {
+async function submitTwitterWhitelist(profile: any, request: NextRequest, walletAddress?: string) {
   try {
     const supabase = createAdminClient()
     const clientIP = getClientIP(request)
@@ -219,6 +227,7 @@ async function submitTwitterWhitelist(profile: any, request: NextRequest) {
       .from('beta_whitelist')
       .insert({
         twitter_username: profile.username,
+        wallet_address: walletAddress?.toLowerCase().trim() || null,
         submission_type: 'twitter',
         status: 'pending',
         submitted_at: new Date().toISOString(),

@@ -166,6 +166,33 @@ export async function PATCH(request: NextRequest) {
       }, { status: 404 })
     }
 
+    // If approving and wallet address exists, add to whitelist_addresses table
+    if (action === 'approve' && data[0].wallet_address) {
+      try {
+        const { error: whitelistError } = await supabase
+          .from('whitelist_addresses')
+          .upsert({
+            wallet_address: data[0].wallet_address.toLowerCase(),
+            added_by: 'admin',
+            added_at: new Date().toISOString(),
+            source: 'beta_whitelist',
+            source_id: data[0].id
+          }, {
+            onConflict: 'wallet_address'
+          })
+
+        if (whitelistError) {
+          console.error('Error adding to whitelist:', whitelistError)
+          // Continue anyway - the request is still approved
+        } else {
+          console.log('✅ Wallet address added to whitelist:', data[0].wallet_address)
+        }
+      } catch (whitelistErr) {
+        console.error('Failed to add wallet to whitelist:', whitelistErr)
+        // Continue anyway - the request is still approved
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: `Request ${action}d successfully`,

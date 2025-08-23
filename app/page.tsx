@@ -503,35 +503,6 @@ export default function HomePage() {
           </motion.div>
 
           {/* Features highlight */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            viewport={optimizedViewport}
-            className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6"
-          >
-            {[
-              { icon: CheckCircle, title: "Instant Upload", desc: "Mint content as IP-NFTs in seconds" },
-              { icon: DollarSign, title: "Zero Fees", desc: "Keep 100% of your earnings" },
-              { icon: Users, title: "True Ownership", desc: "Your content, your control, forever" }
-            ].map((feature, index) => {
-              const Icon = feature.icon
-              return (
-                <motion.div
-                  key={feature.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ ...fastTransition, delay: 0.3 + (index * 0.05) }}
-                  viewport={optimizedViewport}
-                  className="bg-provn-surface/50 backdrop-blur-sm border border-provn-border/30 rounded-xl p-6 text-center hover:bg-provn-surface/70 transition-all duration-300"
-                >
-                  <Icon className="w-8 h-8 text-provn-accent mx-auto mb-3" />
-                  <h3 className="font-semibold text-provn-text mb-2">{feature.title}</h3>
-                  <p className="text-sm text-provn-muted">{feature.desc}</p>
-                </motion.div>
-              )
-            })}
-          </motion.div>
         </div>
       </section>
 
