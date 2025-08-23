@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     // Generate callback URL
     const baseUrl = request.nextUrl.origin
     const callbackUrl = `${baseUrl}/api/auth/x/callback`
-    
+    console.log('🔗 Generating authorization URL with callback:', callbackUrl)
     // Generate state parameter for CSRF protection
     const state = generateSecureState()
     
@@ -41,11 +41,12 @@ export async function GET(request: NextRequest) {
     
     // Generate OAuth 1.0a request token and authorization URL
     const authLink = await client.generateAuthLink(callbackUrl)
+      console.log( "Secure state", authLink)
+
     
     // Store the OAuth secret temporarily (in production, use Redis/database)
     // For now, we'll include it in the state parameter (not recommended for production)
     const secureState = `${state}:${authLink.oauth_token_secret}`
-    
     const response = NextResponse.json({
       success: true,
       authUrl: authLink.url,
@@ -67,9 +68,9 @@ export async function GET(request: NextRequest) {
     return response
     
   } catch (error: any) {
-    console.error('❌ Twitter OAuth initialization failed:', error)
+    console.log('❌ Twitter OAuth initialization failed:', error)
     
-    // Handle specific Twitter API errors
+ console.dir(error, { depth: 5 });
     if (error?.code) {
       return NextResponse.json({
         success: false,

@@ -12,7 +12,8 @@ import { createAdminClient } from '@/lib/supabase'
 export async function POST(request: NextRequest) {
   try {
     const { username, walletAddress } = await request.json()
-    
+    console.log('🐦 Received Twitter auth request for username:', username)
+    console.log('🐦 Received wallet address:', walletAddress)
     if (!username || typeof username !== 'string') {
       return NextResponse.json({
         success: false,
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
       qualityScore: validation.score
     })
     
-    // Submit to whitelist
+
     const whitelistResult = await submitTwitterWhitelist(profile, request, walletAddress)
     
     if (!whitelistResult.success) {
@@ -198,6 +199,8 @@ function validateTwitterAccount(profile: any) {
  */
 async function submitTwitterWhitelist(profile: any, request: NextRequest, walletAddress?: string) {
   try {
+    console.log("walletAddress",walletAddress)
+    console.log("profik",profile)
     const supabase = createAdminClient()
     const clientIP = getClientIP(request)
     
@@ -223,11 +226,11 @@ async function submitTwitterWhitelist(profile: any, request: NextRequest, wallet
     }
     
     // Insert new whitelist request
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('beta_whitelist')
       .insert({
         twitter_username: profile.username,
-        wallet_address: walletAddress?.toLowerCase().trim() || null,
+        wallet_address: walletAddress?.trim() || null,
         submission_type: 'twitter',
         status: 'pending',
         submitted_at: new Date().toISOString(),
@@ -244,7 +247,7 @@ async function submitTwitterWhitelist(profile: any, request: NextRequest, wallet
           profile_image: profile.profileImageUrl
         }
       })
-    
+      console.log("❤️❤️❤️❤️❤️❤️❤️❤️❤️ added", data)
     if (error) {
       console.error('Database error:', error)
       return {
