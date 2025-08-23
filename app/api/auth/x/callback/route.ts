@@ -295,8 +295,9 @@ function createErrorRedirect(message: string) {
  */
 function createSuccessRedirect(username: string) {
   const url = new URL('/whitelist', process.env.NEXTAUTH_URL || 'http://localhost:3000')
-  url.searchParams.set('success', 'twitter_submitted')
-  url.searchParams.set('username', username)
+  url.searchParams.set('x_auth', 'success')
+  url.searchParams.set('x_username', username)
+  url.searchParams.set('tab', 'x')
   
   const response = NextResponse.redirect(url)
   
