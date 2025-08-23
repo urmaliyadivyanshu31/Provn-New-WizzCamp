@@ -124,7 +124,12 @@ export default function AdminDashboard() {
   }
 
   const loadDashboardData = async () => {
-    if (!adminKey || !walletAddress) return
+    if (!adminKey || !walletAddress) {
+      console.error('❌ Missing adminKey or walletAddress:', { adminKey: !!adminKey, walletAddress })
+      return
+    }
+
+    console.log('🔄 Loading dashboard data with key:', adminKey.substring(0, 4) + '***')
 
     try {
       const headers = {
@@ -142,7 +147,19 @@ export default function AdminDashboard() {
 
       if (statsRes.ok) {
         const statsData = await statsRes.json()
-        setStats(statsData.data || stats)
+        console.log('✅ Stats API response:', statsData)
+        setStats(statsData.data || {
+          totalWhitelistRequests: 0,
+          pendingRequests: 0,
+          totalVipAccesses: 0,
+          activeVipAccesses: 0,
+          totalAccessAttempts: 0,
+          blockedAttempts: 0
+        })
+      } else {
+        console.error('❌ Stats API failed:', statsRes.status, statsRes.statusText)
+        const errorData = await statsRes.text()
+        console.error('Error details:', errorData)
       }
 
       if (whitelistRes.ok) {
