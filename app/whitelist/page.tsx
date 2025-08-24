@@ -350,48 +350,19 @@ export default function WhitelistPage() {
         return;
       }
 
-      // Prompt user for their Twitter username
-      const username = prompt("Please enter your X/Twitter username (without @):");
-      if (!username) {
-        setIsXLoading(false);
-        return;
-      }
-
-      // Use simple auth flow with the entered username
-      const response = await fetch("/api/auth/x/simple-auth", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username: username.replace(/^@/, ""),
-          walletAddress: walletAddress.toLowerCase().trim(),
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        setSubmissionResult({
-          success: true,
-          message: result.message,
-          type: "x",
-        });
+      // Start X OAuth with wallet address
+      const res = await fetch(`/api/auth/x/authorize?walletAddress=${encodeURIComponent(walletAddress)}`);
+      const data = await res.json();
+      if (data.success && data.authUrl) {
+        window.location.href = data.authUrl;
       } else {
-        setSubmissionResult({
-          success: false,
-          message: result.error,
-          type: "x",
-        });
+        alert(data.error || "Failed to start Twitter login");
+        setIsXLoading(false);
       }
     } catch (err) {
-      setSubmissionResult({
-        success: false,
-        message: "Failed to verify Twitter account",
-        type: "x",
-      });
+      alert("Failed to start Twitter login");
+      setIsXLoading(false);
     }
-    setIsXLoading(false);
   };
 
   // Listen for X OAuth callback (username in URL param)
@@ -728,7 +699,7 @@ export default function WhitelistPage() {
                             ) : (
                               <>
                                 <XTwitterIcon className="w-4 h-4 mr-2" />
-                                Verify X Account
+                                Login with X
                               </>
                             )}
                           </ProvnButton>
