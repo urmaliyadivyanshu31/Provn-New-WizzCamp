@@ -9,7 +9,7 @@ interface WalletAuthResponse {
   success: boolean
   hasAccess: boolean
   isAdmin: boolean
-  accessType?: 'authorized' | 'whitelisted' | 'none'
+  accessType?: 'authorized' | 'whitelisted' | 'vip' | 'none'
   message?: string
   error?: string
 }
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     const isAdminWallet = adminWallets.includes(normalizedWallet)
     
     let hasAccess = false
-    let accessType: 'authorized' | 'whitelisted' | 'none' = 'none'
+    let accessType: 'authorized' | 'whitelisted' | 'vip' | 'none' = 'none'
     
     if (isAuthorizedWallet) {
       hasAccess = true
@@ -77,14 +77,22 @@ export async function POST(request: NextRequest) {
       
       console.log('✅ Authorized wallet detected:', normalizedWallet)
     } else {
-      // Check if wallet is already in database whitelist
-      const isInDatabase = await checkDatabaseWhitelist(normalizedWallet)
-      if (isInDatabase) {
+      // Check VIP access first
+      const isVipWallet = await checkVipAccess(normalizedWallet)
+      if (isVipWallet) {
         hasAccess = true
-        accessType = 'whitelisted'
-        console.log('✅ Database whitelisted wallet:', normalizedWallet)
+        accessType = 'vip'
+        console.log('✅ VIP access wallet:', normalizedWallet)
       } else {
-        console.log('❌ Wallet not authorized:', normalizedWallet)
+        // Check if wallet is already in database whitelist
+        const isInDatabase = await checkDatabaseWhitelist(normalizedWallet)
+        if (isInDatabase) {
+          hasAccess = true
+          accessType = 'whitelisted'
+          console.log('✅ Database whitelisted wallet:', normalizedWallet)
+        } else {
+          console.log('❌ Wallet not authorized:', normalizedWallet)
+        }
       }
     }
     
@@ -112,7 +120,9 @@ export async function POST(request: NextRequest) {
       message: hasAccess 
         ? isAuthorizedWallet 
           ? 'Welcome! You have authorized access to the platform.'
-          : 'Welcome back! Your wallet is whitelisted.'
+          : accessType === 'vip' 
+            ? 'Welcome! You have VIP access to the platform.'
+            : 'Welcome back! Your wallet is whitelisted.'
         : 'This wallet does not have platform access. Please submit a whitelist request.'
     }
     
@@ -178,6 +188,48 @@ async function ensureWalletInDatabase(walletAddress: string): Promise<void> {
     
   } catch (error) {
     console.error('❌ Database whitelist error:', error)
+  }
+}
+
+/**
+ * Check if wallet has VIP access
+ */
+async function checkVipAccess(walletAddress: string): Promise<boolean> {
+  try {
+    const supabase = createAdminClient()
+    
+    // Check for active VIP access that hasn't expired
+    const { data: vipAccess, error } = await supabase
+      .from('vip_access')
+      .select('id, expires_at, max_usage, usage_count')
+      .eq('wallet_address', walletAddress)
+      .eq('active', true)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+    
+    if (error) {
+      console.error('VIP access check error:', error)
+      return false
+    }
+    
+    if (vipAccess && vipAccess.length > 0) {
+      const access = vipAccess[0]
+      // Check if usage limit exceeded (if there's a limit)
+      if (access.max_usage && access.usage_count >= access.max_usage) {
+        console.log('❌ VIP access usage limit exceeded for wallet:', walletAddress)
+        return false
+      }
+      
+      console.log('✅ Found valid VIP access for wallet:', walletAddress)
+      return true
+    }
+    
+    return false
+    
+  } catch (error) {
+    console.error('VIP access error:', error)
+    return false
   }
 }
 

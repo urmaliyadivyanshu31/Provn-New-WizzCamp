@@ -106,8 +106,30 @@ async function checkWhitelistDatabase(walletAddress: string): Promise<boolean> {
       return true;
     }
     
-    // Then check beta_whitelist table for approved entries
     const supabase = createSupabaseClient();
+    
+    // Check VIP access first
+    const { data: vipAccess, error: vipError } = await supabase
+      .from('vip_access')
+      .select('id, expires_at, max_usage, usage_count')
+      .eq('wallet_address', walletAddress.toLowerCase())
+      .eq('active', true)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1);
+    
+    if (vipError) {
+      console.error('VIP access database error:', vipError);
+    } else if (vipAccess && vipAccess.length > 0) {
+      const access = vipAccess[0];
+      // Check if usage limit exceeded (if there's a limit)
+      if (!access.max_usage || access.usage_count < access.max_usage) {
+        console.log('✅ Found valid VIP access in middleware for wallet:', walletAddress);
+        return true;
+      }
+    }
+    
+    // Then check beta_whitelist table for approved entries
     const { data: betaWhitelist, error: betaError } = await supabase
       .from('beta_whitelist')
       .select('id, status')
