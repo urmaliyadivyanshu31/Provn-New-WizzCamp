@@ -9,13 +9,15 @@ interface SuccessModalProps {
   onClose: () => void
   type: 'email' | 'wallet' | 'x'
   username?: string
+  onContinueToPlatform?: () => void
 }
 
 const SuccessModal: React.FC<SuccessModalProps> = ({ 
   isOpen, 
   onClose, 
   type, 
-  username 
+  username,
+  onContinueToPlatform
 }) => {
   const [showConfetti, setShowConfetti] = useState(false)
 
@@ -214,7 +216,15 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
             >
               {type === 'wallet' ? (
                 <ProvnButton
-                  onClick={onClose}
+                  onClick={() => {
+                    if (onContinueToPlatform) {
+                      onContinueToPlatform()
+                    } else {
+                      // Fallback redirect
+                      window.location.href = '/'
+                    }
+                    onClose()
+                  }}
                   className="w-full py-3"
                 >
                   Continue to Platform

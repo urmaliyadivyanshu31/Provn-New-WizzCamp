@@ -138,10 +138,7 @@ export default function WhitelistPage() {
           location.protocol === "https:"
         }`;
 
-        // Simple redirect without complex countdown
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 1500); // Give user time to see success message
+        // Let user control redirect via modal button instead of automatic redirect
       } else {
         setSubmissionResult({
           success: false,
@@ -912,15 +909,13 @@ export default function WhitelistPage() {
         isOpen={showSuccessModal}
         onClose={() => {
           setShowSuccessModal(false);
-          if (successModalType === 'wallet') {
-            // For wallet success, redirect after modal closes
-            setTimeout(() => {
-              window.location.href = "/";
-            }, 500);
-          }
         }}
         type={successModalType}
         username={successUsername}
+        onContinueToPlatform={() => {
+          // Redirect immediately when "Continue to Platform" is clicked
+          window.location.href = "/";
+        }}
       />
 
       <div className="hidden">
