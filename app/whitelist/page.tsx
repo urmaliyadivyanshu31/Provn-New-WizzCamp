@@ -452,60 +452,60 @@ export default function WhitelistPage() {
 
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Header */}
-        <div className="w-full p-6">
+        <div className="w-full p-4 sm:p-6">
           <ProvnLogo />
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex items-center justify-center px-6">
-          <div className="w-full max-w-md">
+        <div className="flex-1 flex items-center justify-center p-4 sm:px-6">
+          <div className="w-full max-w-sm sm:max-w-md">
             {/* Main Card */}
             <ProvnCard className="bg-provn-surface/95 backdrop-blur-sm border border-provn-border/50 shadow-2xl shadow-black/20 ring-1 ring-white/5">
-              <ProvnCardContent className="p-8">
+              <ProvnCardContent className="p-6 sm:p-8">
                 {/* Header */}
-                <div className="text-center mb-8">
-                  <h1 className="font-headline text-3xl font-bold text-provn-text mb-3">
+                <div className="text-center mb-6 sm:mb-8">
+                  <h1 className="font-headline text-2xl sm:text-3xl font-bold text-provn-text mb-2 sm:mb-3">
                     Join The Beta
                   </h1>
-                  <p className="text-provn-muted">
+                  <p className="text-provn-muted text-sm sm:text-base">
                     Get exclusive access to Provn's beta platform
                   </p>
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="flex bg-provn-surface-2 rounded-lg p-1 mb-6">
+                <div className="flex bg-provn-surface-2 rounded-lg p-1 mb-4 sm:mb-6">
                   <button
                     onClick={() => setActiveTab("wallet")}
-                    className={`flex-1 py-2 px-3 rounded-md font-medium transition-all duration-200 flex items-center justify-center text-sm ${
+                    className={`flex-1 py-2 px-2 sm:px-3 rounded-md font-medium transition-all duration-200 flex items-center justify-center text-xs sm:text-sm ${
                       activeTab === "wallet"
                         ? "bg-provn-accent text-provn-bg shadow-sm"
                         : "text-provn-muted hover:text-provn-text"
                     }`}
                   >
-                    <WalletIcon className="w-4 h-4 mr-1" />
-                    Wallet
+                    <WalletIcon className="w-4 h-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Wallet</span>
                   </button>
                   <button
                     onClick={() => setActiveTab("email")}
-                    className={`flex-1 py-2 px-3 rounded-md font-medium transition-all duration-200 flex items-center justify-center text-sm ${
+                    className={`flex-1 py-2 px-2 sm:px-3 rounded-md font-medium transition-all duration-200 flex items-center justify-center text-xs sm:text-sm ${
                       activeTab === "email"
                         ? "bg-provn-accent text-provn-bg shadow-sm"
                         : "text-provn-muted hover:text-provn-text"
                     }`}
                   >
-                    <MailIcon className="w-4 h-4 mr-1" />
-                    Email
+                    <MailIcon className="w-4 h-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Email</span>
                   </button>
                   <button
                     onClick={() => setActiveTab("x")}
-                    className={`flex-1 py-2 px-3 rounded-md font-medium transition-all duration-200 flex items-center justify-center text-sm ${
+                    className={`flex-1 py-2 px-2 sm:px-3 rounded-md font-medium transition-all duration-200 flex items-center justify-center text-xs sm:text-sm ${
                       activeTab === "x"
                         ? "bg-provn-accent text-provn-bg shadow-sm"
                         : "text-provn-muted hover:text-provn-text"
                     }`}
                   >
-                    <XTwitterIcon className="w-4 h-4 mr-1" />
-                    X
+                    <XTwitterIcon className="w-4 h-4 sm:mr-1" />
+                    <span className="hidden sm:inline">X</span>
                   </button>
                 </div>
 
@@ -520,11 +520,11 @@ export default function WhitelistPage() {
                       transition={{ duration: 0.2 }}
                       className="space-y-4"
                     >
-                      <div className="text-center py-4">
-                        <WalletIcon className="w-12 h-12 text-provn-accent mx-auto mb-3" />
+                      <div className="text-center py-2 sm:py-4">
+                        <WalletIcon className="w-10 h-10 sm:w-12 sm:h-12 text-provn-accent mx-auto mb-2 sm:mb-3" />
                         {!isAuthenticated ? (
                           <>
-                            <p className="text-provn-muted text-sm mb-4">
+                            <p className="text-provn-muted text-sm mb-3 sm:mb-4">
                               Connect your wallet to check for instant access
                             </p>
                             <ProvnButton
@@ -863,9 +863,9 @@ export default function WhitelistPage() {
         </div>
 
         {/* Bottom Footer */}
-        <div className="w-full p-6">
+        <div className="w-full p-4 sm:p-6">
           <div className="text-center space-y-2">
-            <div className="flex items-center justify-center space-x-4 text-xs text-provn-muted mb-2">
+            <div className="flex items-center justify-center space-x-2 sm:space-x-4 text-xs text-provn-muted mb-2">
               <a 
                 href="https://x.com/provndotfun" 
                 target="_blank" 
@@ -892,7 +892,7 @@ export default function WhitelistPage() {
             <p className="text-xs text-provn-muted">
               Powered by{" "}
               <a 
-                href="https://camp.network" 
+                href="https://www.campnetwork.xyz/" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-provn-accent font-medium hover:text-provn-accent/80 transition-colors"
