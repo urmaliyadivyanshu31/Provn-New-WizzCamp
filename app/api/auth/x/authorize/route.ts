@@ -12,6 +12,21 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🐦 Initiating Twitter OAuth flow...')
     
+    // Extract wallet address from query parameters
+    const { searchParams } = new URL(request.url)
+    const walletAddress = searchParams.get('walletAddress')
+    
+    console.log('👛 Received wallet address for OAuth:', walletAddress)
+    
+    // Validate wallet address
+    if (!walletAddress || !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+      console.error('❌ Invalid or missing wallet address')
+      return NextResponse.json({
+        success: false,
+        error: 'Valid wallet address is required for Twitter authentication'
+      }, { status: 400 })
+    }
+    
     // Validate environment variables
     const apiKey = process.env.TWITTER_API_KEY
     const apiSecret = process.env.TWITTER_API_SECRET
@@ -41,12 +56,13 @@ export async function GET(request: NextRequest) {
     
     // Generate OAuth 1.0a request token and authorization URL
     const authLink = await client.generateAuthLink(callbackUrl)
-      console.log( "Secure state", authLink)
+    console.log("Secure state", authLink)
 
     
-    // Store the OAuth secret temporarily (in production, use Redis/database)
-    // For now, we'll include it in the state parameter (not recommended for production)
-    const secureState = `${state}:${authLink.oauth_token_secret}`
+    // Store the OAuth secret and wallet address temporarily (in production, use Redis/database)
+    // Format: state:oauth_token_secret:wallet_address
+    const secureState = `${state}:${authLink.oauth_token_secret}:${walletAddress}`
+    console.log('🔐 Generated secure state with wallet address')
     const response = NextResponse.json({
       success: true,
       authUrl: authLink.url,

@@ -315,7 +315,7 @@ export default function WhitelistPage() {
   const handleXLogin = async () => {
     setIsXLoading(true);
     try {
-      // 1. Send wallet address to backend before starting X OAuth
+      // Validate wallet address before starting X OAuth
       if (!walletAddress || !isValidWalletAddress(walletAddress)) {
         setSubmissionResult({
           success: false,
@@ -327,20 +327,8 @@ export default function WhitelistPage() {
         return;
       }
 
-      // Store wallet address in DB (optional: you can use a dedicated endpoint)
-      const walletRes = await fetch("/api/auth/x/simple-auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          walletAddress: walletAddress.trim(),
-
-          preAuth: true,
-        }),
-      });
-      // You may want to check walletRes, but continue regardless
-
-      // 2. Start X OAuth
-      const res = await fetch("/api/auth/x/authorize");
+      // Start X OAuth with wallet address
+      const res = await fetch(`/api/auth/x/authorize?walletAddress=${encodeURIComponent(walletAddress)}`);
       const data = await res.json();
       if (data.success && data.authUrl) {
         window.location.href = data.authUrl;
@@ -368,11 +356,6 @@ export default function WhitelistPage() {
     }
   }, []);
 
-  const handleXFinalSubmit = async (e: any) => {
-    e.preventDefault();
-    // Validate walletAddress
-    // POST { username: xUser.username, walletAddress } to /api/auth/x/simple-auth
-  };
 
   const isValidEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

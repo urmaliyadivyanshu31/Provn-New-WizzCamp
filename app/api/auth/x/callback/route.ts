@@ -44,12 +44,15 @@ export async function GET(request: NextRequest) {
       return createErrorRedirect('Authentication session expired')
     }
     
-    // Extract OAuth secret from stored state
-    const [originalState, oauthTokenSecret] = storedState.split(':')
-    if (!oauthTokenSecret) {
+    // Extract OAuth secret and wallet address from stored state
+    // Format: state:oauth_token_secret:wallet_address
+    const [originalState, oauthTokenSecret, walletAddress] = storedState.split(':')
+    if (!oauthTokenSecret || !walletAddress) {
       console.error('❌ Invalid stored OAuth state format')
       return createErrorRedirect('Invalid authentication state')
     }
+    
+    console.log('👛 Extracted wallet address from OAuth state:', walletAddress)
     
     // Validate environment variables
     const apiKey = process.env.TWITTER_API_KEY
@@ -96,11 +99,11 @@ export async function GET(request: NextRequest) {
       return createErrorRedirect(accountValidation.message || 'Account validation failed')
     }
     
-    // Submit whitelist request
-    const whitelistResult = await submitTwitterWhitelistRequest(userProfile, request)
+    // Submit whitelist request with wallet address
+    const whitelistResult = await submitTwitterWhitelistRequest(userProfile, request, walletAddress)
     
     if (whitelistResult.success) {
-      console.log('✅ Twitter whitelist request submitted successfully')
+      console.log('✅ Twitter whitelist request submitted successfully with wallet address')
       return createSuccessRedirect(userProfile.username)
     } else {
       console.error('❌ Failed to submit whitelist request:', whitelistResult.error)
@@ -192,10 +195,16 @@ function validateTwitterAccount(profile: TwitterUserProfile) {
 /**
  * Submit Twitter whitelist request to database
  */
-async function submitTwitterWhitelistRequest(profile: TwitterUserProfile, request: NextRequest) {
+async function submitTwitterWhitelistRequest(profile: TwitterUserProfile, request: NextRequest, walletAddress: string) {
   try {
     const supabase = createAdminClient()
     const clientIP = getClientIP(request)
+    
+    console.log('💾 Submitting whitelist request:', {
+      username: profile.username,
+      walletAddress,
+      clientIP
+    })
     
     // Check for existing submission
     const { data: existing } = await supabase
@@ -223,6 +232,7 @@ async function submitTwitterWhitelistRequest(profile: TwitterUserProfile, reques
       .from('beta_whitelist')
       .insert({
         twitter_username: profile.username,
+        wallet_address: walletAddress,
         submission_type: 'twitter',
         status: 'pending',
         submitted_at: new Date().toISOString(),
