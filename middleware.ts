@@ -82,7 +82,7 @@ function getWalletFromRequest(request: NextRequest): string | null {
 }
 
 /**
- * Check if wallet address is whitelisted (simplified)
+ * Check if wallet address is whitelisted (fixed to check beta_whitelist)
  */
 async function checkWhitelistDatabase(walletAddress: string): Promise<boolean> {
   try {
@@ -96,18 +96,49 @@ async function checkWhitelistDatabase(walletAddress: string): Promise<boolean> {
       return true;
     }
     
-    // Then check database
+    // Check admin wallets
+    const adminWallets = (process.env.NEXT_PUBLIC_ADMIN_WALLETS || '')
+      .split(',')
+      .map(addr => addr.toLowerCase().trim())
+      .filter(addr => addr.length > 0);
+    
+    if (adminWallets.includes(walletAddress.toLowerCase())) {
+      return true;
+    }
+    
+    // Then check beta_whitelist table for approved entries
     const supabase = createSupabaseClient();
-    const { data, error } = await supabase.rpc('is_address_whitelisted', {
+    const { data: betaWhitelist, error: betaError } = await supabase
+      .from('beta_whitelist')
+      .select('id, status')
+      .eq('wallet_address', walletAddress.toLowerCase())
+      .eq('status', 'approved')
+      .limit(1);
+    
+    if (betaError) {
+      console.error('Beta whitelist database error:', betaError);
+    } else if (betaWhitelist && betaWhitelist.length > 0) {
+      console.log('✅ Found approved beta whitelist entry in middleware for wallet:', walletAddress);
+      return true;
+    }
+    
+    // Fallback to RPC function check (for whitelist_addresses table)
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('is_address_whitelisted', {
       address: walletAddress
     });
     
-    if (error) {
-      console.error('Whitelist database error:', error);
+    if (rpcError) {
+      console.error('RPC whitelist database error:', rpcError);
       return false;
     }
     
-    return data === true;
+    if (rpcResult === true) {
+      console.log('✅ Found whitelisted address via RPC in middleware for wallet:', walletAddress);
+      return true;
+    }
+    
+    console.log('❌ Wallet not found in any whitelist in middleware:', walletAddress);
+    return false;
     
   } catch (error) {
     console.error('Whitelist check error:', error);
