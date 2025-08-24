@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { ProvnButton } from '@/components/provn/button'
 import { ProvnCard, ProvnCardContent } from '@/components/provn/card'
 import { 
@@ -352,8 +352,22 @@ export default function AdminDashboard() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-provn-bg flex items-center justify-center">
-        <div className="text-center">
-          <RefreshCcw className="w-8 h-8 text-provn-accent animate-spin mx-auto mb-4" />
+        {/* Enhanced Background Pattern */}
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-50/5 via-transparent to-orange-100/5"></div>
+          <div
+            className="absolute inset-0 opacity-[0.02]"
+            style={{
+              backgroundImage: `radial-gradient(circle at 25% 25%, #ff6d01 1px, transparent 1px)`,
+              backgroundSize: "60px 60px",
+            }}
+          />
+          <div className="absolute top-40 left-10 w-96 h-96 bg-gradient-radial from-orange-400/3 via-orange-400/1 to-transparent rounded-full blur-3xl"></div>
+          <div className="absolute bottom-40 right-10 w-80 h-80 bg-gradient-radial from-amber-400/2 via-amber-400/0.5 to-transparent rounded-full blur-3xl"></div>
+        </div>
+        
+        <div className="relative z-10 text-center">
+          <RefreshCcw className="w-8 h-8 text-provn-accent mx-auto mb-4" />
           <p className="text-provn-muted">Verifying admin access...</p>
         </div>
       </div>
@@ -363,7 +377,21 @@ export default function AdminDashboard() {
   if (!isAuthenticated || !walletAddress) {
     return (
       <div className="min-h-screen bg-provn-bg flex items-center justify-center">
-        <ProvnCard className="max-w-md w-full">
+        {/* Enhanced Background Pattern */}
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-50/5 via-transparent to-orange-100/5"></div>
+          <div
+            className="absolute inset-0 opacity-[0.02]"
+            style={{
+              backgroundImage: `radial-gradient(circle at 25% 25%, #ff6d01 1px, transparent 1px)`,
+              backgroundSize: "60px 60px",
+            }}
+          />
+          <div className="absolute top-40 left-10 w-96 h-96 bg-gradient-radial from-orange-400/3 via-orange-400/1 to-transparent rounded-full blur-3xl"></div>
+          <div className="absolute bottom-40 right-10 w-80 h-80 bg-gradient-radial from-amber-400/2 via-amber-400/0.5 to-transparent rounded-full blur-3xl"></div>
+        </div>
+        
+        <ProvnCard className="relative z-10 max-w-md w-full bg-provn-surface/95 backdrop-blur-sm border border-provn-border/50 shadow-2xl shadow-black/20 ring-1 ring-white/5">
           <ProvnCardContent className="p-8 text-center">
             <Shield className="w-12 h-12 text-provn-accent mx-auto mb-4" />
             <h1 className="font-headline text-2xl font-bold text-provn-text mb-4">
@@ -384,7 +412,21 @@ export default function AdminDashboard() {
   if (!isAdminVerified) {
     return (
       <div className="min-h-screen bg-provn-bg flex items-center justify-center">
-        <ProvnCard className="max-w-md w-full">
+        {/* Enhanced Background Pattern */}
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-50/5 via-transparent to-orange-100/5"></div>
+          <div
+            className="absolute inset-0 opacity-[0.02]"
+            style={{
+              backgroundImage: `radial-gradient(circle at 25% 25%, #ff6d01 1px, transparent 1px)`,
+              backgroundSize: "60px 60px",
+            }}
+          />
+          <div className="absolute top-40 left-10 w-96 h-96 bg-gradient-radial from-orange-400/3 via-orange-400/1 to-transparent rounded-full blur-3xl"></div>
+          <div className="absolute bottom-40 right-10 w-80 h-80 bg-gradient-radial from-amber-400/2 via-amber-400/0.5 to-transparent rounded-full blur-3xl"></div>
+        </div>
+        
+        <ProvnCard className="relative z-10 max-w-md w-full bg-provn-surface/95 backdrop-blur-sm border border-provn-border/50 shadow-2xl shadow-black/20 ring-1 ring-white/5">
           <ProvnCardContent className="p-8">
             <div className="text-center mb-6">
               <AlertTriangle className="w-12 h-12 text-provn-warning mx-auto mb-4" />
@@ -406,7 +448,7 @@ export default function AdminDashboard() {
                   value={adminKey}
                   onChange={(e) => setAdminKey(e.target.value)}
                   placeholder="Enter admin key..."
-                  className="w-full px-4 py-3 bg-provn-bg border border-provn-border rounded-[10px] text-provn-text placeholder-provn-muted focus:outline-none focus:ring-2 focus:ring-provn-accent"
+                  className="w-full px-4 py-3 bg-provn-bg/50 backdrop-blur-sm border border-provn-border/50 rounded-xl text-provn-text placeholder-provn-muted focus:outline-none focus:ring-2 focus:ring-provn-accent focus:border-provn-accent/50 transition-all duration-200"
                 />
               </div>
               
@@ -455,12 +497,12 @@ export default function AdminDashboard() {
               
               {/* Debug info display */}
               {debugInfo.length > 0 && (
-                <div className="mt-4 p-3 bg-gray-900 rounded text-xs text-green-400 font-mono">
-                  <div className="text-white mb-2">Debug Info:</div>
+                <div className="mt-4 p-3 bg-provn-surface/80 backdrop-blur-sm border border-provn-border/30 rounded-lg text-xs text-provn-text font-mono">
+                  <div className="text-provn-accent mb-2 font-semibold">Debug Info:</div>
                   {debugInfo.map((info, idx) => (
-                    <div key={idx}>{info}</div>
+                    <div key={idx} className="text-provn-muted">{info}</div>
                   ))}
-                  <div className="text-yellow-400 mt-2">
+                  <div className="text-provn-warning mt-2">
                     adminKey: {adminKey ? 'SET' : 'MISSING'} | walletAddress: {walletAddress || 'MISSING'}
                   </div>
                 </div>
@@ -474,211 +516,310 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-provn-bg">
-      {/* Header */}
-      <div className="bg-provn-surface border-b border-provn-border">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Shield className="w-8 h-8 text-provn-accent mr-3" />
-              <div>
-                <h1 className="font-headline text-2xl font-bold text-provn-text">
-                  Provn Admin Dashboard
-                </h1>
-                <p className="text-provn-muted text-sm">
-                  Whitelist & VIP Access Management
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-xs text-provn-muted">Admin Wallet</p>
-                <p className="text-sm font-mono text-provn-text">
-                  {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
-                </p>
-              </div>
-              
-              <ProvnButton
-                variant="secondary"
-                size="sm"
-                onClick={loadDashboardData}
-              >
-                <RefreshCcw className="w-4 h-4 mr-2" />
-                Refresh
-              </ProvnButton>
-            </div>
-          </div>
-        </div>
+      {/* Enhanced Background Pattern */}
+      <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-orange-50/10 via-transparent to-orange-100/10"></div>
+        
+        {/* Dot pattern layer 1 */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `radial-gradient(circle at 25% 25%, #ff6d01 1px, transparent 1px)`,
+            backgroundSize: "60px 60px",
+          }}
+        />
+        
+        {/* Dot pattern layer 2 - offset */}
+        <div
+          className="absolute inset-0 opacity-[0.02]"
+          style={{
+            backgroundImage: `radial-gradient(circle at 75% 75%, #ff6d01 0.8px, transparent 0.8px)`,
+            backgroundSize: "40px 40px",
+          }}
+        />
+        
+        {/* Geometric texture overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.015]"
+          style={{
+            backgroundImage: `
+              linear-gradient(45deg, #ff6d01 1px, transparent 1px),
+              linear-gradient(-45deg, #ff6d01 1px, transparent 1px)
+            `,
+            backgroundSize: "80px 80px, 80px 80px",
+            backgroundPosition: "0 0, 40px 40px",
+          }}
+        />
+        
+        {/* Ambient light spots */}
+        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-radial from-orange-400/5 via-orange-400/2 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-radial from-amber-400/4 via-amber-400/1 to-transparent rounded-full blur-3xl"></div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <ProvnCard>
-            <ProvnCardContent className="p-6">
+      <div className="relative z-10">
+        {/* Header */}
+        <div className="bg-provn-surface/95 backdrop-blur-sm border-b border-provn-border/50">
+          <div className="max-w-7xl mx-auto px-4 py-6">
+            <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <Users className="w-8 h-8 text-provn-accent mr-3" />
+                <Shield className="w-8 h-8 text-provn-accent mr-3" />
                 <div>
-                  <p className="text-2xl font-bold text-provn-text">
-                    {stats.totalWhitelistRequests}
+                  <h1 className="font-headline text-2xl font-bold text-provn-text">
+                    Provn Admin Dashboard
+                  </h1>
+                  <p className="text-provn-muted text-sm">
+                    Whitelist & VIP Access Management
                   </p>
-                  <p className="text-provn-muted text-sm">Total Requests</p>
                 </div>
               </div>
-            </ProvnCardContent>
-          </ProvnCard>
-
-          <ProvnCard>
-            <ProvnCardContent className="p-6">
-              <div className="flex items-center">
-                <Clock className="w-8 h-8 text-provn-warning mr-3" />
-                <div>
-                  <p className="text-2xl font-bold text-provn-text">
-                    {stats.pendingRequests}
+              
+              <div className="flex items-center space-x-4">
+                <div className="text-right">
+                  <p className="text-xs text-provn-muted">Admin Wallet</p>
+                  <p className="text-sm font-mono text-provn-text">
+                    {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
                   </p>
-                  <p className="text-provn-muted text-sm">Pending Review</p>
                 </div>
+                
+                <ProvnButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={loadDashboardData}
+                >
+                  <RefreshCcw className="w-4 h-4 mr-2" />
+                  Refresh
+                </ProvnButton>
               </div>
-            </ProvnCardContent>
-          </ProvnCard>
-
-          <ProvnCard>
-            <ProvnCardContent className="p-6">
-              <div className="flex items-center">
-                <Key className="w-8 h-8 text-provn-accent mr-3" />
-                <div>
-                  <p className="text-2xl font-bold text-provn-text">
-                    {stats.totalVipAccesses}
-                  </p>
-                  <p className="text-provn-muted text-sm">VIP Accesses</p>
-                </div>
-              </div>
-            </ProvnCardContent>
-          </ProvnCard>
-
-          <ProvnCard>
-            <ProvnCardContent className="p-6">
-              <div className="flex items-center">
-                <Activity className="w-8 h-8 text-provn-success mr-3" />
-                <div>
-                  <p className="text-2xl font-bold text-provn-text">
-                    {stats.activeVipAccesses}
-                  </p>
-                  <p className="text-provn-muted text-sm">Active VIPs</p>
-                </div>
-              </div>
-            </ProvnCardContent>
-          </ProvnCard>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="flex space-x-1 bg-provn-surface-2 rounded-[10px] p-1 mb-8">
-          {[
-            { id: 'overview', label: 'Overview', icon: TrendingUp },
-            { id: 'whitelist', label: 'Whitelist Requests', icon: Users },
-            { id: 'vip', label: 'VIP Access', icon: Key },
-            { id: 'security', label: 'Security Logs', icon: Shield }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                activeTab === tab.id
-                  ? 'bg-provn-accent text-provn-bg'
-                  : 'text-provn-muted hover:text-provn-text'
-              }`}
-            >
-              <tab.icon className="w-4 h-4 mr-2" />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-            {/* Quick Actions */}
-            <ProvnCard>
-              <ProvnCardContent className="p-6">
-                <h3 className="font-headline text-lg font-semibold text-provn-text mb-4">
-                  Quick Actions
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <ProvnButton
-                    onClick={() => setActiveTab('vip')}
-                    className="flex items-center justify-center"
-                  >
-                    <Key className="w-4 h-4 mr-2" />
-                    Create VIP Access
-                  </ProvnButton>
-                  
-                  <ProvnButton
-                    variant="secondary"
-                    onClick={() => setActiveTab('whitelist')}
-                    className="flex items-center justify-center"
-                  >
-                    <Users className="w-4 h-4 mr-2" />
-                    Review Requests
-                  </ProvnButton>
-                  
-                  <ProvnButton
-                    variant="secondary"
-                    onClick={() => setActiveTab('security')}
-                    className="flex items-center justify-center"
-                  >
-                    <Shield className="w-4 h-4 mr-2" />
-                    Security Logs
-                  </ProvnButton>
-                </div>
-              </ProvnCardContent>
-            </ProvnCard>
-
-            {/* Recent Activity */}
-            <ProvnCard>
-              <ProvnCardContent className="p-6">
-                <h3 className="font-headline text-lg font-semibold text-provn-text mb-4">
-                  Recent Activity
-                </h3>
-                <div className="space-y-3">
-                  {whitelistRequests.slice(0, 5).map((request) => (
-                    <div key={request.id} className="flex items-center justify-between py-2 border-b border-provn-border last:border-0">
-                      <div className="flex items-center">
-                        <div className={`w-2 h-2 rounded-full mr-3 ${
-                          request.status === 'pending' ? 'bg-provn-warning' :
-                          request.status === 'approved' ? 'bg-provn-success' : 'bg-provn-error'
-                        }`} />
-                        <div>
-                          <p className="text-provn-text text-sm">
-                            {request.email || `@${request.twitterUsername}`}
-                          </p>
-                          <p className="text-provn-muted text-xs">
-                            {new Date(request.submittedAt).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        request.status === 'pending' ? 'bg-provn-warning/20 text-provn-warning' :
-                        request.status === 'approved' ? 'bg-provn-success/20 text-provn-success' :
-                        'bg-provn-error/20 text-provn-error'
-                      }`}>
-                        {request.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </ProvnCardContent>
-            </ProvnCard>
+            </div>
           </div>
-        )}
+        </div>
 
-        {activeTab === 'vip' && (
-          <div className="space-y-6">
-            {/* VIP Creation Form */}
-            <ProvnCard>
-              <ProvnCardContent className="p-6">
-                <h3 className="font-headline text-lg font-semibold text-provn-text mb-4">
-                  Create VIP Access
-                </h3>
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+            >
+              <ProvnCard className="bg-provn-surface/95 backdrop-blur-sm border border-provn-border/50 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300">
+                <ProvnCardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 bg-provn-accent/10 rounded-xl mr-4">
+                      <Users className="w-6 h-6 text-provn-accent" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-provn-text">
+                        {stats.totalWhitelistRequests}
+                      </p>
+                      <p className="text-provn-muted text-sm">Total Requests</p>
+                    </div>
+                  </div>
+                </ProvnCardContent>
+              </ProvnCard>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+            >
+              <ProvnCard className="bg-provn-surface/95 backdrop-blur-sm border border-provn-border/50 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300">
+                <ProvnCardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 bg-amber-500/10 rounded-xl mr-4">
+                      <Clock className="w-6 h-6 text-amber-500" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-provn-text">
+                        {stats.pendingRequests}
+                      </p>
+                      <p className="text-provn-muted text-sm">Pending Review</p>
+                    </div>
+                  </div>
+                </ProvnCardContent>
+              </ProvnCard>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.3 }}
+            >
+              <ProvnCard className="bg-provn-surface/95 backdrop-blur-sm border border-provn-border/50 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300">
+                <ProvnCardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 bg-provn-accent/10 rounded-xl mr-4">
+                      <Key className="w-6 h-6 text-provn-accent" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-provn-text">
+                        {stats.totalVipAccesses}
+                      </p>
+                      <p className="text-provn-muted text-sm">VIP Accesses</p>
+                    </div>
+                  </div>
+                </ProvnCardContent>
+              </ProvnCard>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.4 }}
+            >
+              <ProvnCard className="bg-provn-surface/95 backdrop-blur-sm border border-provn-border/50 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300">
+                <ProvnCardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 bg-emerald-500/10 rounded-xl mr-4">
+                      <Activity className="w-6 h-6 text-emerald-500" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-provn-text">
+                        {stats.activeVipAccesses}
+                      </p>
+                      <p className="text-provn-muted text-sm">Active VIPs</p>
+                    </div>
+                  </div>
+                </ProvnCardContent>
+              </ProvnCard>
+            </motion.div>
+          </div>
+
+          {/* Tab Navigation */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.5 }}
+            className="flex space-x-1 bg-provn-surface/80 backdrop-blur-sm border border-provn-border/30 rounded-xl p-1 mb-8 shadow-lg"
+          >
+            {[
+              { id: 'overview', label: 'Overview', icon: TrendingUp },
+              { id: 'whitelist', label: 'Whitelist Requests', icon: Users },
+              { id: 'vip', label: 'VIP Access', icon: Key },
+              { id: 'security', label: 'Security Logs', icon: Shield }
+            ].map((tab, index) => (
+              <motion.button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`flex items-center px-4 py-3 rounded-lg font-medium transition-all duration-300 ${
+                  activeTab === tab.id
+                    ? 'bg-provn-accent text-provn-bg shadow-lg'
+                    : 'text-provn-muted hover:text-provn-text hover:bg-provn-surface/50'
+                }`}
+              >
+                <tab.icon className="w-4 h-4 mr-2" />
+                {tab.label}
+              </motion.button>
+            ))}
+          </motion.div>
+
+          {/* Tab Content */}
+          <AnimatePresence mode="wait">
+            {activeTab === 'overview' && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
+                {/* Quick Actions */}
+                <ProvnCard className="bg-provn-surface/95 backdrop-blur-sm border border-provn-border/50 shadow-xl">
+                  <ProvnCardContent className="p-6">
+                    <h3 className="font-headline text-lg font-semibold text-provn-text mb-4">
+                      Quick Actions
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <ProvnButton
+                        onClick={() => setActiveTab('vip')}
+                        className="flex items-center justify-center hover:scale-[1.02] transition-transform duration-200"
+                      >
+                        <Key className="w-4 h-4 mr-2" />
+                        Create VIP Access
+                      </ProvnButton>
+                      
+                      <ProvnButton
+                        variant="secondary"
+                        onClick={() => setActiveTab('whitelist')}
+                        className="flex items-center justify-center hover:scale-[1.02] transition-transform duration-200"
+                      >
+                        <Users className="w-4 h-4 mr-2" />
+                        Review Requests
+                      </ProvnButton>
+                      
+                      <ProvnButton
+                        variant="secondary"
+                        onClick={() => setActiveTab('security')}
+                        className="flex items-center justify-center hover:scale-[1.02] transition-transform duration-200"
+                      >
+                        <Shield className="w-4 h-4 mr-2" />
+                        Security Logs
+                      </ProvnButton>
+                    </div>
+                  </ProvnCardContent>
+                </ProvnCard>
+
+                {/* Recent Activity */}
+                <ProvnCard className="bg-provn-surface/95 backdrop-blur-sm border border-provn-border/50 shadow-xl">
+                  <ProvnCardContent className="p-6">
+                    <h3 className="font-headline text-lg font-semibold text-provn-text mb-4">
+                      Recent Activity
+                    </h3>
+                    <div className="space-y-3">
+                      {whitelistRequests.slice(0, 5).map((request, index) => (
+                        <motion.div 
+                          key={request.id} 
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.3, delay: index * 0.1 }}
+                          className="flex items-center justify-between py-3 px-4 rounded-lg border border-provn-border/30 hover:border-provn-accent/30 hover:bg-provn-surface/30 transition-all duration-200 last:border-0"
+                        >
+                          <div className="flex items-center">
+                            <div className={`w-3 h-3 rounded-full mr-3 ${
+                              request.status === 'pending' ? 'bg-amber-500' :
+                              request.status === 'approved' ? 'bg-emerald-500' : 'bg-red-500'
+                            }`} />
+                            <div>
+                              <p className="text-provn-text text-sm font-medium">
+                                {request.email || `@${request.twitterUsername}`}
+                              </p>
+                              <p className="text-provn-muted text-xs">
+                                {new Date(request.submittedAt).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            request.status === 'pending' ? 'bg-amber-500/20 text-amber-500' :
+                            request.status === 'approved' ? 'bg-emerald-500/20 text-emerald-500' :
+                            'bg-red-500/20 text-red-500'
+                          }`}>
+                            {request.status}
+                          </span>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </ProvnCardContent>
+                </ProvnCard>
+              </motion.div>
+            )}
+
+            {activeTab === 'vip' && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
+                {/* VIP Creation Form */}
+                <ProvnCard className="bg-provn-surface/95 backdrop-blur-sm border border-provn-border/50 shadow-xl">
+                  <ProvnCardContent className="p-6">
+                    <h3 className="font-headline text-lg font-semibold text-provn-text mb-4">
+                      Create VIP Access
+                    </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-provn-text mb-2">
@@ -729,7 +870,7 @@ export default function AdminDashboard() {
                   >
                     {vipCreating ? (
                       <>
-                        <RefreshCcw className="w-4 h-4 mr-2 animate-spin" />
+                        <RefreshCcw className="w-4 h-4 mr-2" />
                         Creating...
                       </>
                     ) : (
@@ -835,10 +976,10 @@ export default function AdminDashboard() {
                 </div>
               </ProvnCardContent>
             </ProvnCard>
-          </div>
-        )}
+              </motion.div>
+            )}
 
-        {/* Other tab content would go here... */}
+            {/* Other tab content would go here... */}
         {activeTab === 'whitelist' && (
           <div className="space-y-6">
             {/* Search and Filters */}
@@ -1015,18 +1156,35 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {activeTab === 'security' && (
-          <ProvnCard>
-            <ProvnCardContent className="p-6">
-              <h3 className="font-headline text-lg font-semibold text-provn-text mb-4">
-                Security Logs
-              </h3>
-              <p className="text-provn-muted">
-                Security monitoring features coming soon...
-              </p>
-            </ProvnCardContent>
-          </ProvnCard>
-        )}
+            {activeTab === 'security' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <ProvnCard className="bg-provn-surface/95 backdrop-blur-sm border border-provn-border/50 shadow-xl">
+                  <ProvnCardContent className="p-8">
+                    <div className="text-center">
+                      <div className="p-4 bg-provn-accent/5 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                        <Shield className="w-10 h-10 text-provn-accent" />
+                      </div>
+                      <h3 className="font-headline text-2xl font-bold text-provn-text mb-4">
+                        Security Logs
+                      </h3>
+                      <p className="text-provn-muted max-w-md mx-auto">
+                        Advanced security monitoring and audit trail features are currently in development.
+                      </p>
+                      <div className="mt-6 px-4 py-2 bg-provn-accent/10 rounded-lg inline-block">
+                        <p className="text-provn-accent text-sm font-medium">Coming in Q4 2025</p>
+                      </div>
+                    </div>
+                  </ProvnCardContent>
+                </ProvnCard>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   )

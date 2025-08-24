@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { TwitterApi } from 'twitter-api-v2'
+import crypto from 'crypto'
 
 /**
- * Twitter/X OAuth Authorization Endpoint
+ * Twitter/X OAuth 2.0 Authorization Endpoint
  * 
- * Initiates the Twitter OAuth flow for whitelist authentication.
+ * Initiates the Twitter OAuth 2.0 PKCE flow for whitelist authentication.
  * Creates a secure authorization URL with state parameter for CSRF protection.
  */
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🐦 Initiating Twitter OAuth flow...')
+    console.log('🐦 Initiating Twitter OAuth 2.0 PKCE flow...')
     
     // Extract wallet address from query parameters
     const { searchParams } = new URL(request.url)
@@ -28,50 +28,55 @@ export async function GET(request: NextRequest) {
     }
     
     // Validate environment variables
-    const apiKey = process.env.TWITTER_API_KEY
-    const apiSecret = process.env.TWITTER_API_SECRET
+    const clientId = process.env.TWITTER_CLIENT_ID
     
-    if (!apiKey || !apiSecret) {
-      console.error('❌ Twitter API credentials not configured')
+    if (!clientId) {
+      console.error('❌ Twitter OAuth 2.0 credentials not configured')
       return NextResponse.json({
         success: false,
         error: 'Twitter authentication not properly configured'
       }, { status: 500 })
     }
     
-    // Initialize Twitter API client
-    const client = new TwitterApi({
-      appKey: apiKey,
-      appSecret: apiSecret,
-    })
+    // Generate PKCE parameters
+    const codeVerifier = generateCodeVerifier()
+    const codeChallenge = generateCodeChallenge(codeVerifier)
+    const state = generateSecureState()
     
     // Generate callback URL
     const baseUrl = request.nextUrl.origin
-    const callbackUrl = `${baseUrl}/api/auth/x/callback`
-    console.log('🔗 Generating authorization URL with callback:', callbackUrl)
-    // Generate state parameter for CSRF protection
-    const state = generateSecureState()
+    const redirectUri = `${baseUrl}/api/auth/x/callback`
+    console.log('🔗 Generating authorization URL with callback:', redirectUri)
     
-    console.log('🔗 Generating authorization URL with callback:', callbackUrl)
+    // Build OAuth 2.0 authorization URL
+    const authParams = new URLSearchParams({
+      response_type: 'code',
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      scope: 'tweet.read users.read offline.access',
+      state: state,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256'
+    })
     
-    // Generate OAuth 1.0a request token and authorization URL
-    const authLink = await client.generateAuthLink(callbackUrl)
-    console.log("Secure state", authLink)
-
+    const authUrl = `https://twitter.com/i/oauth2/authorize?${authParams.toString()}`
     
-    // Store the OAuth secret and wallet address temporarily (in production, use Redis/database)
-    // Format: state:oauth_token_secret:wallet_address
-    const secureState = `${state}:${authLink.oauth_token_secret}:${walletAddress}`
-    console.log('🔐 Generated secure state with wallet address')
+    // Store OAuth state and PKCE data for callback verification
+    const oauthData = {
+      state,
+      codeVerifier,
+      walletAddress,
+      timestamp: Date.now()
+    }
+    
     const response = NextResponse.json({
       success: true,
-      authUrl: authLink.url,
-      oauth_token: authLink.oauth_token,
-      state: secureState
+      authUrl,
+      state
     })
     
     // Set secure cookie with OAuth data for callback verification
-    response.cookies.set('twitter_oauth_state', secureState, {
+    response.cookies.set('twitter_oauth_data', JSON.stringify(oauthData), {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -79,21 +84,12 @@ export async function GET(request: NextRequest) {
       path: '/'
     })
     
-    console.log('✅ Twitter authorization URL generated successfully')
+    console.log('✅ Twitter OAuth 2.0 authorization URL generated successfully')
     
     return response
     
   } catch (error: any) {
-    console.log('❌ Twitter OAuth initialization failed:', error)
-    
- console.dir(error, { depth: 5 });
-    if (error?.code) {
-      return NextResponse.json({
-        success: false,
-        error: 'Twitter API error: ' + (error.message || 'Unknown error'),
-        code: error.code
-      }, { status: 400 })
-    }
+    console.error('❌ Twitter OAuth 2.0 initialization failed:', error)
     
     return NextResponse.json({
       success: false,
@@ -124,4 +120,38 @@ function generateSecureState(): string {
   }
   
   return result
+}
+
+/**
+ * Generate PKCE code verifier
+ */
+function generateCodeVerifier(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'
+  let result = ''
+  const randomArray = new Uint8Array(128)
+  
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(randomArray)
+  } else {
+    for (let i = 0; i < 128; i++) {
+      randomArray[i] = Math.floor(Math.random() * 256)
+    }
+  }
+  
+  for (let i = 0; i < randomArray.length; i++) {
+    result += chars[randomArray[i] % chars.length]
+  }
+  
+  return result
+}
+
+/**
+ * Generate PKCE code challenge from code verifier
+ */
+function generateCodeChallenge(codeVerifier: string): string {
+  const hash = crypto.createHash('sha256').update(codeVerifier).digest()
+  return hash.toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '')
 }

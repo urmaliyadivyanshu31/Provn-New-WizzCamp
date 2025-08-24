@@ -178,6 +178,10 @@ export default function WhitelistPage() {
     try {
       disconnect();
       setSubmissionResult(null);
+      // Instantly refresh the page to show disconnected state
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
     } catch (error) {
       setSubmissionResult({
         success: false,

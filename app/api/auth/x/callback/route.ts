@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { TwitterApi } from 'twitter-api-v2'
 import { createAdminClient } from '@/lib/supabase'
 
 /**
- * Twitter/X OAuth Callback Endpoint
+ * Twitter/X OAuth 2.0 Callback Endpoint
  * 
- * Handles the callback from Twitter OAuth, exchanges tokens,
+ * Handles the callback from Twitter OAuth 2.0, exchanges authorization code for access token,
  * fetches user profile, and submits whitelist request.
  */
-// fixed errors
+
 interface TwitterUserProfile {
   id: string
   username: string
@@ -20,66 +19,97 @@ interface TwitterUserProfile {
     tweet_count: number
   }
   created_at?: string
+  description?: string
+  profile_image_url?: string
 }
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const oauthToken = searchParams.get('oauth_token')
-    const oauthVerifier = searchParams.get('oauth_verifier')
+    const code = searchParams.get('code')
     const state = searchParams.get('state')
+    const error = searchParams.get('error')
     
-    console.log('🐦 Processing Twitter OAuth callback...')
+    console.log('🐦 Processing Twitter OAuth 2.0 callback...')
+    
+    // Handle OAuth errors
+    if (error) {
+      console.error('❌ OAuth error received:', error)
+      return createErrorRedirect('Twitter authorization was denied or failed')
+    }
     
     // Validate required parameters
-    if (!oauthToken || !oauthVerifier) {
+    if (!code || !state) {
       console.error('❌ Missing OAuth parameters in callback')
       return createErrorRedirect('Missing authentication parameters')
     }
     
     // Validate state parameter against cookie for CSRF protection
-    const storedState = request.cookies.get('twitter_oauth_state')?.value
-    if (!storedState) {
-      console.error('❌ Missing stored OAuth state')
+    const storedOAuthData = request.cookies.get('twitter_oauth_data')?.value
+    if (!storedOAuthData) {
+      console.error('❌ Missing stored OAuth data')
       return createErrorRedirect('Authentication session expired')
     }
     
-    // Extract OAuth secret and wallet address from stored state
-    // Format: state:oauth_token_secret:wallet_address
-    const [originalState, oauthTokenSecret, walletAddress] = storedState.split(':')
-    if (!oauthTokenSecret || !walletAddress) {
-      console.error('❌ Invalid stored OAuth state format')
+    let oauthData
+    try {
+      oauthData = JSON.parse(storedOAuthData)
+    } catch (e) {
+      console.error('❌ Invalid stored OAuth data format')
       return createErrorRedirect('Invalid authentication state')
     }
     
-    console.log('👛 Extracted wallet address from OAuth state:', walletAddress)
+    // Verify state parameter
+    if (state !== oauthData.state) {
+      console.error('❌ State parameter mismatch')
+      return createErrorRedirect('Invalid authentication state')
+    }
+    
+    // Check if OAuth data is not too old (10 minutes)
+    if (Date.now() - oauthData.timestamp > 600000) {
+      console.error('❌ OAuth data expired')
+      return createErrorRedirect('Authentication session expired')
+    }
+    
+    console.log('👛 Extracted wallet address from OAuth data:', oauthData.walletAddress)
     
     // Validate environment variables
-    const apiKey = process.env.TWITTER_API_KEY
-    const apiSecret = process.env.TWITTER_API_SECRET
+    const clientId = process.env.TWITTER_CLIENT_ID
+    const clientSecret = process.env.TWITTER_CLIENT_SECRET
     
-    if (!apiKey || !apiSecret) {
-      console.error('❌ Twitter API credentials not configured')
+    if (!clientId || !clientSecret) {
+      console.error('❌ Twitter OAuth 2.0 credentials not configured')
       return createErrorRedirect('Authentication service not configured')
     }
     
-    console.log('🔑 Exchanging OAuth tokens...')
+    console.log('🔑 Exchanging authorization code for access token...')
     
-    // Initialize Twitter client with request token
-    const client = new TwitterApi({
-      appKey: apiKey,
-      appSecret: apiSecret,
-      accessToken: oauthToken,
-      accessSecret: oauthTokenSecret,
+    // Exchange authorization code for access token
+    const tokenResponse = await fetch('https://api.twitter.com/2/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: `${request.nextUrl.origin}/api/auth/x/callback`,
+        code_verifier: oauthData.codeVerifier
+      })
     })
     
-    // Exchange request token for access token
-    const { client: loggedClient, accessToken, accessSecret } = await client.login(oauthVerifier)
+    if (!tokenResponse.ok) {
+      console.error('❌ Token exchange failed:', await tokenResponse.text())
+      return createErrorRedirect('Failed to exchange authorization code')
+    }
+    
+    const tokenData = await tokenResponse.json()
     
     console.log('👤 Fetching Twitter user profile...')
     
-    // Fetch user profile information
-    const userProfile = await fetchTwitterProfile(loggedClient)
+    // Fetch user profile information using access token
+    const userProfile = await fetchTwitterProfile(tokenData.access_token)
     
     if (!userProfile) {
       console.error('❌ Failed to fetch Twitter user profile')
@@ -100,7 +130,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Submit whitelist request with wallet address
-    const whitelistResult = await submitTwitterWhitelistRequest(userProfile, request, walletAddress)
+    const whitelistResult = await submitTwitterWhitelistRequest(userProfile, request, oauthData.walletAddress)
     
     if (whitelistResult.success) {
       console.log('✅ Twitter whitelist request submitted successfully with wallet address')
@@ -111,34 +141,33 @@ export async function GET(request: NextRequest) {
     }
     
   } catch (error: any) {
-    console.error('❌ Twitter OAuth callback error:', error)
-    
-    // Handle specific Twitter API errors
-    if (error?.code) {
-      return createErrorRedirect(`Twitter API error: ${error.message || 'Authentication failed'}`)
-    }
+    console.error('❌ Twitter OAuth 2.0 callback error:', error)
     
     return createErrorRedirect('Authentication process failed')
   }
 }
 
 /**
- * Fetch Twitter user profile with required fields
+ * Fetch Twitter user profile with required fields using OAuth 2.0 access token
  */
-async function fetchTwitterProfile(client: TwitterApi): Promise<TwitterUserProfile | null> {
+async function fetchTwitterProfile(accessToken: string): Promise<TwitterUserProfile | null> {
   try {
-    const user = await client.v2.me({
-      'user.fields': [
-        'id',
-        'username', 
-        'name',
-        'verified',
-        'public_metrics',
-        'created_at'
-      ]
+    const response = await fetch('https://api.twitter.com/2/users/me?' + new URLSearchParams({
+      'user.fields': 'id,username,name,verified,public_metrics,created_at,description,profile_image_url'
+    }), {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
     })
     
-    return user.data as TwitterUserProfile
+    if (!response.ok) {
+      console.error('Failed to fetch Twitter profile:', response.status, await response.text())
+      return null
+    }
+    
+    const result = await response.json()
+    return result.data as TwitterUserProfile
   } catch (error) {
     console.error('Failed to fetch Twitter profile:', error)
     return null
@@ -299,8 +328,8 @@ function createErrorRedirect(message: string) {
   
   const response = NextResponse.redirect(url)
   
-  // Clear OAuth state cookie
-  response.cookies.set('twitter_oauth_state', '', {
+  // Clear OAuth data cookie
+  response.cookies.set('twitter_oauth_data', '', {
     maxAge: 0,
     path: '/'
   })
@@ -319,8 +348,8 @@ function createSuccessRedirect(username: string) {
   
   const response = NextResponse.redirect(url)
   
-  // Clear OAuth state cookie
-  response.cookies.set('twitter_oauth_state', '', {
+  // Clear OAuth data cookie
+  response.cookies.set('twitter_oauth_data', '', {
     maxAge: 0,
     path: '/'
   })
