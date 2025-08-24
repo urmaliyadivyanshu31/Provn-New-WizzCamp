@@ -4,7 +4,15 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ProvnButton } from "@/components/provn/button";
 import { ProvnCard, ProvnCardContent } from "@/components/provn/card";
-import { Mail, CheckCircle, AlertCircle, Loader, Wallet } from "lucide-react";
+import SuccessModal from "@/components/provn/success-modal";
+import {
+  MailIcon,
+  CheckCircleIcon,
+  AlertCircleIcon,
+  LoaderIcon,
+  WalletIcon,
+  XTwitterIcon,
+} from "@/components/icons";
 import {
   useAuth,
   useModal,
@@ -12,6 +20,7 @@ import {
   CampModal,
 } from "@campnetwork/origin/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface SubmissionResult {
   success: boolean;
@@ -41,6 +50,9 @@ export default function WhitelistPage() {
     useState<SubmissionResult | null>(null);
   const [isCheckingWallet, setIsCheckingWallet] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successModalType, setSuccessModalType] = useState<'email' | 'wallet' | 'x'>('email');
+  const [successUsername, setSuccessUsername] = useState<string | undefined>(undefined);
 
   // Origin SDK auth
   const { walletAddress, isAuthenticated } = useAuth();
@@ -113,6 +125,8 @@ export default function WhitelistPage() {
         console.log("✅ Wallet has access! Setting cookie and redirecting...");
         setIsRedirecting(true);
 
+        setSuccessModalType('wallet');
+        setShowSuccessModal(true);
         setSubmissionResult({
           success: true,
           message: "Access granted! Redirecting to platform...",
@@ -215,6 +229,8 @@ export default function WhitelistPage() {
       const result = await response.json();
 
       if (result.success) {
+        setSuccessModalType('email');
+        setShowSuccessModal(true);
         setSubmissionResult({
           success: true,
           message:
@@ -280,6 +296,9 @@ export default function WhitelistPage() {
       const result = await response.json();
 
       if (result.success) {
+        setSuccessModalType('x');
+        setSuccessUsername(twitterUsername.replace(/^@/, ''));
+        setShowSuccessModal(true);
         setSubmissionResult({
           success: true,
           message: result.message,
@@ -389,16 +408,45 @@ export default function WhitelistPage() {
 
   return (
     <div className="min-h-screen bg-provn-bg">
-      {/* Background Pattern */}
+      {/* Enhanced Background Pattern */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-orange-50/5 via-transparent to-orange-100/5"></div>
+        {/* Primary gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-orange-50/10 via-transparent to-orange-100/10"></div>
+        
+        {/* Dot pattern layer 1 */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `radial-gradient(circle at 25% 25%, #ff6d01 1px, transparent 1px)`,
+            backgroundSize: "60px 60px",
+          }}
+        />
+        
+        {/* Dot pattern layer 2 - offset */}
         <div
           className="absolute inset-0 opacity-[0.02]"
           style={{
-            backgroundImage: `radial-gradient(circle at 20% 20%, #ff6d01 1px, transparent 1px)`,
+            backgroundImage: `radial-gradient(circle at 75% 75%, #ff6d01 0.8px, transparent 0.8px)`,
             backgroundSize: "40px 40px",
           }}
         />
+        
+        {/* Geometric texture overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.015]"
+          style={{
+            backgroundImage: `
+              linear-gradient(45deg, #ff6d01 1px, transparent 1px),
+              linear-gradient(-45deg, #ff6d01 1px, transparent 1px)
+            `,
+            backgroundSize: "80px 80px, 80px 80px",
+            backgroundPosition: "0 0, 40px 40px",
+          }}
+        />
+        
+        {/* Ambient light spots */}
+        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-radial from-orange-400/5 via-orange-400/2 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-radial from-amber-400/4 via-amber-400/1 to-transparent rounded-full blur-3xl"></div>
       </div>
 
       <div className="relative z-10 min-h-screen flex flex-col">
@@ -411,7 +459,7 @@ export default function WhitelistPage() {
         <div className="flex-1 flex items-center justify-center px-6">
           <div className="w-full max-w-md">
             {/* Main Card */}
-            <ProvnCard className="bg-provn-surface border border-provn-border shadow-xl">
+            <ProvnCard className="bg-provn-surface/95 backdrop-blur-sm border border-provn-border/50 shadow-2xl shadow-black/20 ring-1 ring-white/5">
               <ProvnCardContent className="p-8">
                 {/* Header */}
                 <div className="text-center mb-8">
@@ -433,7 +481,7 @@ export default function WhitelistPage() {
                         : "text-provn-muted hover:text-provn-text"
                     }`}
                   >
-                    <Wallet className="w-4 h-4 mr-1" />
+                    <WalletIcon className="w-4 h-4 mr-1" />
                     Wallet
                   </button>
                   <button
@@ -444,7 +492,7 @@ export default function WhitelistPage() {
                         : "text-provn-muted hover:text-provn-text"
                     }`}
                   >
-                    <Mail className="w-4 h-4 mr-1" />
+                    <MailIcon className="w-4 h-4 mr-1" />
                     Email
                   </button>
                   <button
@@ -455,13 +503,7 @@ export default function WhitelistPage() {
                         : "text-provn-muted hover:text-provn-text"
                     }`}
                   >
-                    <svg
-                      className="w-4 h-4 mr-1"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                    >
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                    </svg>
+                    <XTwitterIcon className="w-4 h-4 mr-1" />
                     X
                   </button>
                 </div>
@@ -478,7 +520,7 @@ export default function WhitelistPage() {
                       className="space-y-4"
                     >
                       <div className="text-center py-4">
-                        <Wallet className="w-12 h-12 text-provn-accent mx-auto mb-3" />
+                        <WalletIcon className="w-12 h-12 text-provn-accent mx-auto mb-3" />
                         {!isAuthenticated ? (
                           <>
                             <p className="text-provn-muted text-sm mb-4">
@@ -488,7 +530,7 @@ export default function WhitelistPage() {
                               onClick={handleWalletConnect}
                               className="w-full py-3"
                             >
-                              <Wallet className="w-4 h-4 mr-2" />
+                              <WalletIcon className="w-4 h-4 mr-2" />
                               Connect Wallet
                             </ProvnButton>
                           </>
@@ -514,7 +556,7 @@ export default function WhitelistPage() {
 
                             {isCheckingWallet ? (
                               <ProvnButton disabled className="w-full py-3">
-                                <Loader className="w-4 h-4 mr-2 animate-spin" />
+                                <LoaderIcon className="w-4 h-4 mr-2" />
                                 Checking Access...
                               </ProvnButton>
                             ) : (
@@ -523,7 +565,7 @@ export default function WhitelistPage() {
                                 className="w-full py-3"
                                 disabled={isRedirecting}
                               >
-                                <CheckCircle className="w-4 h-4 mr-2" />
+                                <CheckCircleIcon className="w-4 h-4 mr-2" />
                                 Check Access
                               </ProvnButton>
                             )}
@@ -578,7 +620,7 @@ export default function WhitelistPage() {
                         >
                           {isSubmitting ? (
                             <>
-                              <Loader className="w-4 h-4 mr-2 animate-spin" />
+                              <LoaderIcon className="w-4 h-4 mr-2" />
                               Submitting...
                             </>
                           ) : (
@@ -600,7 +642,7 @@ export default function WhitelistPage() {
                       {/* Require wallet connection before X login */}
                       {!walletAddress ? (
                         <div className="space-y-4 text-center">
-                          <Wallet className="w-12 h-12 text-provn-accent mx-auto mb-3" />
+                          <WalletIcon className="w-12 h-12 text-provn-accent mx-auto mb-3" />
                           <p className="text-provn-muted text-sm mb-4">
                             Please connect your wallet before logging in with X
                             (Twitter)
@@ -609,7 +651,7 @@ export default function WhitelistPage() {
                             onClick={handleWalletConnect}
                             className="w-full py-3"
                           >
-                            <Wallet className="w-4 h-4 mr-2" />
+                            <WalletIcon className="w-4 h-4 mr-2" />
                             Connect Wallet
                           </ProvnButton>
                         </div>
@@ -647,18 +689,12 @@ export default function WhitelistPage() {
                           >
                             {isXLoading ? (
                               <>
-                                <Loader className="w-4 h-4 mr-2 animate-spin" />
+                                <LoaderIcon className="w-4 h-4 mr-2" />
                                 Redirecting...
                               </>
                             ) : (
                               <>
-                                <svg
-                                  className="w-4 h-4 mr-2"
-                                  viewBox="0 0 24 24"
-                                  fill="currentColor"
-                                >
-                                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                                </svg>
+                                <XTwitterIcon className="w-4 h-4 mr-2" />
                                 Login with X
                               </>
                             )}
@@ -757,7 +793,7 @@ export default function WhitelistPage() {
                           >
                             {isSubmitting ? (
                               <>
-                                <Loader className="w-4 h-4 mr-2 animate-spin" />
+                                <LoaderIcon className="w-4 h-4 mr-2" />
                                 Submitting...
                               </>
                             ) : (
@@ -785,9 +821,9 @@ export default function WhitelistPage() {
                       }`}
                     >
                       {submissionResult.success ? (
-                        <CheckCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
+                        <CheckCircleIcon className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
                       ) : (
-                        <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
+                        <AlertCircleIcon className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
                       )}
                       <div>
                         <p>{submissionResult.message}</p>
@@ -798,11 +834,26 @@ export default function WhitelistPage() {
 
                 {/* Footer */}
                 <div className="mt-6 pt-6 border-t border-provn-border">
-                  <div className="text-center">
+                  <div className="text-center space-y-3">
                     <p className="text-xs text-provn-muted">
-                      Currently in Q3 beta phase.{" "}
+                      Currently in Q1 beta phase.{" "}
                       <span className="text-provn-text">Limited access.</span>
                     </p>
+                    <div className="flex items-center justify-center space-x-4 text-xs">
+                      <Link 
+                        href="/about" 
+                        className="text-provn-muted hover:text-provn-accent transition-colors"
+                      >
+                        About Provn
+                      </Link>
+                      <span className="text-provn-border">•</span>
+                      <Link 
+                        href="/privacy" 
+                        className="text-provn-muted hover:text-provn-accent transition-colors"
+                      >
+                        Privacy Policy
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </ProvnCardContent>
@@ -812,16 +863,61 @@ export default function WhitelistPage() {
 
         {/* Bottom Footer */}
         <div className="w-full p-6">
-          <div className="text-center">
+          <div className="text-center space-y-2">
+            <div className="flex items-center justify-center space-x-4 text-xs text-provn-muted mb-2">
+              <a 
+                href="https://x.com/provndotfun" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="hover:text-provn-accent transition-colors"
+              >
+                Follow on X
+              </a>
+              <span>•</span>
+              <Link 
+                href="/about" 
+                className="hover:text-provn-accent transition-colors"
+              >
+                About
+              </Link>
+              <span>•</span>
+              <Link 
+                href="/privacy" 
+                className="hover:text-provn-accent transition-colors"
+              >
+                Privacy
+              </Link>
+            </div>
             <p className="text-xs text-provn-muted">
               Powered by{" "}
-              <span className="text-provn-accent font-medium">
+              <a 
+                href="https://camp.network" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-provn-accent font-medium hover:text-provn-accent/80 transition-colors"
+              >
                 Camp Network
-              </span>
+              </a>
             </p>
           </div>
         </div>
       </div>
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => {
+          setShowSuccessModal(false);
+          if (successModalType === 'wallet') {
+            // For wallet success, redirect after modal closes
+            setTimeout(() => {
+              window.location.href = "/";
+            }, 500);
+          }
+        }}
+        type={successModalType}
+        username={successUsername}
+      />
 
       <div className="hidden">
         {/* CampModal for wallet connection */}

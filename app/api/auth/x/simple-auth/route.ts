@@ -209,20 +209,43 @@ async function submitTwitterWhitelist(profile: any, request: NextRequest, wallet
     // Check for existing submission
     const { data: existing } = await supabase
       .from('beta_whitelist')
-      .select('id, status')
+      .select('id, status, wallet_address')
       .eq('twitter_username', profile.username)
       .single()
     
     if (existing) {
       if (existing.status === 'approved') {
         return {
-          success: true,
-          message: 'Your Twitter account is already approved!'
+          success: false,
+          error: `Twitter account @${profile.username} is already approved and has access to the platform.`
         }
       } else if (existing.status === 'pending') {
         return {
-          success: true,
-          message: 'Your request is already submitted and pending review.'
+          success: false,
+          error: `Twitter account @${profile.username} has already been submitted for review. Please wait for approval.`
+        }
+      }
+    }
+
+    // Check for wallet address duplicates if provided
+    if (walletAddress) {
+      const { data: walletDuplicate } = await supabase
+        .from('beta_whitelist')
+        .select('id, submission_type, twitter_username, email')
+        .eq('wallet_address', walletAddress)
+        .single()
+      
+      if (walletDuplicate) {
+        let duplicateMethod = 'another method'
+        if (walletDuplicate.submission_type === 'email' && walletDuplicate.email) {
+          duplicateMethod = `email (${walletDuplicate.email})`
+        } else if (walletDuplicate.submission_type === 'twitter' && walletDuplicate.twitter_username) {
+          duplicateMethod = `Twitter account @${walletDuplicate.twitter_username}`
+        }
+        
+        return {
+          success: false,
+          error: `This wallet address has already been submitted via ${duplicateMethod}. Each wallet can only be used once for whitelist submission.`
         }
       }
     }

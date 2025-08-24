@@ -343,10 +343,14 @@ async function checkForDuplicates(
         .limit(1)
       
       if (emailDuplicate && emailDuplicate.length > 0) {
+        const status = emailDuplicate[0].status
+        const statusMessage = status === 'approved' 
+          ? 'This email is already approved for platform access.'
+          : 'This email has already been submitted for whitelist review.'
         return {
           isDuplicate: true,
           type: 'email',
-          message: 'This email has already been submitted for whitelist access.'
+          message: statusMessage
         }
       }
     }
@@ -360,10 +364,44 @@ async function checkForDuplicates(
         .limit(1)
       
       if (twitterDuplicate && twitterDuplicate.length > 0) {
+        const status = twitterDuplicate[0].status
+        const statusMessage = status === 'approved' 
+          ? 'This Twitter account is already approved for platform access.'
+          : 'This Twitter account has already been submitted for whitelist review.'
         return {
           isDuplicate: true,
           type: 'twitter',
-          message: 'This Twitter account has already been submitted for whitelist access.'
+          message: statusMessage
+        }
+      }
+    }
+    
+    // Check for wallet address duplicates if provided
+    if (body.walletAddress) {
+      const { data: walletDuplicate } = await supabase
+        .from('beta_whitelist')
+        .select('id, submission_type, twitter_username, email, status')
+        .eq('wallet_address', body.walletAddress.toLowerCase().trim())
+        .limit(1)
+      
+      if (walletDuplicate && walletDuplicate.length > 0) {
+        const duplicate = walletDuplicate[0]
+        let duplicateMethod = 'another method'
+        
+        if (duplicate.submission_type === 'email' && duplicate.email) {
+          duplicateMethod = `email (${duplicate.email})`
+        } else if (duplicate.submission_type === 'twitter' && duplicate.twitter_username) {
+          duplicateMethod = `Twitter account @${duplicate.twitter_username}`
+        }
+        
+        const statusMessage = duplicate.status === 'approved' 
+          ? `This wallet address is already approved via ${duplicateMethod}.`
+          : `This wallet address has already been submitted via ${duplicateMethod}. Each wallet can only be used once.`
+        
+        return {
+          isDuplicate: true,
+          type: 'wallet',
+          message: statusMessage
         }
       }
     }
