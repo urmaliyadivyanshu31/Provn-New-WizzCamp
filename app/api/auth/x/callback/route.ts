@@ -77,9 +77,12 @@ export async function GET(request: NextRequest) {
     const clientId = process.env.TWITTER_CLIENT_ID
     const clientSecret = process.env.TWITTER_CLIENT_SECRET
     
-    if (!clientId || !clientSecret) {
-      console.error('❌ Twitter OAuth 2.0 credentials not configured')
-      return createErrorRedirect('Authentication service not configured')
+    if (!clientId || !clientSecret || 
+        clientId === 'your_actual_oauth2_client_id' || clientId === 'your_twitter_oauth2_client_id' ||
+        clientSecret === 'your_actual_oauth2_client_secret' || clientSecret === 'your_twitter_oauth2_client_secret') {
+      console.error('❌ Twitter OAuth 2.0 credentials not configured properly')
+      console.error('Please set TWITTER_CLIENT_ID and TWITTER_CLIENT_SECRET in your environment variables')
+      return createErrorRedirect('Twitter OAuth 2.0 app credentials not configured. Please check your Twitter Developer Portal settings.')
     }
     
     console.log('🔑 Exchanging authorization code for access token...')

@@ -30,11 +30,12 @@ export async function GET(request: NextRequest) {
     // Validate environment variables
     const clientId = process.env.TWITTER_CLIENT_ID
     
-    if (!clientId) {
-      console.error('❌ Twitter OAuth 2.0 credentials not configured')
+    if (!clientId || clientId === 'your_actual_oauth2_client_id' || clientId === 'your_twitter_oauth2_client_id') {
+      console.error('❌ Twitter OAuth 2.0 credentials not configured properly')
+      console.error('Please set TWITTER_CLIENT_ID in your environment variables')
       return NextResponse.json({
         success: false,
-        error: 'Twitter authentication not properly configured'
+        error: 'Twitter OAuth 2.0 app credentials not configured. Please check your Twitter Developer Portal settings.'
       }, { status: 500 })
     }
     
