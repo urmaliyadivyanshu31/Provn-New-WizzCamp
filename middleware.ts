@@ -10,6 +10,8 @@ import { createClient } from '@supabase/supabase-js'
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = [
   '/whitelist',
+  '/about',
+  '/privacy',
   '/api/whitelist',
   '/api/auth/x',    // Twitter OAuth endpoints
   '/api/health',
