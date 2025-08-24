@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code: code,
-        redirect_uri: `${request.nextUrl.origin}/api/auth/x/callback`,
+        redirect_uri: `${process.env.NEXTAUTH_URL || request.nextUrl.origin}/api/auth/x/callback`,
         code_verifier: oauthData.codeVerifier
       })
     })

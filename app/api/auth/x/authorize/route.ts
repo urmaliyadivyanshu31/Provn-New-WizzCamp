@@ -43,8 +43,8 @@ export async function GET(request: NextRequest) {
     const codeChallenge = generateCodeChallenge(codeVerifier)
     const state = generateSecureState()
     
-    // Generate callback URL
-    const baseUrl = request.nextUrl.origin
+    // Generate callback URL (use consistent production URL)
+    const baseUrl = process.env.NEXTAUTH_URL || request.nextUrl.origin
     const redirectUri = `${baseUrl}/api/auth/x/callback`
     console.log('🔗 Generating authorization URL with callback:', redirectUri)
     
