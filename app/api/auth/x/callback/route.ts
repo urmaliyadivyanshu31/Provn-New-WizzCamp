@@ -103,11 +103,17 @@ export async function GET(request: NextRequest) {
     })
     
     if (!tokenResponse.ok) {
-      console.error('❌ Token exchange failed:', await tokenResponse.text())
+      const errorText = await tokenResponse.text()
+      console.error('❌ Token exchange failed:', {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        error: errorText
+      })
       return createErrorRedirect('Failed to exchange authorization code')
     }
     
     const tokenData = await tokenResponse.json()
+    console.log('✅ Token exchange successful, access_token received')
     
     console.log('👤 Fetching Twitter user profile...')
     
@@ -155,6 +161,8 @@ export async function GET(request: NextRequest) {
  */
 async function fetchTwitterProfile(accessToken: string): Promise<TwitterUserProfile | null> {
   try {
+    console.log('🔍 Making Twitter API call to /2/users/me')
+    
     const response = await fetch('https://api.twitter.com/2/users/me?' + new URLSearchParams({
       'user.fields': 'id,username,name,verified,public_metrics,created_at,description,profile_image_url'
     }), {
@@ -164,15 +172,27 @@ async function fetchTwitterProfile(accessToken: string): Promise<TwitterUserProf
       }
     })
     
+    console.log('📡 Twitter API response status:', response.status)
+    
     if (!response.ok) {
-      console.error('Failed to fetch Twitter profile:', response.status, await response.text())
+      const errorText = await response.text()
+      console.error('❌ Twitter API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      })
       return null
     }
     
     const result = await response.json()
+    console.log('✅ Twitter API response received:', {
+      hasData: !!result.data,
+      username: result.data?.username
+    })
+    
     return result.data as TwitterUserProfile
   } catch (error) {
-    console.error('Failed to fetch Twitter profile:', error)
+    console.error('❌ Twitter profile fetch exception:', error)
     return null
   }
 }
