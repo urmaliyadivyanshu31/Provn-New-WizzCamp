@@ -188,16 +188,38 @@ async function checkDatabaseWhitelist(walletAddress: string): Promise<boolean> {
   try {
     const supabase = createAdminClient()
     
-    const { data, error } = await supabase.rpc('is_address_whitelisted', {
+    // First check the beta_whitelist table for approved entries
+    const { data: betaWhitelist, error: betaError } = await supabase
+      .from('beta_whitelist')
+      .select('id, status')
+      .eq('wallet_address', walletAddress)
+      .eq('status', 'approved')
+      .limit(1)
+    
+    if (betaError) {
+      console.error('Beta whitelist check error:', betaError)
+    } else if (betaWhitelist && betaWhitelist.length > 0) {
+      console.log('✅ Found approved beta whitelist entry for wallet:', walletAddress)
+      return true
+    }
+    
+    // Fallback to RPC function check (for whitelist_addresses table)
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('is_address_whitelisted', {
       address: walletAddress
     })
     
-    if (error) {
-      console.error('Database whitelist check error:', error)
+    if (rpcError) {
+      console.error('RPC whitelist check error:', rpcError)
       return false
     }
     
-    return data === true
+    if (rpcResult === true) {
+      console.log('✅ Found whitelisted address via RPC for wallet:', walletAddress)
+      return true
+    }
+    
+    console.log('❌ Wallet not found in any whitelist:', walletAddress)
+    return false
     
   } catch (error) {
     console.error('Database whitelist error:', error)
