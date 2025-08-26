@@ -30,6 +30,7 @@ export interface PlatformVideo {
   description?: string
   tags: string[]
   video_url: string
+  fast_video_url?: string
   thumbnail_url?: string
   duration?: number
   file_size?: number

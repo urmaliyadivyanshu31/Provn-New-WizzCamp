@@ -50,6 +50,7 @@ export default function ExplorePage() {
       
       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         e.preventDefault()
+        e.stopPropagation()
         // The VideoFeed component will handle the actual navigation
         const event = new CustomEvent('keyboardNavigation', {
           detail: { direction: e.key === 'ArrowUp' ? 'up' : 'down' }
@@ -57,6 +58,7 @@ export default function ExplorePage() {
         window.dispatchEvent(event)
       } else if (e.key === ' ' || e.key === 'Spacebar') {
         e.preventDefault()
+        e.stopPropagation()
         // Dispatch spacebar event for video play/pause
         const event = new CustomEvent('videoTogglePlayPause')
         window.dispatchEvent(event)
@@ -81,7 +83,6 @@ export default function ExplorePage() {
             <VideoFeed 
               onVideoDetails={handleVideoDetails}
               isAuthenticated={isAuthenticated}
-              dataSource="platform"
             />
           </Suspense>
         </ExploreErrorBoundary>

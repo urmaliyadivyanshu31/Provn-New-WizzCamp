@@ -21,12 +21,12 @@ import {
 
 
 // Platform Metrics Component  
-const LiveMetrics = ({ creatorsCount, videosCount }: { creatorsCount: number, videosCount: number }) => {
+const LiveMetrics = ({ creatorsCount, videosCount }: { creatorsCount: number | null, videosCount: number | null }) => {
   const metrics = [
-    { label: "Active Creators", value: creatorsCount.toString(), icon: Users },
-    { label: "Total Earnings", value: "$2.3M", icon: DollarSign },
-    { label: "PROVN Protected", value: videosCount.toString(), icon: CheckCircle },
-    { label: "Zero Platform Fees", value: "100%", icon: CheckCircle }
+    { label: "Active Creators", value: creatorsCount === null ? "13" : creatorsCount.toString(), icon: Users, loading: creatorsCount === null },
+    { label: "Creator Ownership", value: "100%", icon: CheckCircle, loading: false },
+    { label: "PROVN Protected", value: videosCount === null ? "10" : videosCount.toString(), icon: CheckCircle, loading: videosCount === null },
+    { label: "Zero Platform Fees", value: "0%", icon: DollarSign, loading: false }
   ]
 
   return (
@@ -44,7 +44,11 @@ const LiveMetrics = ({ creatorsCount, videosCount }: { creatorsCount: number, vi
           >
             <Icon className="w-8 h-8 text-provn-accent mx-auto mb-2" />
             <div className="text-2xl font-bold text-provn-text font-headline">
-              {metric.value}
+              {metric.loading ? (
+                <span className="inline-block animate-pulse bg-provn-accent/20 text-transparent rounded">{metric.value}</span>
+              ) : (
+                metric.value
+              )}
             </div>
             <div className="text-sm text-provn-muted">
               {metric.label}
@@ -66,9 +70,13 @@ export default function HomePage() {
   
   
   // Real platform data with loading state
-  const [platformData, setPlatformData] = useState({
-    creatorsCount: 0, // Start with 0, will be updated with real data
-    videosCount: 0,   // Start with 0, will be updated with real data
+  const [platformData, setPlatformData] = useState<{
+    creatorsCount: number | null;
+    videosCount: number | null;
+    loading: boolean;
+  }>({
+    creatorsCount: null, // Start with null to indicate loading
+    videosCount: null,   // Start with null to indicate loading
     loading: true
   })
   
@@ -136,9 +144,8 @@ export default function HomePage() {
       try {
         console.log('🔄 Fetching platform data...')
         
-        const [creatorsResponse, videosResponse] = await Promise.all([
-          fetch('/api/leaderboard?limit=1000'), // Get all creators
-          fetch('/api/platform-stats') // Get videos count
+        const [creatorsResponse] = await Promise.all([
+          fetch('/api/leaderboard?limit=1000') // Get all creators with their video counts
         ])
         
         // Handle creators data
@@ -148,38 +155,34 @@ export default function HomePage() {
             console.log('✅ Creators count:', creatorsData.data.stats.total_creators)
             setPlatformData(prev => ({
               ...prev,
-              creatorsCount: Math.max(creatorsData.data.stats.total_creators, 4) // Minimum 4 for display
+              creatorsCount: creatorsData.data.stats.total_creators
+            }))
+            
+            // Calculate total videos created by these creators
+            const totalVideosCreated = creatorsData.data?.leaderboard?.reduce((total: number, creator: any) => {
+              return total + (creator.videos_count || 0)
+            }, 0) || 0
+            
+            console.log('✅ Videos created by creators:', totalVideosCreated)
+            setPlatformData(prev => ({
+              ...prev,
+              videosCount: totalVideosCreated
             }))
           } else {
             console.warn('❌ Invalid creators data:', creatorsData)
+            console.log('Raw creators response:', creatorsData)
           }
         } else {
           console.error('❌ Creators API failed:', creatorsResponse.status)
         }
         
-        // Handle videos data
-        if (videosResponse.ok) {
-          const videosData = await videosResponse.json()
-          if (videosData.success && typeof videosData.videosCount === 'number') {
-            console.log('✅ Videos count:', videosData.videosCount)
-            setPlatformData(prev => ({
-              ...prev,
-              videosCount: Math.max(videosData.videosCount, 3) // Minimum 3 for display
-            }))
-          } else {
-            console.warn('❌ Invalid videos data:', videosData)
-          }
-        } else {
-          console.error('❌ Videos API failed:', videosResponse.status)
-        }
-        
       } catch (error) {
         console.error('❌ Failed to fetch platform data:', error)
-        // Set minimum fallback values for better UX
+        // Set fallback values for when API fails
         setPlatformData(prev => ({
           ...prev,
-          creatorsCount: Math.max(prev.creatorsCount, 4),
-          videosCount: Math.max(prev.videosCount, 3)
+          creatorsCount: prev.creatorsCount || 13, // Use known count as fallback
+          videosCount: prev.videosCount || 10 // Use known count as fallback
         }))
       } finally {
         setPlatformData(prev => ({ ...prev, loading: false }))
@@ -251,8 +254,8 @@ export default function HomePage() {
               
               <p className="text-xl font-headline md:text-2xl text-provn-muted leading-relaxed max-w-3xl mx-auto">
                 Join <strong className="text-provn-text">
-                  {platformData.loading ? (
-                    <span className="inline-block animate-pulse bg-provn-accent/20 text-transparent rounded">XX+</span>
+                  {platformData.loading || platformData.creatorsCount === null ? (
+                    <span className="inline-block animate-pulse bg-provn-accent/20 text-transparent rounded">13+</span>
                   ) : (
                     `${platformData.creatorsCount}+`
                   )} Elite Creators
@@ -314,8 +317,14 @@ export default function HomePage() {
               className="flex flex-wrap justify-center gap-12 pt-12 border-t border-provn-border/30"
             >
               <div className="text-center">
-                <div className="text-4xl font-bold text-provn-success font-headline">$2.3M+</div>
-                <div className="text-sm text-provn-muted mt-1">Earned by Creators</div>
+                <div className="text-4xl font-bold text-provn-text font-headline">
+                  {platformData.loading || platformData.creatorsCount === null ? (
+                    <span className="inline-block animate-pulse bg-provn-accent/20 text-transparent rounded">13+</span>
+                  ) : (
+                    `${platformData.creatorsCount}+`
+                  )}
+                </div>
+                <div className="text-sm text-provn-muted mt-1">Active Creators</div>
               </div>
               <div className="text-center">
                 <div className="text-4xl font-bold text-provn-accent font-headline">0%</div>
@@ -323,8 +332,8 @@ export default function HomePage() {
               </div>
               <div className="text-center">
                 <div className="text-4xl font-bold text-provn-text font-headline">
-                  {platformData.loading ? (
-                    <span className="inline-block animate-pulse bg-provn-accent/20 text-transparent rounded">XX+</span>
+                  {platformData.loading || platformData.videosCount === null ? (
+                    <span className="inline-block animate-pulse bg-provn-accent/20 text-transparent rounded">10+</span>
                   ) : (
                     `${platformData.videosCount}+`
                   )}

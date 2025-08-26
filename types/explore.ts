@@ -6,6 +6,7 @@ export interface ExploreVideo {
   description: string
   tags: string[]
   videoUrl: string
+  fastUrl?: string // Optimized URL for faster loading
   thumbnailUrl?: string
   creator: {
     handle: string

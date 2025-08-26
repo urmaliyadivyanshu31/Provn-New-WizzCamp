@@ -29,7 +29,7 @@ export function useVideoFeed(params: VideoFeedParams = {}) {
     creator,
     sortBy = 'latest',
     userWallet,
-    limit = 10
+    limit = 25
   } = params;
 
   return useInfiniteQuery({

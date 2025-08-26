@@ -66,6 +66,20 @@ export default function RootLayout({
         `}</style>
         <script dangerouslySetInnerHTML={{
           __html: `
+            // Handle browser extension conflicts gracefully
+            window.addEventListener('error', function(e) {
+              if (e.message && (e.message.includes('Cannot redefine property: ethereum') || e.message.includes('ethereum'))) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+              }
+            }, true);
+            
+            // Additional MetaMask conflict prevention
+            try {
+              Object.defineProperty(window, '_metamaskConflictHandled', { value: true });
+            } catch(e) { /* ignore */ }
+            
             // Fix service worker redirect issues
             if ('serviceWorker' in navigator) {
               navigator.serviceWorker.getRegistrations().then(function(registrations) {
