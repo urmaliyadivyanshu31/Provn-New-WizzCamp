@@ -5,6 +5,13 @@ import { LicenseTerms } from '@/types/explore'
 import { useAccount, useWalletClient, usePublicClient } from 'wagmi'
 import { encodeFunctionData, parseAbi } from 'viem'
 
+// Extend window interface for ethereum
+declare global {
+  interface Window {
+    ethereum?: any
+  }
+}
+
 // Success result interface
 interface PurchaseResult {
   success: boolean
@@ -128,25 +135,22 @@ export function useOriginLicensing() {
   const [error, setError] = useState<string | null>(null)
   const [termsCache, setTermsCache] = useState<Record<string, LicenseTerms>>({})
   const { origin, isAuthenticated, walletAddress } = useAuth()
-  const { data: walletClient } = useWalletClient()
+  const { data: walletClient } = useWalletClient({ chainId: 123420001114 }) // BaseCAMP chainId
   const { address } = useAccount()
   const publicClient = usePublicClient()
   
-  // Enhanced Provn Marketplace contract ABI with community features
+  // Actual Marketplace contract ABI with buyAccess() function
   const marketplaceABI = parseAbi([
-    'function purchaseLicense(uint256 tokenId, uint32 periods) external',
-    'function hasActiveLicense(address user, uint256 tokenId) external view returns (bool)',
-    'function licenseExpiry(uint256 tokenId, address user) external view returns (uint64)',
-    'function setLicenseTerms(uint256 tokenId, uint128 price, uint32 duration, uint8 licenseType, bool transferable, uint16 royaltyBps) external',
-    'function createCommunity(uint256 creatorTokenId, string calldata name, string calldata description) external',
-    'function joinCommunity(uint256 communityId) external',
-    'function addDerivativeToCommunity(uint256 communityId, uint256 derivativeTokenId) external',
-    'function getCommunityDetails(uint256 communityId) external view returns (uint256, address, string, string, uint64, uint64, uint64, uint8, bool)',
-    'function canCreateCommunity(address creator) external view returns (bool)',
-    'function isCommunityMember(uint256 communityId, address user) external view returns (bool)',
-    'function getCreatorStats(address creator) external view returns (uint256, uint256, uint256)',
-    'function protocolFeeBps() external view returns (uint16)',
-    'function communityCounter() external view returns (uint256)'
+    'function buyAccess(address buyer, uint256 tokenId, uint32 periods) external',
+    'function subscriptionExpiry(uint256 tokenId, address buyer) external view returns (uint256)',
+    'function hasAccess(address buyer, uint256 tokenId) external view returns (bool)',
+    'function getTerms(uint256 tokenId) external view returns (uint128 price, uint32 duration, uint16 royaltyBps, address paymentToken)',
+    'function setTerms(uint256 tokenId, uint128 price, uint32 duration, uint16 royaltyBps, address paymentToken) external',
+    'function totalRevenue(address creator) external view returns (uint256)',
+    'function totalRoyalty(address creator) external view returns (uint256)',
+    'function ipToken() external view returns (address)',
+    'function provnToken() external view returns (address)',
+    'event AccessPurchased(uint256 indexed tokenId, address indexed buyer, uint256 price, uint32 periods, uint256 expiry)'
   ])
   
   // IP-NFT contract ABI for getting license terms
@@ -156,10 +160,21 @@ export function useOriginLicensing() {
     'function dataStatus(uint256 tokenId) external view returns (uint8)'
   ])
   
-  // Contract addresses - updated with deployed contract
-  const PROVN_MARKETPLACE_CONTRACT = process.env.NEXT_PUBLIC_PROVN_MARKETPLACE_CONTRACT || '0x592544471e26B60edfa018B03e9adE320fD81095'
+  // PROVN Token ABI for approvals
+  const provnTokenABI = parseAbi([
+    'function approve(address spender, uint256 amount) external returns (bool)',
+    'function allowance(address owner, address spender) external view returns (uint256)',
+    'function balanceOf(address account) external view returns (uint256)'
+  ])
+  
+  // Contract addresses - using actual Marketplace contract
+  const MARKETPLACE_CONTRACT = '0xBe611BFBDcb45C5E8C3E81a3ec36CBee31E52981'
   const IP_NFT_CONTRACT = '0x5a3f832b47b948dA27aE788E96A0CD7BB0dCd1c1'
-  const CAMP_TOKEN_CONTRACT = '0x618a32eae7dEE87dD7dF8DF24D18dc98fb6Df8Ab'
+  const PROVN_TOKEN_CONTRACT = '0xa673B3E946A64037AdBAe22a0f56916dE43c678c'
+  
+  // Debug log to verify contract address
+  console.log('🔧 Using Marketplace contract:', MARKETPLACE_CONTRACT)
+  console.log('🔧 Using PROVN token contract:', PROVN_TOKEN_CONTRACT)
   
   // Set up wallet client for Origin SDK
   useEffect(() => {
@@ -178,6 +193,84 @@ export function useOriginLicensing() {
       }
     }
   }, [origin, walletClient, isAuthenticated])
+
+  const syncLicenseTerms = async (tokenId: string): Promise<boolean> => {
+    if (!publicClient) {
+      console.error('❌ Public client not available for sync')
+      return false
+    }
+
+    // Get wallet client using the same logic as buyLicense
+    let currentWalletClient
+    try {
+      if (walletClient) {
+        currentWalletClient = walletClient
+      } else if (typeof window !== 'undefined' && window.ethereum && isAuthenticated) {
+        currentWalletClient = {
+          sendTransaction: async (tx: any) => {
+            const accounts = await window.ethereum!.request({ method: 'eth_accounts' })
+            if (!accounts || accounts.length === 0) {
+              throw new Error('No accounts available')
+            }
+            
+            // Convert BigInt values to hex strings for JSON serialization
+            const txParams = {
+              from: accounts[0],
+              to: tx.to,
+              data: tx.data,
+              gas: typeof tx.gas === 'bigint' ? '0x' + tx.gas.toString(16) : tx.gas,
+              value: typeof tx.value === 'bigint' ? '0x' + tx.value.toString(16) : (tx.value || '0x0')
+            }
+            
+            return await window.ethereum!.request({
+              method: 'eth_sendTransaction',
+              params: [txParams]
+            })
+          },
+          account: { address: walletAddress }
+        } as any
+      } else {
+        console.error('❌ No wallet client available for sync')
+        return false
+      }
+    } catch (error) {
+      console.error('❌ Failed to get wallet client for sync:', error)
+      return false
+    }
+
+    try {
+      const tokenIdBigInt = BigInt(tokenId)
+      console.log('🔄 Syncing license terms for tokenId:', tokenId)
+
+      // First get terms from IP-NFT contract
+      const ipNftTerms = await publicClient.readContract({
+        address: IP_NFT_CONTRACT as `0x${string}`,
+        abi: ipNftABI,
+        functionName: 'getTerms',
+        args: [tokenIdBigInt]
+      })
+
+      // Then set them in Marketplace contract with PROVN token
+      const txData = encodeFunctionData({
+        abi: marketplaceABI,
+        functionName: 'setTerms', 
+        args: [tokenIdBigInt, ipNftTerms[0], ipNftTerms[1], ipNftTerms[2], PROVN_TOKEN_CONTRACT as `0x${string}`]
+      })
+
+      const hash = await currentWalletClient.sendTransaction({
+        to: MARKETPLACE_CONTRACT as `0x${string}`,
+        data: txData,
+        gas: BigInt(150000)
+      })
+
+      await publicClient.waitForTransactionReceipt({ hash })
+      console.log('✅ License terms synced successfully:', hash)
+      return true
+    } catch (error) {
+      console.warn('⚠️ Failed to sync license terms:', error)
+      return false
+    }
+  }
 
   const buyLicense = async (tokenId: string, periods: number): Promise<PurchaseResult> => {
     if (!isAuthenticated || !origin) {
@@ -232,6 +325,34 @@ export function useOriginLicensing() {
         })
         terms = await origin.getTerms(tokenBigInt)
         console.log('📋 License terms from Origin SDK:', terms)
+        
+        // Validate terms before proceeding
+        if (!terms || !terms.price || terms.price <= 0) {
+          // Try Marketplace contract as fallback
+          if (publicClient) {
+            try {
+              const marketplaceTerms = await publicClient.readContract({
+              address: MARKETPLACE_CONTRACT as `0x${string}`,
+              abi: marketplaceABI,
+              functionName: 'getTerms',
+              args: [BigInt(tokenIdNum)]
+            }) as readonly [bigint, number, number, `0x${string}`]
+            
+            terms = {
+              price: marketplaceTerms[0],
+              duration: Number(marketplaceTerms[1]),
+              royaltyBps: Number(marketplaceTerms[2]),
+              paymentToken: marketplaceTerms[3]
+            }
+              console.log('📋 License terms from Marketplace contract fallback:', terms)
+            } catch (marketplaceError) {
+              console.error('❌ Marketplace fallback failed:', marketplaceError)
+              throw new Error('LicenseNotAvailable: No valid license terms found for this content')
+            }
+          } else {
+            throw new Error('LicenseNotAvailable: No valid license terms found for this content')
+          }
+        }
       } catch (termsError) {
         console.warn('⚠️ Failed to get terms from Origin SDK, trying direct contract call:', termsError)
         
@@ -252,6 +373,11 @@ export function useOriginLicensing() {
               paymentToken: result[3]
             }
             console.log('📋 License terms from direct IP-NFT contract:', terms)
+            
+            // Validate direct contract terms
+            if (!terms.price || terms.price <= 0 || !terms.duration || terms.duration <= 0) {
+              throw new Error('LicenseNotAvailable: License terms are not properly configured')
+            }
           } catch (directError) {
             console.error('❌ Failed to get terms from direct contract call:', directError)
             throw new Error('Unable to fetch license terms. Please check your connection.')
@@ -265,12 +391,116 @@ export function useOriginLicensing() {
       const totalCost = terms.price * BigInt(periods)
       console.log('💰 Total cost:', totalCost.toString(), 'wei')
       
+      // CRITICAL FIX: Attempt to sync license terms from IP-NFT to ProvnMarketplace before purchase
+      console.log('🔄 Attempting to sync license terms to ProvnMarketplace...')
+      try {
+        await syncLicenseTerms(tokenIdNum)
+        console.log('✅ License terms sync successful')
+      } catch (syncError) {
+        console.warn('⚠️ License terms sync failed, but continuing with purchase (contract now reads from IP-NFT directly):', syncError)
+      }
+      
       let result
       
+      // Enhanced wallet client check and retrieval
+      const getWalletClient = () => {
+        if (walletClient) {
+          console.log('✅ Using wagmi walletClient:', walletClient)
+          return walletClient
+        }
+        
+        // Try to get from window.ethereum if available
+        if (typeof window !== 'undefined' && window.ethereum && isAuthenticated) {
+          console.log('🔄 Falling back to window.ethereum')
+          // Return a basic wallet interface compatible with viem
+          return {
+            sendTransaction: async (tx: any) => {
+              const accounts = await window.ethereum.request({ method: 'eth_accounts' })
+              if (!accounts || accounts.length === 0) {
+                throw new Error('No accounts available')
+              }
+              
+              // Convert BigInt values to hex strings for JSON serialization
+              const txParams = {
+                from: accounts[0],
+                to: tx.to,
+                data: tx.data,
+                gas: typeof tx.gas === 'bigint' ? '0x' + tx.gas.toString(16) : tx.gas,
+                value: typeof tx.value === 'bigint' ? '0x' + tx.value.toString(16) : (tx.value || '0x0')
+              }
+              
+              console.log('📝 Sending transaction with converted params:', txParams)
+              
+              return await window.ethereum.request({
+                method: 'eth_sendTransaction',
+                params: [txParams]
+              })
+            },
+            account: { address: walletAddress }
+          } as any
+        }
+        
+        throw new Error('No wallet client available')
+      }
+
       // Method 1: Try Origin SDK with proper wallet client setup
-      if (walletClient && typeof origin.setViemClient === 'function') {
+      let currentWalletClient
+      try {
+        currentWalletClient = getWalletClient()
+        console.log('🔌 Wallet client retrieved successfully')
+      } catch (walletError) {
+        console.error('❌ Wallet client not available:', walletError)
+        throw new Error('Wallet client not available. Please ensure your wallet is properly connected and try refreshing the page.')
+      }
+
+      // Check and handle PROVN token approval if needed
+      if (publicClient && terms.paymentToken === PROVN_TOKEN_CONTRACT) {
+        console.log('💳 Checking PROVN token approval...')
         try {
-          origin.setViemClient(walletClient)
+          // Check current allowance
+          const allowance = await publicClient.readContract({
+            address: PROVN_TOKEN_CONTRACT as `0x${string}`,
+            abi: provnTokenABI,
+            functionName: 'allowance',
+            args: [walletAddress as `0x${string}`, MARKETPLACE_CONTRACT as `0x${string}`]
+          }) as bigint
+          
+          console.log('📊 Current allowance:', allowance.toString(), 'Required:', totalCost.toString())
+          
+          if (allowance < totalCost) {
+            console.log('🔄 Approving PROVN tokens for marketplace...')
+            
+            // Prepare approval transaction
+            const approvalTxData = encodeFunctionData({
+              abi: provnTokenABI,
+              functionName: 'approve',
+              args: [MARKETPLACE_CONTRACT as `0x${string}`, totalCost]
+            })
+            
+            const approvalHash = await currentWalletClient.sendTransaction({
+              to: PROVN_TOKEN_CONTRACT as `0x${string}`,
+              data: approvalTxData,
+              gas: BigInt(60000), // Standard approval gas limit
+              value: BigInt(0)
+            })
+            
+            console.log('⏳ Waiting for PROVN approval confirmation:', approvalHash)
+            
+            // Wait for approval confirmation
+            await publicClient.waitForTransactionReceipt({ hash: approvalHash })
+            console.log('✅ PROVN token approval confirmed')
+          } else {
+            console.log('✅ Sufficient PROVN allowance already exists')
+          }
+        } catch (approvalError) {
+          console.warn('⚠️ Failed to check/set PROVN approval:', approvalError)
+          // Continue with purchase attempt - the contract will fail with a clear error if approval is needed
+        }
+      }
+
+      if (currentWalletClient && typeof origin.setViemClient === 'function') {
+        try {
+          origin.setViemClient(currentWalletClient)
           console.log('🔌 Wallet client connected to Origin SDK')
           
           // Try buyAccessSmart first
@@ -287,20 +517,20 @@ export function useOriginLicensing() {
           // Method 2: Direct contract interaction
           console.log('🔄 Attempting direct contract interaction...')
           
-          if (!walletClient) {
+          if (!currentWalletClient) {
             throw new Error('Wallet not connected for direct contract call')
           }
           
           try {
-            // Prepare transaction data for purchaseLicense(tokenId, periods)
+            // Prepare transaction data for buyAccess(buyer, tokenId, periods)
             const txData = encodeFunctionData({
               abi: marketplaceABI,
-              functionName: 'purchaseLicense',
-              args: [BigInt(tokenIdNum), periods]
+              functionName: 'buyAccess',
+              args: [walletAddress as `0x${string}`, BigInt(tokenIdNum), periods]
             })
             
             console.log('📝 Transaction data prepared:', {
-              to: PROVN_MARKETPLACE_CONTRACT,
+              to: MARKETPLACE_CONTRACT,
               data: txData,
               buyer: walletAddress,
               tokenId: tokenIdNum,
@@ -308,11 +538,16 @@ export function useOriginLicensing() {
               periods
             })
             
+            // Calculate transaction value - for PROVN token payments, this should be 0 (ERC-20 payment)
+            // The actual PROVN payment happens via token approval + transferFrom inside the contract
+            const txValue = BigInt(0) // ETH value is 0 for ERC-20 token payments
+            
             // Send transaction directly
-            const hash = await walletClient.sendTransaction({
-              to: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
+            const hash = await currentWalletClient.sendTransaction({
+              to: MARKETPLACE_CONTRACT as `0x${string}`,
               data: txData,
-              gas: BigInt(300000) // Provide gas limit
+              gas: BigInt(300000), // Provide gas limit
+              value: txValue
             })
             
             console.log('✅ Direct contract transaction sent:', hash)
@@ -332,7 +567,52 @@ export function useOriginLicensing() {
           }
         }
       } else {
-        throw new Error('Wallet client not available')
+        // Fallback: Direct contract interaction without Origin SDK
+        console.log('🔄 Origin SDK not available, using direct contract interaction...')
+        
+        try {
+          // Prepare transaction data for buyAccess(buyer, tokenId, periods)
+          const txData = encodeFunctionData({
+            abi: marketplaceABI,
+            functionName: 'buyAccess',
+            args: [walletAddress as `0x${string}`, BigInt(tokenIdNum), periods]
+          })
+          
+          console.log('📝 Direct transaction data prepared:', {
+            to: MARKETPLACE_CONTRACT,
+            data: txData,
+            buyer: walletAddress,
+            tokenId: tokenIdNum,
+            tokenIdBigInt: BigInt(tokenIdNum).toString(),
+            periods
+          })
+          
+          // Calculate transaction value - for PROVN token payments, this should be 0 (ERC-20 payment)
+          const txValue = BigInt(0) // ETH value is 0 for ERC-20 token payments
+          
+          // Send transaction directly
+          const hash = await currentWalletClient.sendTransaction({
+            to: MARKETPLACE_CONTRACT as `0x${string}`,
+            data: txData,
+            gas: BigInt(300000), // Provide gas limit
+            value: txValue
+          })
+          
+          console.log('✅ Direct contract transaction sent:', hash)
+          
+          // Wait for confirmation
+          if (publicClient) {
+            const receipt = await publicClient.waitForTransactionReceipt({ hash })
+            console.log('✅ Transaction confirmed:', receipt)
+            result = { hash, receipt }
+          } else {
+            result = { hash }
+          }
+          
+        } catch (directError) {
+          console.error('❌ Direct contract call failed:', directError)
+          throw directError
+        }
       }
       
       console.log('✅ License purchase result:', result)
@@ -341,17 +621,23 @@ export function useOriginLicensing() {
       
               // Track purchase in our backend
         try {
+          const expiryDate = new Date(Date.now() + (terms.duration * periods * 1000)).toISOString()
           await fetch('/api/licenses', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              tokenId: tokenIdNum,
+              token_id: tokenIdNum,
+              licensee_address: walletAddress,
+              license_type: 'basic',
+              price_paid: (Number(totalCost) / 10**18).toString(), // Convert from wei to PROVN
               periods,
-              totalCost: totalCost.toString(),
-              purchaser: walletAddress,
-              timestamp: new Date().toISOString()
+              duration_seconds: terms.duration * periods,
+              expires_at: expiryDate,
+              transaction_hash: result.hash,
+              block_number: result.receipt?.blockNumber
             })
           })
+          console.log('✅ License purchase tracked in backend')
       } catch (trackingError) {
         console.warn('⚠️ Failed to track purchase in backend:', trackingError)
         // Don't fail the entire transaction for tracking errors
@@ -366,22 +652,41 @@ export function useOriginLicensing() {
     } catch (err) {
       console.error('❌ Failed to buy license:', err)
       
-      // Extract more meaningful error messages
+      // Extract more meaningful error messages with specific handling for licensing errors
       let errorMessage = 'Failed to purchase license'
       
       if (err instanceof Error) {
-        if (err.message.includes('insufficient funds')) {
-          errorMessage = 'Insufficient CAMP tokens for this purchase'
-        } else if (err.message.includes('user rejected')) {
-          errorMessage = 'Transaction was rejected'
-        } else if (err.message.includes('WalletClient not connected')) {
+        const message = err.message.toLowerCase()
+        
+        if (message.includes('licensenotavailable') || message.includes('license not available')) {
+          errorMessage = 'This content is not available for licensing. The creator may need to set up license terms.'
+        } else if (message.includes('invalidperiods') || message.includes('invalid periods')) {
+          errorMessage = 'Invalid license period selected. Please try a different period.'
+        } else if (message.includes('noactivelicense') || message.includes('no active license')) {
+          errorMessage = 'You need an active license for the original content to create derivatives.'
+        } else if (message.includes('insufficient funds') || message.includes('insufficientbalance')) {
+          errorMessage = 'Insufficient PROVN tokens for this purchase'
+        } else if (message.includes('user rejected') || message.includes('user denied')) {
+          errorMessage = 'Transaction was rejected by user'
+        } else if (message.includes('walletclient not connected')) {
           errorMessage = 'Wallet connection lost. Please reconnect and try again.'
-        } else if (err.message.includes('AbiEncodingLengthMismatch')) {
+        } else if (message.includes('abiencodinglength') || message.includes('abi encoding')) {
           errorMessage = 'Contract integration error. Please try reconnecting your wallet.'
-        } else if (err.message.includes('buyAccessSmart not available')) {
-          errorMessage = 'Using direct contract method...'
-        } else if (err.message.includes('HTTP request failed')) {
+        } else if (message.includes('buyaccesssmart not available')) {
+          errorMessage = 'Using alternative purchase method...'
+        } else if (message.includes('http request failed') || message.includes('network error')) {
           errorMessage = 'Network connection error. Please check your internet connection and try again.'
+        } else if (message.includes('execution reverted')) {
+          // Extract revert reason if available
+          if (message.includes('licensenotavailable')) {
+            errorMessage = 'License terms not set up for this content'
+          } else if (message.includes('invalidprice')) {
+            errorMessage = 'Invalid license price configuration'
+          } else {
+            errorMessage = 'Transaction failed: Contract rejected the purchase'
+          }
+        } else if (message.includes('unable to fetch license terms')) {
+          errorMessage = 'License terms could not be loaded. This content may not be available for licensing.'
         } else {
           errorMessage = err.message
         }
@@ -432,14 +737,14 @@ export function useOriginLicensing() {
         }
 
         // Fallback to direct contract call
-        const hasLicense = await publicClient.readContract({
-          address: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
+        const hasAccess = await publicClient.readContract({
+          address: MARKETPLACE_CONTRACT as `0x${string}`,
           abi: marketplaceABI,
-          functionName: 'hasActiveLicense',
+          functionName: 'hasAccess',
           args: [address as `0x${string}`, BigInt(tokenIdNum)]
         })
         
-        return hasLicense
+        return hasAccess
       }, 2, 2000) // 2 retries, 2s base delay for rate limiting
     } catch (error) {
       console.error('Failed to check access after retries:', error)
@@ -493,6 +798,12 @@ export function useOriginLicensing() {
         }
       }, 2, 2000)
       
+      // Validate terms before processing
+      if (!terms || !terms.price || terms.price <= 0 || !terms.duration || terms.duration <= 0) {
+        console.warn('⚠️ Invalid terms from Origin SDK - price or duration is zero/null')
+        throw new Error('Invalid license terms: missing price or duration')
+      }
+      
       const licenseTerms = {
         price: terms.price,
         duration: terms.duration,
@@ -507,15 +818,15 @@ export function useOriginLicensing() {
     } catch (error) {
       console.warn('⚠️ Failed to get license terms from SDK, trying direct contract...')
       
-      // Fallback: Direct contract call to IP-NFT contract
+      // Fallback: Direct contract call to Marketplace contract
       if (publicClient) {
         try {
           const result = await publicClient.readContract({
-            address: IP_NFT_CONTRACT as `0x${string}`,
-            abi: ipNftABI,
+            address: MARKETPLACE_CONTRACT as `0x${string}`,
+            abi: marketplaceABI,
             functionName: 'getTerms',
             args: [BigInt(tokenIdNum)]
-          })
+          }) as readonly [bigint, number, number, `0x${string}`]
           
           const licenseTerms = {
             price: result[0],
@@ -524,12 +835,18 @@ export function useOriginLicensing() {
             paymentToken: result[3]
           };
           
+          // Validate terms from direct contract call
+          if (!licenseTerms.price || licenseTerms.price <= 0 || !licenseTerms.duration || licenseTerms.duration <= 0) {
+            console.warn('⚠️ Invalid terms from Marketplace contract - price or duration is zero/null')
+            throw new Error('Invalid license terms from Marketplace contract: missing price or duration')
+          }
+          
           // Cache the result
           setTermsCache(prev => ({ ...prev, [tokenIdNum]: licenseTerms }));
           
           return licenseTerms
         } catch (directError) {
-          console.error('❌ Direct IP-NFT contract getTerms failed:', directError)
+          console.error('❌ Direct Marketplace contract getTerms failed:', directError)
         }
       }
       
@@ -562,8 +879,20 @@ export function useOriginLicensing() {
       if (!address) return null
 
       const expiry = await retryWithBackoff(async () => {
-        // Use correct parameter order for Origin SDK
-        return await (origin as any).subscriptionExpiry(BigInt(tokenIdNum), address)
+        // Try Origin SDK first
+        if (origin && typeof (origin as any).subscriptionExpiry === 'function') {
+          return await (origin as any).subscriptionExpiry(BigInt(tokenIdNum), address)
+        } else if (publicClient) {
+          // Fallback to direct Marketplace contract call
+          return await publicClient.readContract({
+            address: MARKETPLACE_CONTRACT as `0x${string}`,
+            abi: marketplaceABI,
+            functionName: 'subscriptionExpiry',
+            args: [BigInt(tokenIdNum), address as `0x${string}`]
+          })
+        } else {
+          throw new Error('No client available for subscription expiry check')
+        }
       }, 2, 2000)
       
       return new Date(Number(expiry) * 1000)
@@ -606,7 +935,7 @@ export function useOriginLicensing() {
       
       if (err instanceof Error) {
         if (err.message.includes('insufficient funds')) {
-          errorMessage = 'Insufficient CAMP tokens for renewal'
+          errorMessage = 'Insufficient PROVN tokens for renewal'
         } else if (err.message.includes('user rejected')) {
           errorMessage = 'Renewal transaction was rejected'
         } else {
@@ -622,229 +951,56 @@ export function useOriginLicensing() {
     }
   }
 
-  // Community-related functions
-  const canCreateCommunity = async (creatorAddress?: string): Promise<boolean> => {
-    if (!publicClient) return false
+  // Creator revenue tracking
+  const getTotalRevenue = async (creatorAddress: string): Promise<string> => {
+    if (!publicClient) return '0'
     
     try {
-      const address = creatorAddress || walletAddress
-      if (!address) return false
-      
-      const canCreate = await publicClient.readContract({
-        address: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
+      const revenue = await publicClient.readContract({
+        address: MARKETPLACE_CONTRACT as `0x${string}`,
         abi: marketplaceABI,
-        functionName: 'canCreateCommunity',
-        args: [address as `0x${string}`]
-      })
-      
-      return canCreate
-    } catch (error) {
-      console.error('Failed to check community creation eligibility:', error)
-      return false
-    }
-  }
-
-  const createCommunity = async (tokenId: string, name: string, description: string) => {
-    if (!isAuthenticated || !walletClient) {
-      throw new Error('Wallet not connected')
-    }
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      const txData = encodeFunctionData({
-        abi: marketplaceABI,
-        functionName: 'createCommunity',
-        args: [BigInt(tokenId), name, description]
-      })
-
-      const hash = await walletClient.sendTransaction({
-        to: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
-        data: txData,
-        gas: BigInt(400000)
-      })
-
-      if (publicClient) {
-        await publicClient.waitForTransactionReceipt({ hash })
-      }
-
-      toast.success('Community created successfully!')
-      return { success: true, hash }
-    } catch (error) {
-      console.error('Failed to create community:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create community'
-      setError(errorMessage)
-      toast.error(errorMessage)
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const joinCommunity = async (communityId: number) => {
-    if (!isAuthenticated || !walletClient) {
-      throw new Error('Wallet not connected')
-    }
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      const txData = encodeFunctionData({
-        abi: marketplaceABI,
-        functionName: 'joinCommunity',
-        args: [BigInt(communityId)]
-      })
-
-      const hash = await walletClient.sendTransaction({
-        to: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
-        data: txData,
-        gas: BigInt(200000)
-      })
-
-      if (publicClient) {
-        await publicClient.waitForTransactionReceipt({ hash })
-      }
-
-      toast.success('Joined community successfully!')
-      return { success: true, hash }
-    } catch (error) {
-      console.error('Failed to join community:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to join community'
-      setError(errorMessage)
-      toast.error(errorMessage)
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const addDerivativeToCommunity = async (communityId: number, derivativeTokenId: string) => {
-    if (!isAuthenticated || !walletClient) {
-      throw new Error('Wallet not connected')
-    }
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      const txData = encodeFunctionData({
-        abi: marketplaceABI,
-        functionName: 'addDerivativeToCommunity',
-        args: [BigInt(communityId), BigInt(derivativeTokenId)]
-      })
-
-      const hash = await walletClient.sendTransaction({
-        to: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
-        data: txData,
-        gas: BigInt(300000)
-      })
-
-      if (publicClient) {
-        await publicClient.waitForTransactionReceipt({ hash })
-      }
-
-      toast.success('Derivative added to community successfully!')
-      return { success: true, hash }
-    } catch (error) {
-      console.error('Failed to add derivative to community:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to add derivative'
-      setError(errorMessage)
-      toast.error(errorMessage)
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const getCommunityDetails = async (communityId: number) => {
-    if (!publicClient) return null
-
-    try {
-      const details = await publicClient.readContract({
-        address: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
-        abi: marketplaceABI,
-        functionName: 'getCommunityDetails',
-        args: [BigInt(communityId)]
-      })
-
-      return {
-        creatorTokenId: details[0].toString(),
-        creator: details[1],
-        name: details[2],
-        description: details[3],
-        createdAt: Number(details[4]),
-        memberCount: Number(details[5]),
-        derivativeCount: Number(details[6]),
-        tier: Number(details[7]),
-        active: details[8]
-      }
-    } catch (error) {
-      console.error('Failed to get community details:', error)
-      return null
-    }
-  }
-
-  const isCommunityMember = async (communityId: number, userAddress?: string): Promise<boolean> => {
-    if (!publicClient) return false
-    
-    try {
-      const address = userAddress || walletAddress
-      if (!address) return false
-      
-      const isMember = await publicClient.readContract({
-        address: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
-        abi: marketplaceABI,
-        functionName: 'isCommunityMember',
-        args: [BigInt(communityId), address as `0x${string}`]
-      })
-      
-      return isMember
-    } catch (error) {
-      console.error('Failed to check community membership:', error)
-      return false
-    }
-  }
-
-  const getCreatorStats = async (creatorAddress: string) => {
-    if (!publicClient) return null
-
-    try {
-      const stats = await publicClient.readContract({
-        address: PROVN_MARKETPLACE_CONTRACT as `0x${string}`,
-        abi: marketplaceABI,
-        functionName: 'getCreatorStats',
+        functionName: 'totalRevenue',
         args: [creatorAddress as `0x${string}`]
-      })
-
-      return {
-        revenue: stats[0].toString(),
-        licensesSold: Number(stats[1]),
-        derivatives: Number(stats[2])
-      }
+      }) as bigint
+      
+      return revenue.toString()
     } catch (error) {
-      console.error('Failed to get creator stats:', error)
-      return null
+      console.error('Failed to get creator revenue:', error)
+      return '0'
     }
   }
+
+  const getTotalRoyalty = async (creatorAddress: string): Promise<string> => {
+    if (!publicClient) return '0'
+    
+    try {
+      const royalty = await publicClient.readContract({
+        address: MARKETPLACE_CONTRACT as `0x${string}`,
+        abi: marketplaceABI,
+        functionName: 'totalRoyalty',
+        args: [creatorAddress as `0x${string}`]
+      }) as bigint
+      
+      return royalty.toString()
+    } catch (error) {
+      console.error('Failed to get creator royalty:', error)
+      return '0'
+    }
+  }
+
 
   return {
-    // Original licensing functions
+    // Core licensing functions
     buyLicense,
     hasAccess,
     getLicenseTerms,
     getSubscriptionExpiry,
     renewAccess,
+    syncLicenseTerms,
     
-    // Community functions
-    canCreateCommunity,
-    createCommunity,
-    joinCommunity,
-    addDerivativeToCommunity,
-    getCommunityDetails,
-    isCommunityMember,
-    getCreatorStats,
+    // Creator revenue functions
+    getTotalRevenue,
+    getTotalRoyalty,
     
     // State
     loading,
