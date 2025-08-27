@@ -191,6 +191,9 @@ export class VideoBufferManager {
       }
     } catch (error) {
       console.warn(`❌ Background video load failed for ${bufferedVideo.video.tokenId}:`, error)
+      // Don't remove from buffer immediately - keep the entry for poster if it loaded
+      // Only mark video as failed, not the entire buffer entry
+      bufferedVideo.videoLoaded = false
     }
   }
 
@@ -226,17 +229,19 @@ export class VideoBufferManager {
       // For immediate loading, wait for some metadata
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
+          console.warn(`⏰ Video load timeout for ${video.tokenId} after 15s`)
           reject(new Error('Video load timeout'))
-        }, 5000)
+        }, 15000) // Increased from 5s to 15s
 
         videoElement.addEventListener('loadedmetadata', () => {
           clearTimeout(timeout)
           resolve(videoElement)
         }, { once: true })
 
-        videoElement.addEventListener('error', () => {
+        videoElement.addEventListener('error', (event) => {
           clearTimeout(timeout)
-          reject(new Error('Video load error'))
+          console.error(`❌ Video load error for ${video.tokenId}:`, event)
+          reject(new Error(`Video load error: ${videoElement.error?.message || 'Unknown error'}`))
         }, { once: true })
       })
 

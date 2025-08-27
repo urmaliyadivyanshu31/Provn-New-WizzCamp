@@ -275,14 +275,17 @@ function convertPlatformVideoToExploreVideo(platformVideo: VideoWithCreator): Ex
       paymentToken: platformVideo.payment_token_address || "0x1aE9c40eCd2DD6ad5858E5430A556d7aff28A44b"
     },
     remixing: {
-      enabled: platformVideo.remixing_enabled ?? true, // Default to true if not explicitly set
-      permissionLevel: (platformVideo.remixing_permission_level as any) || 'basic',
-      template: (platformVideo.remixing_template as any) || undefined,
-      requiresAttribution: platformVideo.remixing_requires_attribution ?? true,
-      allowCommercialUse: platformVideo.remixing_allow_commercial ?? false,
-      allowDerivatives: platformVideo.remixing_allow_derivatives ?? true,
-      customSettings: platformVideo.remixing_custom_settings,
-      message: platformVideo.remixing_message
+      enabled: (platformVideo.price_per_period != null && platformVideo.price_per_period >= 0 && 
+                platformVideo.license_duration != null && platformVideo.license_duration > 0), // Enable if has valid license config
+      permissionLevel: 'basic',
+      template: 'remix',
+      requiresAttribution: true,
+      allowCommercialUse: platformVideo.commercial_rights ?? false,
+      allowDerivatives: platformVideo.derivative_rights ?? true,
+      customSettings: undefined,
+      message: platformVideo.commercial_rights ? 
+        'This content is available for commercial licensing!' : 
+        'This content is available for non-commercial licensing!'
     },
     metrics: {
       views: platformVideo.views_count,
@@ -292,7 +295,8 @@ function convertPlatformVideoToExploreVideo(platformVideo: VideoWithCreator): Ex
       remixes: platformVideo.remixes_count || 0
     },
     isLiked: false, // Will be set based on user context
-    canRemix: platformVideo.remixing_enabled ?? true // Default to true if not explicitly set
+    canRemix: (platformVideo.price_per_period != null && platformVideo.price_per_period >= 0 && 
+               platformVideo.license_duration != null && platformVideo.license_duration > 0) // Can remix if has valid license config
   }
 }
 

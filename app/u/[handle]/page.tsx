@@ -218,28 +218,28 @@ export default function ProfilePage() {
                   </div>
                   
                   {/* Wallet Address */}
-                  <div className="flex items-center gap-3 group">
-                    <span className="text-sm text-provn-muted font-mono bg-provn-surface px-3 py-1.5 rounded-lg border border-provn-border/30">
+                  <div className="flex items-center gap-2 sm:gap-3 group">
+                    <span className="text-xs sm:text-sm text-provn-muted font-mono bg-provn-surface px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-provn-border/30 max-w-[140px] sm:max-w-none overflow-hidden">
                       {formatAddress(profile.wallet_address)}
                     </span>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 sm:gap-2 flex-shrink-0">
                       <button
                         onClick={handleCopyAddress}
-                        className="p-2 hover:bg-provn-surface rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        className="p-1.5 sm:p-2 hover:bg-provn-surface rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                       >
                         {copiedAddress ? (
-                          <span className="text-green-500">✓</span>
+                          <span className="text-green-500 text-sm">✓</span>
                         ) : (
-                          <Copy className="w-4 h-4 text-provn-muted" />
+                          <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-provn-muted" />
                         )}
                       </button>
                       <a
                         href={`https://basecamp.cloud.blockscout.com/address/${profile.wallet_address}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-2 hover:bg-provn-surface rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        className="p-1.5 sm:p-2 hover:bg-provn-surface rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                       >
-                        <ExternalLink className="w-4 h-4 text-provn-muted" />
+                        <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-provn-muted" />
                       </a>
                     </div>
                   </div>
@@ -471,9 +471,9 @@ export default function ProfilePage() {
 
                               <div>
                                 <label className="text-sm font-medium text-provn-muted font-headline">Wallet Address</label>
-                                <div className="flex items-center gap-2 group">
-                                  <p className="text-provn-text font-mono font-headline">{profile.wallet_address}</p>
-                                  <div className="flex gap-1">
+                                <div className="flex items-start gap-2 group">
+                                  <p className="text-provn-text font-mono font-headline text-sm break-all flex-1 min-w-0">{profile.wallet_address}</p>
+                                  <div className="flex gap-1 flex-shrink-0">
                                     <button
                                       onClick={handleCopyAddress}
                                       className="p-1.5 hover:bg-provn-surface-2 rounded-md transition-colors opacity-0 group-hover:opacity-100"
@@ -524,79 +524,90 @@ export default function ProfilePage() {
                           ) : analytics ? (
                             <>
                               {/* Stats Overview */}
-                              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                                 <div className="bg-provn-surface rounded-lg p-4 text-center">
                                   <div className="text-2xl font-bold text-provn-text font-headline">
-                                    {videoStats?.total.toLocaleString() || analytics?.ipnfts.toLocaleString()}
+                                    {videoStats?.total?.toLocaleString() || analytics?.ipnfts?.toLocaleString() || '0'}
                                   </div>
                                   <div className="text-sm text-provn-muted font-headline">IP-NFTs</div>
                                 </div>
                                 <div className="bg-provn-surface rounded-lg p-4 text-center">
                                   <div className="text-2xl font-bold text-provn-text font-headline">
-                                    {videoStats?.totalViews.toLocaleString() || analytics?.views.toLocaleString()}
+                                    {videoStats?.totalViews?.toLocaleString() || analytics?.views?.toLocaleString() || '0'}
                                   </div>
-                                  <div className="text-sm text-provn-muted font-headline">Views</div>
+                                  <div className="text-sm text-provn-muted font-headline">Total Views</div>
                                 </div>
                                 <div className="bg-provn-surface rounded-lg p-4 text-center">
                                   <div className="text-2xl font-bold text-provn-text font-headline">
-                                    {videoStats?.totalTips.toLocaleString() || analytics?.wCAMP.toLocaleString()}
+                                    {videoStats?.totalTips?.toLocaleString() || analytics?.tips?.toLocaleString() || '0'}
                                   </div>
-                                  <div className="text-sm text-provn-muted font-headline">Tips</div>
+                                  <div className="text-sm text-provn-muted font-headline">Tips Received</div>
                                 </div>
-                                
+                                <div className="bg-provn-surface rounded-lg p-4 text-center">
+                                  <div className="text-2xl font-bold text-green-500 font-headline">
+                                    {analytics?.provn ? `${analytics.provn.toFixed(2)} PROVN` : '0 PROVN'}
+                                  </div>
+                                  <div className="text-sm text-provn-muted font-headline">Total Earnings</div>
+                                </div>
                               </div>
 
-                              {/* Content Performance & Revenue */}
+                              {/* Content Performance & Earnings */}
                               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 <div className="bg-provn-surface rounded-lg p-6">
-                                  <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Content Performance</h3>
+                                  <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Performance Metrics</h3>
                                   <div className="space-y-3">
                                     <div className="flex justify-between">
                                       <span className="text-provn-muted font-headline">Average Views per Video</span>
-                                      <span className="text-provn-text font-headline font-semibold">
-                                        {analytics.avgViewsPerVideo.toLocaleString()}
+                                      <span className="text-blue-500 font-headline font-semibold">
+                                        {analytics.avgViewsPerVideo?.toLocaleString() || '0'}
                                       </span>
                                     </div>
                                     <div className="flex justify-between">
-                                      <span className="text-provn-muted font-headline">Tips per Video</span>
-                                      <span className="text-provn-text font-headline font-semibold">
-                                        {analytics.avgTipsPerVideo}
+                                      <span className="text-provn-muted font-headline">Average Tips per Video</span>
+                                      <span className="text-green-500 font-headline font-semibold">
+                                        {analytics.avgTipsPerVideo?.toLocaleString() || '0'}
                                       </span>
                                     </div>
                                     <div className="flex justify-between">
-                                      <span className="text-provn-muted font-headline">License Conversion Rate</span>
-                                      <span className="text-provn-text font-headline font-semibold">
-                                        {analytics.licenseConversionRate}%
+                                      <span className="text-provn-muted font-headline">Average Earnings per Video</span>
+                                      <span className="text-provn-accent font-headline font-semibold">
+                                        {analytics.avgEarningsPerVideo ? `${analytics.avgEarningsPerVideo.toFixed(2)} PROVN` : '0 PROVN'}
                                       </span>
                                     </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-provn-muted font-headline">Earnings per Video</span>
+                                    <div className="flex justify-between pt-2 border-t border-provn-border/30">
+                                      <span className="text-provn-muted font-headline">Total Videos Created</span>
                                       <span className="text-provn-text font-headline font-semibold">
-                                        {analytics.avgEarningsPerVideo} PROVN
+                                        {analytics.ipnfts?.toLocaleString() || '0'}
                                       </span>
                                     </div>
                                   </div>
                                 </div>
 
                                 <div className="bg-provn-surface rounded-lg p-6">
-                                  <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Content Performance</h3>
+                                  <h3 className="text-lg font-semibold text-provn-text mb-4 font-headline">Earnings Summary</h3>
                                   <div className="space-y-3">
                                     <div className="flex justify-between">
-                                      <span className="text-provn-muted font-headline">Average Views per IP-NFT</span>
-                                      <span className="text-blue-500 font-headline font-semibold">
-                                        {analytics.avgViewsPerVideo}
+                                      <span className="text-provn-muted font-headline">Total Tips Received</span>
+                                      <span className="text-green-500 font-headline font-semibold">
+                                        {analytics.tips?.toLocaleString() || '0'}
                                       </span>
                                     </div>
                                     <div className="flex justify-between">
-                                      <span className="text-provn-muted font-headline">Average Tips per IP-NFT</span>
-                                      <span className="text-green-500 font-headline font-semibold">
-                                        {analytics.avgTipsPerVideo}
+                                      <span className="text-provn-muted font-headline">Total PROVN Earned</span>
+                                      <span className="text-provn-accent font-headline font-semibold">
+                                        {analytics.provn ? `${analytics.provn.toFixed(2)} PROVN` : '0 PROVN'}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-provn-muted font-headline">Licenses Sold</span>
+                                      <span className="text-yellow-500 font-headline font-semibold">
+                                        {analytics.licenses?.toLocaleString() || '0'}
                                       </span>
                                     </div>
                                     <div className="flex justify-between pt-2 border-t border-provn-border/30">
-                                      <span className="text-provn-text font-headline font-semibold">Total Tips Received</span>
-                                      <span className="text-provn-accent font-headline font-semibold">
-                                        {analytics.tips}
+                                      <span className="text-provn-muted font-headline">Avg. Earnings/Video</span>
+                                      <span className="text-provn-text font-headline font-semibold">
+                                        {analytics.avgEarningsPerVideo ? `${analytics.avgEarningsPerVideo.toFixed(2)} PROVN` : '0 PROVN'}
                                       </span>
                                     </div>
                                   </div>
@@ -651,8 +662,7 @@ export default function ProfilePage() {
             handle: profile.handle,
             displayName: profile.display_name || '',
             bio: profile.bio || '',
-            avatarUrl: profile.avatar_url || '',
-            bannerUrl: '' // Add banner support later if needed
+            avatarUrl: profile.avatar_url || ''
           }}
           onSave={handleSaveProfile}
         />

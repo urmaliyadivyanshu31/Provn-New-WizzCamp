@@ -313,6 +313,36 @@ contract ProvnMarketplace is Ownable, Pausable, ReentrancyGuard {
         emit LicenseTermsSet(tokenId, price, duration, licenseType, transferable, royaltyBps);
     }
 
+    /// @notice Sync license terms from IP-NFT contract to ProvnMarketplace (anyone can call)
+    function syncLicenseTermsFromIPNFT(uint256 tokenId) 
+        external 
+        whenNotPaused
+        nonReentrant
+        functionNotPaused(this.syncLicenseTermsFromIPNFT.selector)
+    {
+        // Skip if already synced and active
+        if (licenseTerms[tokenId].active && licenseTerms[tokenId].price > 0) {
+            return;
+        }
+        
+        (uint128 ipPrice, uint32 ipDuration, uint16 ipRoyalty, address ipPaymentToken) = ipToken.getTerms(tokenId);
+        
+        if (ipPrice > 0 && ipDuration > 0) {
+            licenseTerms[tokenId] = LicenseTerms({
+                price: ipPrice,
+                duration: ipDuration,
+                licenseType: LicenseType.BASIC, // Default for synced terms
+                transferable: true, // Default for synced terms
+                royaltyBps: ipRoyalty,
+                active: true
+            });
+            
+            emit LicenseTermsSet(tokenId, ipPrice, ipDuration, LicenseType.BASIC, true, ipRoyalty);
+        } else {
+            revert LicenseNotAvailable();
+        }
+    }
+
     /// @notice Purchase a license for content
     function purchaseLicense(uint256 tokenId, uint32 periods) 
         external 
@@ -322,8 +352,27 @@ contract ProvnMarketplace is Ownable, Pausable, ReentrancyGuard {
     {
         if (periods == 0 || periods > MAX_SUBSCRIPTION_PERIOD) revert InvalidPeriods();
         
+        // First try to get terms from ProvnMarketplace storage (for backward compatibility)
         LicenseTerms memory terms = licenseTerms[tokenId];
-        if (!terms.active || terms.price == 0) revert LicenseNotAvailable();
+        
+        // If not available in ProvnMarketplace, read from IP-NFT contract
+        if (!terms.active || terms.price == 0) {
+            (uint128 ipPrice, uint32 ipDuration, uint16 ipRoyalty, address ipPaymentToken) = ipToken.getTerms(tokenId);
+            
+            // Check if IP-NFT has valid terms
+            if (ipPrice > 0 && ipDuration > 0) {
+                terms = LicenseTerms({
+                    price: ipPrice,
+                    duration: ipDuration,
+                    licenseType: LicenseType.BASIC, // Default to BASIC for IP-NFT terms
+                    transferable: true, // Default to transferable
+                    royaltyBps: ipRoyalty,
+                    active: true
+                });
+            } else {
+                revert LicenseNotAvailable();
+            }
+        }
         
         uint256 totalPrice = uint256(terms.price) * periods;
         uint256 protocolFee = (totalPrice * protocolFeeBps) / 10000;

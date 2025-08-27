@@ -83,7 +83,6 @@ export async function GET(request: NextRequest) {
       displayName: profile.display_name,
       bio: profile.bio,
       avatarUrl: profile.avatar_url,
-      bannerUrl: null, // Not implemented yet
       verified: false, // Not implemented yet
       followersCount: 0, // Not implemented yet
       followingCount: 0, // Not implemented yet

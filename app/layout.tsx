@@ -25,6 +25,15 @@ export const metadata: Metadata = {
   description: "First short-form video platform with on-chain IP protection on Camp Network",
   generator: "Next.js",
   metadataBase: new URL('https://provn-new-wizz-camp.vercel.app'),
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon-32x32.png', type: 'image/png', sizes: '32x32' },
+      { url: '/favicon-16x16.png', type: 'image/png', sizes: '16x16' },
+    ],
+    shortcut: '/favicon.svg',
+    apple: '/apple-touch-icon.png',
+  },
   openGraph: {
     title: "Provn - Decentralized Content Platform",
     description: "First short-form video platform with on-chain IP protection on Camp Network",
@@ -34,7 +43,7 @@ export const metadata: Metadata = {
     siteName: "Provn",
     images: [
       {
-        url: "/og-image.png", // We'll need to create this
+        url: "/placeholder-logo.svg",
         width: 1200,
         height: 630,
         alt: "Provn - Decentralized Content Platform",
@@ -43,10 +52,12 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Provn - Decentralized Content Platform",
+    title: "Provn - Decentralized Content Platform", 
     description: "First short-form video platform with on-chain IP protection on Camp Network",
-    images: ["/og-image.png"],
+    images: ["/placeholder-logo.svg"],
   },
+  viewport: "width=device-width, initial-scale=1",
+  robots: "index, follow",
 }
 
 export default function RootLayout({

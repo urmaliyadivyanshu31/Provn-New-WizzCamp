@@ -99,7 +99,7 @@ function CommunityHeader({
                 {community.name}
               </h1>
               <div className="flex items-center gap-4 text-sm text-provn-muted mb-3">
-                <span className="capitalize">{community.tier.toLowerCase()} Community</span>
+                <span>{community.tier.charAt(0).toUpperCase() + community.tier.slice(1).toLowerCase()} Community</span>
                 <span>•</span>
                 <span>Created by @{community.creator_profile?.handle || 'Unknown'}</span>
                 <span>•</span>
@@ -660,7 +660,7 @@ export default function CommunityDetailPage() {
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
                             <span className="text-provn-muted">Tier:</span>
-                            <span className="text-provn-text capitalize">{community.tier.toLowerCase()}</span>
+                            <span className="text-provn-text">{community.tier.charAt(0).toUpperCase() + community.tier.slice(1).toLowerCase()}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-provn-muted">Created:</span>

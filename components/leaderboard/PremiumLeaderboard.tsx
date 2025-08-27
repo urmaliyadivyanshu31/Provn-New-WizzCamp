@@ -32,6 +32,7 @@ interface CreatorScore {
   consistency_score: number
   quality_score: number
   videos_count: number
+  derivatives_count: number
   total_views: number
   total_tips: number
   total_licenses: number
@@ -346,6 +347,13 @@ export function PremiumLeaderboard({ userAddress }: PremiumLeaderboardProps) {
                       <div className="text-center">
                         <div className="text-sm font-medium text-provn-text">
                           {creator.videos_count}
+                        </div>
+                        <div className="text-xs text-provn-muted">Videos</div>
+                      </div>
+
+                      <div className="text-center">
+                        <div className="text-sm font-medium text-provn-text">
+                          {creator.derivatives_count || 0}
                         </div>
                         <div className="text-xs text-provn-muted">Derivatives</div>
                       </div>

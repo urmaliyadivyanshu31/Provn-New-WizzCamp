@@ -6,7 +6,7 @@ interface AnalyticsData {
   views: number
   likes: number
   tips: number
-  wCAMP: number
+  provn: number
   licenses: number
   
   // Content performance

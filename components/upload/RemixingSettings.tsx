@@ -126,7 +126,7 @@ export function RemixingSettings({ isOpen, onClose, onSave, initialConfig }: Rem
               <div>
                 <label className="block text-sm font-headline text-provn-text mb-2 flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-yellow-500" />
-                  Price (CAMP Tokens)
+                  Price (PROVN Tokens)
                 </label>
                 <div className="relative">
                   <input
@@ -142,7 +142,7 @@ export function RemixingSettings({ isOpen, onClose, onSave, initialConfig }: Rem
                     className="w-full p-3 pr-16 border border-provn-border rounded-lg bg-provn-surface-2 text-provn-text placeholder-provn-muted focus:outline-none focus:ring-1 focus:ring-provn-accent focus:border-provn-accent transition-all font-headline"
                   />
                   <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-provn-muted font-headline">
-                    CAMP
+                    PROVN
                   </span>
                 </div>
                 
@@ -280,7 +280,7 @@ export function RemixingSettings({ isOpen, onClose, onSave, initialConfig }: Rem
           {/* Footer */}
           <div className="text-center pt-2 border-t border-provn-border">
             <p className="text-xs text-provn-muted font-headline">
-              {enabled ? `${customPrice || selectedPrice || 0} CAMP per license • ${customDuration || (selectedDuration / 86400) || 30} days` : 'Licensing disabled'}
+              {enabled ? `${customPrice || selectedPrice || 0} PROVN per license • ${customDuration || (selectedDuration / 86400) || 30} days` : 'Licensing disabled'}
             </p>
           </div>
         </div>

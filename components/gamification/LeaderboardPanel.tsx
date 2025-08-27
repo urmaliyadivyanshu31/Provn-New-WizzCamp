@@ -14,7 +14,9 @@ import {
   Calendar,
   Star,
   Filter,
-  RefreshCw
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 import { ProvnButton } from "@/components/provn/button"
 import { ProvnBrandLoader } from "@/components/common/LoadingStates"
@@ -85,21 +87,21 @@ function LeaderboardRow({ entry, type, userAddress }: {
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
-      className={`flex items-center gap-4 p-4 rounded-lg border transition-all ${
+      className={`flex items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-lg border transition-all ${
         isCurrentUser 
           ? 'bg-provn-accent/10 border-provn-accent/30' 
           : 'bg-provn-surface border-provn-border hover:border-provn-accent/30'
       }`}
     >
       {/* Rank */}
-      <div className="flex items-center gap-2 w-12">
-        <RankIcon className={`w-5 h-5 ${color}`} />
-        <span className={`font-bold ${color}`}>#{entry.rank}</span>
+      <div className="flex items-center gap-2 w-12 sm:w-16 flex-shrink-0">
+        <RankIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${color}`} />
+        <span className={`font-bold text-sm sm:text-base ${color}`}>#{entry.rank}</span>
       </div>
 
       {/* User Info */}
-      <div className="flex items-center gap-3 flex-1">
-        <div className="w-10 h-10 bg-provn-accent rounded-full flex items-center justify-center">
+      <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-provn-accent rounded-full flex items-center justify-center flex-shrink-0">
           {entry.user.avatar ? (
             <img 
               src={entry.user.avatar} 
@@ -107,33 +109,33 @@ function LeaderboardRow({ entry, type, userAddress }: {
               className="w-full h-full rounded-full object-cover"
             />
           ) : (
-            <span className="text-white font-bold">
+            <span className="text-white font-bold text-sm sm:text-base">
               {entry.user.handle?.[0]?.toUpperCase() || '?'}
             </span>
           )}
         </div>
         
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           {type === 'community' && entry.community ? (
-            <div>
+            <div className="min-w-0">
               <Link href={`/community/${entry.community.id}`}>
-                <h4 className="font-medium text-provn-text hover:text-provn-accent transition-colors">
+                <h4 className="font-medium text-sm sm:text-base text-provn-text hover:text-provn-accent transition-colors truncate">
                   {entry.community.name}
                 </h4>
               </Link>
-              <p className="text-sm text-provn-muted">
-                by @{entry.user.handle} • {entry.community.tier.toLowerCase()}
+              <p className="text-xs sm:text-sm text-provn-muted truncate">
+                by @{entry.user.handle} • {entry.community.tier ? entry.community.tier.charAt(0).toUpperCase() + entry.community.tier.slice(1).toLowerCase() : 'Unknown'}
               </p>
             </div>
           ) : (
-            <div>
+            <div className="min-w-0">
               <Link href={`/u/${entry.user.handle}`}>
-                <h4 className="font-medium text-provn-text hover:text-provn-accent transition-colors">
+                <h4 className="font-medium text-sm sm:text-base text-provn-text hover:text-provn-accent transition-colors truncate">
                   @{entry.user.handle}
                 </h4>
               </Link>
               {entry.user.displayName && (
-                <p className="text-sm text-provn-muted">{entry.user.displayName}</p>
+                <p className="text-xs sm:text-sm text-provn-muted truncate">{entry.user.displayName}</p>
               )}
             </div>
           )}
@@ -141,13 +143,13 @@ function LeaderboardRow({ entry, type, userAddress }: {
       </div>
 
       {/* Score */}
-      <div className="text-right">
-        <div className="font-bold text-provn-text">
+      <div className="text-right flex-shrink-0">
+        <div className="font-bold text-sm sm:text-base text-provn-text">
           {type === 'revenue' ? `$${entry.score}` : entry.score.toLocaleString()}
         </div>
         <div className="text-xs text-provn-muted">
           {type === 'overall' && 'Score'}
-          {type === 'creators' && 'Derivatives'}
+          {type === 'creators' && 'Videos'}
           {type === 'revenue' && 'Revenue'}
           {type === 'community' && 'Members'}
           {type === 'achievements' && 'Points'}
@@ -172,7 +174,7 @@ function LeaderboardRow({ entry, type, userAddress }: {
           {type === 'community' && (
             <>
               <span>🎭 {entry.metrics.derivatives} derivatives</span>
-              <span>👑 {entry.community?.tier.toLowerCase()}</span>
+              <span>👑 {entry.community?.tier ? entry.community.tier.charAt(0).toUpperCase() + entry.community.tier.slice(1).toLowerCase() : 'Unknown'}</span>
             </>
           )}
           {type === 'achievements' && (
@@ -185,7 +187,7 @@ function LeaderboardRow({ entry, type, userAddress }: {
 
       {/* Current User Badge */}
       {isCurrentUser && (
-        <div className="bg-provn-accent text-white text-xs px-2 py-1 rounded-full">
+        <div className="bg-provn-accent text-white text-xs px-2 py-1 rounded-full flex-shrink-0">
           You
         </div>
       )}
@@ -199,10 +201,18 @@ export function LeaderboardPanel({ userAddress }: LeaderboardPanelProps) {
   const [selectedType, setSelectedType] = useState('overall')
   const [selectedPeriod, setSelectedPeriod] = useState('all')
   const [lastUpdated, setLastUpdated] = useState<string>('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const entriesPerPage = 10
+
+  useEffect(() => {
+    setCurrentPage(1) // Reset to first page when type/period changes
+    fetchLeaderboard()
+  }, [selectedType, selectedPeriod])
 
   useEffect(() => {
     fetchLeaderboard()
-  }, [selectedType, selectedPeriod])
+  }, [currentPage])
 
   const fetchLeaderboard = async () => {
     try {
@@ -210,7 +220,8 @@ export function LeaderboardPanel({ userAddress }: LeaderboardPanelProps) {
       const params = new URLSearchParams({
         type: selectedType,
         period: selectedPeriod,
-        limit: '50'
+        limit: entriesPerPage.toString(),
+        offset: ((currentPage - 1) * entriesPerPage).toString()
       })
 
       const response = await fetch(`/api/leaderboards?${params}`)
@@ -219,6 +230,11 @@ export function LeaderboardPanel({ userAddress }: LeaderboardPanelProps) {
       if (data.success) {
         setLeaderboard(data.leaderboard)
         setLastUpdated(data.lastUpdated)
+        
+        // Calculate total pages based on total count
+        if (data.totalCount) {
+          setTotalPages(Math.ceil(data.totalCount / entriesPerPage))
+        }
       }
     } catch (error) {
       console.error('Error fetching leaderboard:', error)
@@ -239,20 +255,20 @@ export function LeaderboardPanel({ userAddress }: LeaderboardPanelProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <TypeIcon className="w-8 h-8 text-provn-accent" />
-          <div>
-            <h2 className="text-2xl font-bold text-provn-text">
+          <TypeIcon className="w-6 h-6 sm:w-8 sm:h-8 text-provn-accent" />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-provn-text">
               {currentType?.name} Leaderboard
             </h2>
-            <p className="text-provn-muted">{currentType?.description}</p>
+            <p className="text-sm sm:text-base text-provn-muted">{currentType?.description}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           {lastUpdated && (
-            <div className="text-sm text-provn-muted">
+            <div className="text-xs sm:text-sm text-provn-muted hidden sm:block">
               Updated {new Date(lastUpdated).toLocaleTimeString()}
             </div>
           )}
@@ -269,14 +285,14 @@ export function LeaderboardPanel({ userAddress }: LeaderboardPanelProps) {
 
       {/* User's Current Rank */}
       {userAddress && userRank > 0 && (
-        <div className="bg-gradient-to-r from-provn-accent/10 to-purple-500/10 border border-provn-accent/20 rounded-xl p-4">
+        <div className="bg-gradient-to-r from-provn-accent/10 to-purple-500/10 border border-provn-accent/20 rounded-xl p-3 sm:p-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-provn-accent rounded-full flex items-center justify-center">
-              <Trophy className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-provn-accent rounded-full flex items-center justify-center flex-shrink-0">
+              <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
-            <div>
-              <h3 className="font-semibold text-provn-text">Your Rank</h3>
-              <p className="text-provn-muted">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-sm sm:text-base text-provn-text">Your Rank</h3>
+              <p className="text-xs sm:text-sm text-provn-muted">
                 You're currently #{userRank} out of {leaderboard.length} {currentType?.name.toLowerCase()}
               </p>
             </div>
@@ -290,21 +306,21 @@ export function LeaderboardPanel({ userAddress }: LeaderboardPanelProps) {
           <label className="block text-sm font-medium text-provn-text mb-2">
             Leaderboard Type
           </label>
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
             {leaderboardTypes.map((type) => {
               const Icon = type.icon
               return (
                 <button
                   key={type.id}
                   onClick={() => setSelectedType(type.id)}
-                  className={`flex items-center gap-2 p-3 rounded-lg border transition-all text-left ${
+                  className={`flex items-center gap-2 p-2 sm:p-3 rounded-lg border transition-all text-left ${
                     selectedType === type.id
                       ? 'bg-provn-accent text-white border-provn-accent'
                       : 'bg-provn-surface text-provn-text border-provn-border hover:border-provn-accent/30'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span className="text-sm font-medium">{type.name}</span>
+                  <Icon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm font-medium truncate">{type.name}</span>
                 </button>
               )
             })}
@@ -335,17 +351,84 @@ export function LeaderboardPanel({ userAddress }: LeaderboardPanelProps) {
           <ProvnBrandLoader size="lg" message="Loading leaderboard" />
         </div>
       ) : leaderboard.length > 0 ? (
-        <div className="space-y-2">
-          <AnimatePresence>
-            {leaderboard.map((entry) => (
-              <LeaderboardRow
-                key={`${entry.user.walletAddress}-${entry.rank}`}
-                entry={entry}
-                type={selectedType}
-                userAddress={userAddress}
-              />
-            ))}
-          </AnimatePresence>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <AnimatePresence>
+              {leaderboard.map((entry) => (
+                <LeaderboardRow
+                  key={`${entry.user.walletAddress}-${entry.rank}`}
+                  entry={entry}
+                  type={selectedType}
+                  userAddress={userAddress}
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-4 border-t border-provn-border">
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="flex items-center gap-2 px-3 py-2 bg-provn-surface border border-provn-border rounded-lg text-provn-text hover:bg-provn-surface-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Previous
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {/* Show page numbers */}
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage > totalPages - 3) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-provn-accent text-white'
+                          : 'bg-provn-surface border border-provn-border text-provn-text hover:bg-provn-surface-2'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+                
+                {totalPages > 5 && currentPage < totalPages - 2 && (
+                  <>
+                    {currentPage < totalPages - 3 && <span className="text-provn-muted">...</span>}
+                    <button
+                      onClick={() => setCurrentPage(totalPages)}
+                      className="w-10 h-10 rounded-lg text-sm font-medium bg-provn-surface border border-provn-border text-provn-text hover:bg-provn-surface-2 transition-colors"
+                    >
+                      {totalPages}
+                    </button>
+                  </>
+                )}
+              </div>
+              
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="flex items-center gap-2 px-3 py-2 bg-provn-surface border border-provn-border rounded-lg text-provn-text hover:bg-provn-surface-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="text-center py-20">

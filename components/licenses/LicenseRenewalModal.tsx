@@ -90,8 +90,8 @@ export function LicenseRenewalModal({
     }
   }
 
-  const formatCAMP = (amount: number) => {
-    return `${amount.toFixed(amount < 1 ? 2 : 1)} CAMP`
+  const formatPROVN = (amount: number) => {
+    return `${amount.toFixed(amount < 1 ? 2 : 1)} PROVN`
   }
 
   const formatDate = (dateString: string) => {
@@ -332,7 +332,7 @@ export function LicenseRenewalModal({
                     </div>
                     <div className="text-right">
                       <div className="text-lg font-bold text-provn-accent font-headline">
-                        {formatCAMP(getTotalCost())}
+                        {formatPROVN(getTotalCost())}
                       </div>
                     </div>
                   </div>
@@ -340,7 +340,7 @@ export function LicenseRenewalModal({
                     <div className="flex justify-between">
                       <span>Price per period:</span>
                       <span className="text-provn-text font-headline">
-                        {formatCAMP(Number(currentTerms.price) / (10**18))}
+                        {formatPROVN(Number(currentTerms.price) / (10**18))}
                       </span>
                     </div>
                     <div className="flex justify-between">

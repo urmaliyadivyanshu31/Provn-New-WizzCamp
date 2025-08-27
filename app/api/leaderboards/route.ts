@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type') || 'overall' // overall, creators, revenue, community
     const period = searchParams.get('period') || 'all' // all, month, week
     const limit = parseInt(searchParams.get('limit') || '50')
+    const offset = parseInt(searchParams.get('offset') || '0')
 
     console.log('🏆 Leaderboards API: Fetching leaderboard', { type, period, limit })
 
@@ -16,19 +17,19 @@ export async function GET(request: NextRequest) {
 
     switch (type) {
       case 'creators':
-        leaderboard = await getCreatorsLeaderboard(supabase, period, limit)
+        leaderboard = await getCreatorsLeaderboard(supabase, period, limit, offset)
         break
       case 'revenue':
-        leaderboard = await getRevenueLeaderboard(supabase, period, limit)
+        leaderboard = await getRevenueLeaderboard(supabase, period, limit, offset)
         break
       case 'community':
-        leaderboard = await getCommunityLeaderboard(supabase, period, limit)
+        leaderboard = await getCommunityLeaderboard(supabase, period, limit, offset)
         break
       case 'achievements':
-        leaderboard = await getAchievementsLeaderboard(supabase, limit)
+        leaderboard = await getAchievementsLeaderboard(supabase, limit, offset)
         break
       default:
-        leaderboard = await getOverallLeaderboard(supabase, period, limit)
+        leaderboard = await getOverallLeaderboard(supabase, period, limit, offset)
     }
 
     console.log('✅ Leaderboards API: Fetched successfully', { 
@@ -37,11 +38,18 @@ export async function GET(request: NextRequest) {
       count: leaderboard.length
     })
 
+    // Calculate estimated totalCount for pagination
+    // This is a simple estimate - for proper implementation, each function would need to return count
+    const estimatedTotalCount = leaderboard.length === limit ? (offset + limit + 10) : (offset + leaderboard.length)
+
     return NextResponse.json({
       success: true,
       leaderboard,
       type,
       period,
+      totalCount: estimatedTotalCount,
+      currentPage: Math.floor(offset / limit) + 1,
+      totalPages: Math.ceil(estimatedTotalCount / limit),
       lastUpdated: new Date().toISOString()
     })
 
@@ -54,7 +62,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function getOverallLeaderboard(supabase: any, period: string, limit: number) {
+async function getOverallLeaderboard(supabase: any, period: string, limit: number, offset: number = 0) {
   // Try to get data from creator_stats table first
   const { data: creatorStats } = await supabase
     .from('creator_stats')
@@ -66,7 +74,7 @@ async function getOverallLeaderboard(supabase: any, period: string, limit: numbe
       achievement_points
     `)
     .order('total_derivatives', { ascending: false })
-    .limit(limit)
+    .range(offset, offset + limit - 1)
 
   if (creatorStats && creatorStats.length > 0) {
     // Get profile information for each creator
@@ -197,7 +205,7 @@ async function getOverallLeaderboard(supabase: any, period: string, limit: numbe
     }))
 }
 
-async function getCreatorsLeaderboard(supabase: any, period: string, limit: number) {
+async function getCreatorsLeaderboard(supabase: any, period: string, limit: number, offset: number = 0) {
   // Try to get data from creator_stats table first
   const { data: creatorStats } = await supabase
     .from('creator_stats')
@@ -295,7 +303,7 @@ async function getCreatorsLeaderboard(supabase: any, period: string, limit: numb
     }))
 }
 
-async function getRevenueLeaderboard(supabase: any, period: string, limit: number) {
+async function getRevenueLeaderboard(supabase: any, period: string, limit: number, offset: number = 0) {
   // Mock revenue leaderboard (in real implementation, would use actual revenue data)
   const { data: profiles } = await supabase
     .from('profiles')
@@ -333,7 +341,7 @@ async function getRevenueLeaderboard(supabase: any, period: string, limit: numbe
     }))
 }
 
-async function getCommunityLeaderboard(supabase: any, period: string, limit: number) {
+async function getCommunityLeaderboard(supabase: any, period: string, limit: number, offset: number = 0) {
   // Get communities ranked by member count
   const { data: communities } = await supabase
     .from('communities')
@@ -380,7 +388,7 @@ async function getCommunityLeaderboard(supabase: any, period: string, limit: num
   }))
 }
 
-async function getAchievementsLeaderboard(supabase: any, limit: number) {
+async function getAchievementsLeaderboard(supabase: any, limit: number, offset: number = 0) {
   // Get users ranked by achievement points
   const { data: achievements } = await supabase
     .from('user_achievements')

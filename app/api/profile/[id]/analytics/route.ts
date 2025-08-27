@@ -150,7 +150,7 @@ export async function GET(
         views: totalViews,
         likes: totalLikes,
         tips: totalTips,
-        wCAMP: totalTipsAmount, // Use tips amount as wCAMP earnings
+        provn: totalTipsAmount, // Use tips amount as PROVN earnings
         licenses: 0, // Not tracked in current schema
         
         // Content performance

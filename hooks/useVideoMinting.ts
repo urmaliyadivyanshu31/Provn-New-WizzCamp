@@ -190,7 +190,7 @@ export function useVideoMinting() {
       const royalty = parseInt(license.royalty || '0');
       
       // Ensure minimum valid values
-      const validPrice = Math.max(price, 0.001); // Minimum 0.001 wCAMP
+      const validPrice = Math.max(price, 0.001); // Minimum 0.001 PROVN
       const validDuration = Math.max(duration, 86400); // Minimum 1 day
       const validRoyalty = Math.min(Math.max(royalty, 0), 50); // 0-50% royalty
       
@@ -198,7 +198,7 @@ export function useVideoMinting() {
         price: BigInt(Math.floor(validPrice * 1e18)),
         duration: validDuration,
         royaltyBps: validRoyalty * 100,
-        paymentToken: (license.paymentToken || '0x0000000000000000000000000000000000000000') as Address,
+        paymentToken: (license.paymentToken || '0xa673B3E946A64037AdBAe22a0f56916dE43c678c') as Address,
       }
 
       const parentTokenId = parentId === '' ? BigInt(0) : BigInt(parentId)

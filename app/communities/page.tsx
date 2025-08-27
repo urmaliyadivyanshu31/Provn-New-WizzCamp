@@ -78,8 +78,8 @@ function CommunityCard({ community, onJoin, onLeave, isJoining }: CommunityCardP
               >
                 {community.name}
               </Link>
-              <p className="text-sm text-provn-muted capitalize">
-                {community.tier.toLowerCase()} Community
+              <p className="text-sm text-provn-muted">
+                {community.tier.charAt(0).toUpperCase() + community.tier.slice(1).toLowerCase()} Community
               </p>
             </div>
           </div>
@@ -406,7 +406,7 @@ export default function CommunitiesPage() {
                           : 'bg-provn-surface border border-provn-border text-provn-muted hover:text-provn-text hover:border-provn-accent/30'
                       }`}
                     >
-                      {tier === 'ALL' ? 'All' : tier.toLowerCase()}
+                      {tier === 'ALL' ? 'All' : tier.charAt(0).toUpperCase() + tier.slice(1).toLowerCase()}
                     </button>
                   ))}
                 </div>

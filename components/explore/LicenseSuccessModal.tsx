@@ -146,7 +146,7 @@ export function LicenseSuccessModal({
                 <div className="flex justify-between">
                   <span>Amount paid:</span>
                   <span className="font-medium text-provn-text font-headline">
-                    {formattedCost} CAMP
+                    {formattedCost} PROVN
                   </span>
                 </div>
                 <div className="flex justify-between">

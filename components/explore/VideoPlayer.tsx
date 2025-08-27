@@ -83,24 +83,29 @@ const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: Vi
         const gatewayName = 'ipfs-gateway'; // Will be updated with actual gateway
         performanceTracker.startVideoLoad(video.tokenId, gatewayName);
         
-        // Check if video is already buffered
-        const bufferedVideo = await videoBufferManager.getBufferedVideo(video);
-        if (isCancelled) return;
-        
-        if (bufferedVideo && bufferedVideo !== videoElement) {
-          // Use buffered video element - instant load!
-          setIsBuffered(true);
-          setVideoSrc(bufferedVideo.src);
-          setPosterSrc(bufferedVideo.poster || '');
-          setLoadingState('ready');
+        // Check if video is already buffered (with timeout handling)
+        try {
+          const bufferedVideo = await videoBufferManager.getBufferedVideo(video);
+          if (isCancelled) return;
           
-          // Track buffer hit
-          performanceTracker.markBufferHit(video.tokenId);
-          performanceTracker.markVideoLoaded(video.tokenId);
-          performanceTracker.markFirstPlay(video.tokenId);
-          
-          console.log(`🎯 Using buffered video for ${video.tokenId}`);
-          return;
+          if (bufferedVideo && bufferedVideo !== videoElement) {
+            // Use buffered video element - instant load!
+            setIsBuffered(true);
+            setVideoSrc(bufferedVideo.src);
+            setPosterSrc(bufferedVideo.poster || '');
+            setLoadingState('ready');
+            
+            // Track buffer hit
+            performanceTracker.markBufferHit(video.tokenId);
+            performanceTracker.markVideoLoaded(video.tokenId);
+            performanceTracker.markFirstPlay(video.tokenId);
+            
+            console.log(`🎯 Using buffered video for ${video.tokenId}`);
+            return; // Exit early if buffered video was successful
+          }
+        } catch (bufferError) {
+          console.warn(`⚠️ Buffer video load failed for ${video.tokenId}, falling back to progressive loading:`, bufferError);
+          // Continue with progressive loading fallback
         }
 
         // Step 1: Load poster first for immediate visual feedback

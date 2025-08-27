@@ -62,6 +62,8 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
   const { buyLicense, getLicenseTerms, loading, error, clearError } = useOriginLicensing();
   const [licenseTerms, setLicenseTerms] = useState<any>(null);
   const [termsLoading, setTermsLoading] = useState(false);
+  const [termsError, setTermsError] = useState<string | null>(null);
+  const [hasValidTerms, setHasValidTerms] = useState(false);
   const [periods, setPeriods] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
@@ -76,11 +78,19 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
   const isOwnVideo = walletAddress && video.creator.walletAddress && 
     walletAddress.toLowerCase() === video.creator.walletAddress.toLowerCase();
 
+  // Check if licensing is available based on actual data
+  const hasLicenseConfig = video.licensing?.price >= 0 && 
+                          video.licensing?.duration > 0 && 
+                          (video.remixing?.enabled !== false); // Allow licensing if not explicitly disabled
+
   // Debug logging (only when modal opens)
   useEffect(() => {
     if (isOpen) {
       console.log('📺 LicensingModal opened:', {
         remixingEnabled: video.remixing?.enabled,
+        hasLicenseConfig,
+        licensingPrice: video.licensing?.price,
+        licensingDuration: video.licensing?.duration,
         isOwnVideo,
         walletAddress,
         creatorWallet: video.creator.walletAddress,
@@ -95,13 +105,7 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
         }
       });
     }
-  }, [isOpen, video.remixing?.enabled, isOwnVideo, walletAddress, video.creator.walletAddress, video.tokenId]);
-
-  // Don't render modal if remixing is disabled or user owns the video
-  if (!video.remixing?.enabled || isOwnVideo) {
-    console.log('❌ LicensingModal: Not rendering - remixing disabled or own video');
-    return null;
-  }
+  }, [isOpen, video.remixing?.enabled, hasLicenseConfig, isOwnVideo, walletAddress, video.creator.walletAddress, video.tokenId]);
   
   // Reset states when modal opens or video changes
   useEffect(() => {
@@ -109,50 +113,107 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
       // Reset states when modal opens
       setPurchaseSuccess(false);
       setTransactionStep(null);
+      setTermsError(null);
+      setHasValidTerms(false);
       clearError();
     } else {
       // Reset license terms when modal closes
       setLicenseTerms(null);
       setTermsLoading(false);
+      setTermsError(null);
+      setHasValidTerms(false);
     }
   }, [isOpen, clearError]);
   
-  // Fetch license terms only when needed
+  // Fetch license terms only when needed with comprehensive validation
   useEffect(() => {
     if (isOpen && video.tokenId && !termsLoading && !licenseTerms) {
       console.log('🔍 Fetching license terms for tokenId:', video.tokenId);
       setTermsLoading(true);
+      setTermsError(null);
+      setHasValidTerms(false);
+      
       getLicenseTerms(video.tokenId).then(terms => {
         if (terms) {
-          setLicenseTerms(terms);
-          console.log('✅ License terms fetched successfully');
+          // Validate that terms are usable for purchases
+          const price = Number(terms.price) || 0;
+          const duration = Number(terms.duration) || 0;
+          
+          console.log('📋 License terms validation:', {
+            price,
+            duration,
+            hasPrice: price >= 0,
+            hasDuration: duration > 0,
+            termsObject: terms
+          });
+          
+          if (price >= 0 && duration > 0) {
+            setLicenseTerms(terms);
+            setHasValidTerms(true);
+            console.log('✅ Valid license terms fetched successfully');
+          } else {
+            setTermsError('License terms are incomplete or invalid');
+            console.warn('⚠️ Invalid license terms: missing price or duration');
+          }
+        } else {
+          setTermsError('No license terms found for this content');
+          console.warn('⚠️ No license terms returned from contract');
         }
         setTermsLoading(false);
       }).catch(error => {
         console.error('❌ Failed to fetch license terms:', error);
+        setTermsError('Failed to load license terms. This content may not be available for licensing.');
         setTermsLoading(false);
       });
     }
   }, [isOpen, video.tokenId, termsLoading, licenseTerms, getLicenseTerms]);
 
   // Use licensing terms from Origin SDK or fallback to video data (memoized)
-  const { actualPrice, actualDuration, licensePricePerPeriod } = useMemo(() => {
-    const price = licenseTerms ? Number(licenseTerms.price) / (10**18) : video.licensing.price;
-    const duration = licenseTerms ? licenseTerms.duration : video.licensing.duration;
+  const { actualPrice, actualDuration, licensePricePerPeriod, hasActualTerms } = useMemo(() => {
+    // If we have valid contract terms, use them
+    if (licenseTerms && Number(licenseTerms.price) > 0 && licenseTerms.duration > 0) {
+      const price = Number(licenseTerms.price) / (10**18);
+      const duration = licenseTerms.duration;
+      const totalPrice = price * periods;
+      
+      return {
+        actualPrice: price,
+        actualDuration: duration,
+        licensePricePerPeriod: totalPrice,
+        hasActualTerms: true
+      };
+    }
+    
+    // Fallback to database/video data if contract terms are empty/invalid
+    const price = video.licensing.price || 0;
+    const duration = video.licensing.duration || 0;
     const totalPrice = price * periods;
+    
+    // Check if we have valid fallback terms
+    const hasFallbackTerms = (price >= 0 && duration > 0 && hasLicenseConfig);
+    
+    console.log('💾 Using database fallback terms:', {
+      price,
+      duration,
+      hasLicenseConfig,
+      hasFallbackTerms,
+      videoPricing: video.licensing?.price,
+      videoDuration: video.licensing?.duration
+    });
     
     return {
       actualPrice: price,
       actualDuration: duration,
-      licensePricePerPeriod: totalPrice
+      licensePricePerPeriod: totalPrice,
+      hasActualTerms: hasFallbackTerms
     };
-  }, [licenseTerms, video.licensing.price, video.licensing.duration, periods]);
+  }, [licenseTerms, video.licensing.price, video.licensing.duration, periods, hasLicenseConfig]);
 
-  const formatCAMP = useCallback((amount: number) => {
+  const formatPROVN = useCallback((amount: number) => {
     // Handle free content
     if (amount === 0) return "Free";
-    // Ensure proper decimal formatting for CAMP tokens
-    return `${amount.toFixed(amount < 1 ? 2 : 1)} CAMP`;
+    // Ensure proper decimal formatting for PROVN tokens
+    return `${amount.toFixed(amount < 1 ? 2 : 1)} PROVN`;
   }, []);
 
   const handlePurchase = useCallback(async () => {
@@ -224,8 +285,11 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
       setIsProcessing(false);
     }
   }, [isAuthenticated, video.tokenId, periods, licensePricePerPeriod, actualDuration, buyLicense, onClose, clearError]);
-
-  if (!isOpen) return null;
+  
+  // Don't render modal if user owns the video or licensing is not configured
+  if (!isOpen || isOwnVideo) {
+    return null;
+  }
 
   return (
     <AnimatePresence>
@@ -284,26 +348,33 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
               <h3 className="text-sm font-semibold text-provn-text mb-2 font-headline">
                 License Terms
               </h3>
-              <div className="space-y-2 text-xs text-provn-muted">
-                <div className="flex justify-between">
-                  <span>Price per period:</span>
-                  <span className="font-medium text-provn-text">
-                    {formatCAMP(actualPrice)}
-                  </span>
+              {termsLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-4 h-4 animate-spin text-provn-accent" />
+                  <span className="ml-2 text-xs text-provn-muted">Loading terms...</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Duration per period:</span>
-                  <span className="font-medium text-provn-text">
-                    {actualDuration ? Math.floor(actualDuration / 86400) + ' days' : '30 days'}
-                  </span>
+              ) : (
+                <div className="space-y-2 text-xs text-provn-muted">
+                  <div className="flex justify-between">
+                    <span>Price per period:</span>
+                    <span className="font-medium text-provn-text">
+                      {formatPROVN(actualPrice)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Duration per period:</span>
+                    <span className="font-medium text-provn-text">
+                      {actualDuration ? Math.floor(actualDuration / 86400) + ' days' : '30 days'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>License type:</span>
+                    <span className="font-medium text-provn-text">
+                      {video.remixing?.template || 'Basic License'}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span>License type:</span>
-                  <span className="font-medium text-provn-text">
-                    {video.remixing?.template || 'Basic License'}
-                  </span>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Period Selection */}
@@ -350,7 +421,7 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
                 </div>
                 <div className="text-right">
                   <div className="text-lg font-bold text-provn-accent font-headline">
-                    {formatCAMP(licensePricePerPeriod)}
+                    {formatPROVN(licensePricePerPeriod)}
                   </div>
                   <div className="text-xs text-green-400 font-headline">
                     No platform fee
@@ -374,17 +445,22 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
                     isAuthenticated,
                     isProcessing,
                     purchaseSuccess,
-                    disabled: !isAuthenticated || isProcessing || purchaseSuccess
+                    hasValidTerms,
+                    hasActualTerms,
+                    termsError,
+                    disabled: !isAuthenticated || isProcessing || purchaseSuccess || !hasActualTerms
                   });
                   e.preventDefault();
                   e.stopPropagation();
                   handlePurchase();
                 }}
-                disabled={!isAuthenticated || isProcessing || purchaseSuccess}
+                disabled={!isAuthenticated || isProcessing || purchaseSuccess || termsLoading || !hasActualTerms}
                 className={`flex-1 font-medium py-2.5 px-4 rounded-lg transition-all font-headline touch-manipulation min-h-[40px] active:scale-[0.98] flex items-center justify-center gap-2 ${
                   purchaseSuccess 
                     ? 'bg-green-500 text-white' 
-                    : 'bg-provn-accent hover:bg-provn-accent-press disabled:bg-provn-muted disabled:cursor-not-allowed text-white'
+                    : hasActualTerms
+                    ? 'bg-provn-accent hover:bg-provn-accent-press disabled:bg-provn-muted disabled:cursor-not-allowed text-white'
+                    : 'bg-gray-600 text-gray-300 cursor-not-allowed'
                 }`}
               >
                 {purchaseSuccess ? (
@@ -398,6 +474,16 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
                     {transactionStep?.includes('Preparing') ? 'Preparing...' : 
                      transactionStep?.includes('Confirming') ? 'Confirm in Wallet...' : 
                      'Processing...'}
+                  </>
+                ) : termsLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading Terms...
+                  </>
+                ) : !hasActualTerms ? (
+                  <>
+                    <AlertCircle className="w-4 h-4" />
+                    {termsError ? 'Terms Unavailable' : 'No License Available'}
                   </>
                 ) : (
                   <>
@@ -456,7 +542,23 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
               </div>
             )}
 
-            {!isAuthenticated && (
+            {/* Terms Error Display */}
+            {termsError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <div className="flex items-start gap-2 text-red-400">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <span className="text-xs font-headline">{termsError}</span>
+                    <div className="mt-1 text-xs text-red-300">
+                      This content owner needs to set up license terms before it can be licensed.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Terms Loading/Error State */}
+            {!termsLoading && !licenseTerms && !termsError && !isAuthenticated && (
               <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
                 <div className="flex items-center gap-2 text-yellow-400">
                   <AlertCircle className="w-4 h-4" />
@@ -465,10 +567,19 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
               </div>
             )}
 
+            {!termsLoading && !licenseTerms && !termsError && isAuthenticated && (
+              <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                <div className="flex items-center gap-2 text-orange-400">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-xs font-headline">Unable to load license terms. Please try again.</span>
+                </div>
+              </div>
+            )}
+
             {/* Footer */}
             <div className="text-center pt-2 border-t border-provn-border">
               <p className="text-xs text-provn-muted font-headline">
-                Powered by Origin SDK • Secure CAMP payments
+                Powered by Origin SDK • Secure PROVN payments
               </p>
             </div>
           </div>

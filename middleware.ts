@@ -17,6 +17,9 @@ const PUBLIC_ROUTES = [
   '/api/health',
   '/api/admin', // Admin routes are public but have their own auth
   '/admin',
+  '/api/profile', // Profile API routes need to be public for video display
+  '/api/explore', // Explore API routes for video content
+  '/api/leaderboards', // Leaderboard API routes
   '/_next',
   '/favicon.ico',
   '/robots.txt',

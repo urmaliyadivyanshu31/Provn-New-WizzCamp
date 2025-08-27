@@ -77,8 +77,8 @@ export function LicenseCard({
     })
   }
 
-  const formatCAMP = (amount: number) => {
-    return `${amount.toFixed(amount < 1 ? 2 : 1)} CAMP`
+  const formatPROVN = (amount: number) => {
+    return `${amount.toFixed(amount < 1 ? 2 : 1)} PROVN`
   }
 
   const getStatusColor = (status: string) => {
@@ -209,7 +209,7 @@ export function LicenseCard({
             <div className="text-right">
               <div className="flex items-center gap-1 text-provn-accent font-bold">
                 <DollarSign className="w-3 h-3" />
-                <span className="font-headline">{formatCAMP(license.price_paid)}</span>
+                <span className="font-headline">{formatPROVN(license.price_paid)}</span>
               </div>
             </div>
           </div>

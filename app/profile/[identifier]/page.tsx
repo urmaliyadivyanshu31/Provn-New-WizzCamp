@@ -21,7 +21,6 @@ interface UserProfile {
   displayName?: string;
   bio?: string;
   avatarUrl?: string;
-  bannerUrl?: string;
   verified: boolean;
   followersCount: number;
   followingCount: number;
@@ -122,7 +121,6 @@ export default function ProfilePage() {
           displayName: updatedProfile.displayName || prev.displayName,
           bio: updatedProfile.bio || prev.bio,
           avatarUrl: updatedProfile.avatarUrl || prev.avatarUrl,
-          bannerUrl: updatedProfile.bannerUrl || prev.bannerUrl,
         } : null);
         
         setIsEditing(false);
@@ -200,14 +198,7 @@ export default function ProfilePage() {
       <div className="min-h-screen bg-provn-bg">
         {/* Banner Section */}
         <div className="relative">
-          <div 
-            className="h-48 sm:h-64 bg-gradient-to-r from-provn-accent to-provn-accent-press"
-            style={{
-              backgroundImage: profile.bannerUrl ? `url(${profile.bannerUrl})` : undefined,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center'
-            }}
-          />
+          <div className="h-48 sm:h-64 bg-gradient-to-r from-provn-accent to-provn-accent-press" />
           
           {/* Profile Content Container */}
           <div className="max-w-4xl mx-auto px-4">
@@ -438,7 +429,6 @@ export default function ProfilePage() {
             displayName: profile.displayName,
             bio: profile.bio,
             avatarUrl: profile.avatarUrl,
-            bannerUrl: profile.bannerUrl,
           }}
           onSave={handleSaveProfile}
         />

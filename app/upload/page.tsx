@@ -844,7 +844,7 @@ export default function UploadPage() {
 
                 <div className="ml-7 space-y-2">
                   <p className="text-provn-muted text-sm">
-                    License Price: {remixingConfig.template ? `${remixingConfig.price || 0} CAMP` : 'Free (0 CAMP)'}
+                    License Price: {remixingConfig.template ? `${remixingConfig.price || 0} PROVN` : 'Free (0 PROVN)'}
                   </p>
                   <p className="text-provn-muted text-xs">
                     This video will be minted as a {remixingConfig.template ? 'licensed' : 'free'} IP-NFT on the BaseCAMP

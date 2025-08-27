@@ -14,7 +14,6 @@ interface ProfileEditModalProps {
     displayName?: string;
     bio?: string;
     avatarUrl?: string;
-    bannerUrl?: string;
   };
   onSave: (updatedProfile: any) => Promise<void>;
 }
@@ -25,14 +24,11 @@ export function ProfileEditModal({ isOpen, onClose, profile, onSave }: ProfileEd
     displayName: profile.displayName || '',
     bio: profile.bio || '',
     avatarUrl: profile.avatarUrl || '',
-    bannerUrl: profile.bannerUrl || '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(profile.avatarUrl || '');
-  const [bannerPreview, setBannerPreview] = useState(profile.bannerUrl || '');
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -74,7 +70,7 @@ export function ProfileEditModal({ isOpen, onClose, profile, onSave }: ProfileEd
     return `https://ipfs.io/ipfs/${result.IpfsHash}`;
   };
 
-  const handleFileUpload = async (file: File, type: 'avatar' | 'banner') => {
+  const handleFileUpload = async (file: File) => {
     if (!file) return;
 
     // Validate file type
@@ -92,15 +88,9 @@ export function ProfileEditModal({ isOpen, onClose, profile, onSave }: ProfileEd
     try {
       const imageUrl = await uploadToIPFS(file);
       
-      if (type === 'avatar') {
-        setFormData(prev => ({ ...prev, avatarUrl: imageUrl }));
-        setAvatarPreview(imageUrl);
-        toast.success('Avatar uploaded successfully');
-      } else {
-        setFormData(prev => ({ ...prev, bannerUrl: imageUrl }));
-        setBannerPreview(imageUrl);
-        toast.success('Banner uploaded successfully');
-      }
+      setFormData(prev => ({ ...prev, avatarUrl: imageUrl }));
+      setAvatarPreview(imageUrl);
+      toast.success('Avatar uploaded successfully');
     } catch (error) {
       console.error('Upload failed:', error);
       toast.error('Failed to upload image');
@@ -110,14 +100,7 @@ export function ProfileEditModal({ isOpen, onClose, profile, onSave }: ProfileEd
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      handleFileUpload(file, 'avatar');
-    }
-  };
-
-  const handleBannerChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      handleFileUpload(file, 'banner');
+      handleFileUpload(file);
     }
   };
 
@@ -172,36 +155,6 @@ export function ProfileEditModal({ isOpen, onClose, profile, onSave }: ProfileEd
         {/* Content */}
         <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
           <div className="p-6 space-y-6">
-            {/* Banner Upload */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-provn-text">Banner Image</label>
-              <div className="relative">
-                <div
-                  className="w-full h-32 rounded-lg bg-gradient-to-r from-provn-accent to-provn-accent-press flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
-                  style={{
-                    backgroundImage: bannerPreview ? `url(${bannerPreview})` : undefined,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center'
-                  }}
-                  onClick={() => bannerInputRef.current?.click()}
-                >
-                  {!bannerPreview && (
-                    <div className="flex flex-col items-center text-white/80">
-                      <span className="text-sm">Upload Banner</span>
-                    </div>
-                  )}
-                  <input
-                    ref={bannerInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleBannerChange}
-                    className="hidden"
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-provn-muted">Recommended: 1200x400px, max 5MB</p>
-            </div>
-
             {/* Avatar Upload */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-provn-text">Profile Picture</label>

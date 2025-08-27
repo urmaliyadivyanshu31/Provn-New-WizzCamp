@@ -50,8 +50,8 @@ export function VideoDetailsModal({ video, isOpen, onClose, isAuthenticated }: V
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const formatCAMP = (amount: number) => {
-    return `${amount.toFixed(amount < 1 ? 2 : 1)} CAMP`;
+  const formatPROVN = (amount: number) => {
+    return `${amount.toFixed(amount < 1 ? 2 : 1)} PROVN`;
   };
 
   const copyToClipboard = async (text: string, label: string) => {
@@ -270,7 +270,7 @@ export function VideoDetailsModal({ video, isOpen, onClose, isAuthenticated }: V
                     </div>
                     <div className="text-right">
                       <div className="text-lg font-bold text-provn-accent font-headline">
-                        {formatCAMP(video.licensing.price)}
+                        {formatPROVN(video.licensing.price)}
                       </div>
                     </div>
                   </div>

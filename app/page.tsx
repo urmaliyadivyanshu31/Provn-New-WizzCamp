@@ -7,6 +7,7 @@ import { ProvnBadge } from "@/components/provn/badge"
 import { Navigation } from "@/components/provn/navigation"
 import { ProvnButton } from "@/components/provn/button"
 import { UserJourney } from "@/components/landing/UserJourney"
+import { RevenueCalculator } from "@/components/calculator/RevenueCalculator"
 import { CreateProfileModal } from "@/components/provn/create-profile-modal"
 import { 
   Upload, 
@@ -15,7 +16,18 @@ import {
   ArrowRight,
   CheckCircle,
   Play,
-  Wallet
+  Wallet,
+  Shield,
+  Lock,
+  Globe,
+  FileText,
+  Zap,
+  TrendingUp,
+  Award,
+  Eye,
+  Briefcase,
+  X,
+  Database
 } from "lucide-react"
 
 
@@ -23,10 +35,10 @@ import {
 // Platform Metrics Component  
 const LiveMetrics = ({ creatorsCount, videosCount }: { creatorsCount: number | null, videosCount: number | null }) => {
   const metrics = [
-    { label: "Active Creators", value: creatorsCount === null ? "13" : creatorsCount.toString(), icon: Users, loading: creatorsCount === null },
-    { label: "Creator Ownership", value: "100%", icon: CheckCircle, loading: false },
-    { label: "PROVN Protected", value: videosCount === null ? "10" : videosCount.toString(), icon: CheckCircle, loading: videosCount === null },
-    { label: "Zero Platform Fees", value: "0%", icon: DollarSign, loading: false }
+    { label: "Creators", value: creatorsCount === null ? "13" : creatorsCount.toString(), icon: Users, loading: creatorsCount === null },
+    { label: "Provs Protected", value: videosCount === null ? "10" : videosCount.toString(), icon: CheckCircle, loading: videosCount === null },
+    { label: "Blockchain Verified", value: "100%", icon: CheckCircle, loading: false },
+    { label: "Global Licensing", value: "∞", icon: Globe, loading: false }
   ]
 
   return (
@@ -238,51 +250,49 @@ export default function HomePage() {
                   </ProvnBadge>
                 ) : (
                   <ProvnBadge className="bg-provn-success/10 text-provn-success border-provn-success/20 mb-6">
-                    <DollarSign className="w-4 h-4 mr-1" />
-                    Zero Platform Fees
+                    <Play className="w-4 h-4 mr-1" />
+                    Video Content Protection
                   </ProvnBadge>
                 )}
               </motion.div>
               
               <h1 className="font-headline text-5xl md:text-6xl lg:text-7xl font-bold text-provn-text leading-tight">
-                Keep{" "}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-provn-accent to-provn-accent/80">
-                  100%
-                </span>{" "}
-                of Your Earnings
+                  Co-Create The Value You Seek
+                </span>
               </h1>
               
               <p className="text-xl font-headline md:text-2xl text-provn-muted leading-relaxed max-w-3xl mx-auto">
-                Join <strong className="text-provn-text">
+                Turn your short-form videos into protected IP. License to others, earn forever. Join <strong className="text-provn-text">
                   {platformData.loading || platformData.creatorsCount === null ? (
                     <span className="inline-block animate-pulse bg-provn-accent/20 text-transparent rounded">13+</span>
                   ) : (
                     `${platformData.creatorsCount}+`
-                  )} Elite Creators
-                </strong> who've escaped platform fees and built true content ownership on Provn.
+                  )} creators
+                </strong> building passive income from their content.
               </p>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center w-full px-4 sm:px-0">
               {isConnected ? (
                 <>
                   <ProvnButton
                     size="lg"
                     onClick={() => handleProtectedNavigation("/upload")}
-                    className="px-12 py-4 text-xl font-semibold group"
+                    className="w-full sm:w-auto px-6 sm:px-12 py-3 sm:py-4 text-base sm:text-xl font-semibold group"
                   >
-                    <Upload className="w-6 h-6 mr-2 group-hover:rotate-12 transition-transform" />
-                    {hasProfile ? "Upload Content" : "Complete Setup & Upload"}
-                    <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
+                    <Upload className="w-5 h-5 sm:w-6 sm:h-6 mr-2 group-hover:scale-110 transition-transform" />
+                    <span className="truncate">{hasProfile ? "Upload & Protect" : "Get Started"}</span>
+                    <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 ml-2 group-hover:translate-x-1 transition-transform" />
                   </ProvnButton>
                   <ProvnButton
                     variant="secondary"
                     size="lg"
                     onClick={() => handleProtectedNavigation("/explore")}
-                    className="px-12 py-4 text-xl group"
+                    className="w-full sm:w-auto px-6 sm:px-12 py-3 sm:py-4 text-base sm:text-xl group"
                   >
-                    <Play className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
-                    Explore Platform
+                    <Eye className="w-5 h-5 sm:w-6 sm:h-6 mr-2 group-hover:scale-110 transition-transform" />
+                    Explore Feed
                   </ProvnButton>
                 </>
               ) : (
@@ -290,20 +300,20 @@ export default function HomePage() {
                   <ProvnButton
                     size="lg"
                     onClick={() => handleProtectedNavigation("/whitelist")}
-                    className="px-12 py-4 text-xl font-semibold group"
+                    className="w-full sm:w-auto px-6 sm:px-12 py-3 sm:py-4 text-base sm:text-xl font-semibold group"
                   >
-                    <Wallet className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
-                    Connect Wallet to Start
-                    <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
+                    <Upload className="w-5 h-5 sm:w-6 sm:h-6 mr-2 group-hover:scale-110 transition-transform" />
+                    <span className="truncate">Start Creating</span>
+                    <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 ml-2 group-hover:translate-x-1 transition-transform" />
                   </ProvnButton>
                   <ProvnButton
                     variant="secondary"
                     size="lg"
-                    onClick={() => handleProtectedNavigation("/dashboard")}
-                    className="px-12 py-4 text-xl group"
+                    onClick={() => handleProtectedNavigation("/explore")}
+                    className="w-full sm:w-auto px-6 sm:px-12 py-3 sm:py-4 text-base sm:text-xl group"
                   >
-                    <Play className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
-                    See Success Stories
+                    <Eye className="w-5 h-5 sm:w-6 sm:h-6 mr-2 group-hover:scale-110 transition-transform" />
+                    Browse Videos
                   </ProvnButton>
                 </>
               )}
@@ -324,11 +334,7 @@ export default function HomePage() {
                     `${platformData.creatorsCount}+`
                   )}
                 </div>
-                <div className="text-sm text-provn-muted mt-1">Active Creators</div>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl font-bold text-provn-accent font-headline">0%</div>
-                <div className="text-sm text-provn-muted mt-1">Platform Fees</div>
+                <div className="text-sm text-provn-muted mt-1">Creators</div>
               </div>
               <div className="text-center">
                 <div className="text-4xl font-bold text-provn-text font-headline">
@@ -340,10 +346,15 @@ export default function HomePage() {
                 </div>
                 <div className="text-sm text-provn-muted mt-1">Provs Protected</div>
               </div>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-provn-accent font-headline">100%</div>
+                <div className="text-sm text-provn-muted mt-1">True Ownership</div>
+              </div>
             </motion.div>
           </motion.div>
         </div>
       </motion.section>
+
 
       {/* Platform Demo Section */}
       <section className="py-24 relative overflow-hidden">
@@ -489,22 +500,22 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ ...normalTransition, delay: 0.5 }}
                 viewport={optimizedViewport}
-                className="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center"
+                className="mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center w-full px-4 sm:px-0"
               >
                 <ProvnButton
                   onClick={() => handleProtectedNavigation("/upload")}
-                  className="px-8 py-3 text-lg group"
+                  className="w-full sm:w-auto px-6 sm:px-8 py-2.5 sm:py-3 text-base sm:text-lg group"
                 >
-                  <Upload className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform" />
+                  <Upload className="w-4 h-4 sm:w-5 sm:h-5 mr-2 group-hover:rotate-12 transition-transform" />
                   Start Your Journey
-                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </ProvnButton>
                 <ProvnButton
                   variant="secondary"
                   onClick={() => handleProtectedNavigation("/explore")}
-                  className="px-8 py-3 text-lg group"
+                  className="w-full sm:w-auto px-6 sm:px-8 py-2.5 sm:py-3 text-base sm:text-lg group"
                 >
-                  <Play className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                  <Play className="w-4 h-4 sm:w-5 sm:h-5 mr-2 group-hover:scale-110 transition-transform" />
                   Explore Platform
                 </ProvnButton>
               </motion.div>
@@ -512,6 +523,141 @@ export default function HomePage() {
           </motion.div>
 
           {/* Features highlight */}
+        </div>
+      </section>
+
+      {/* Licensing Automation Section */}
+      <section className="py-32 relative overflow-hidden bg-provn-surface/30">
+        {/* Background Elements */}
+        <div className="absolute inset-0">
+          <motion.div
+            animate={{ 
+              rotate: [0, 360],
+              scale: [1, 1.3, 1]
+            }}
+            transition={{ 
+              rotate: { duration: 35, repeat: Infinity, ease: "linear" },
+              scale: { duration: 14, repeat: Infinity, ease: "easeInOut" }
+            }}
+            className="absolute -top-40 -right-40 w-80 h-80 bg-green-500/8 rounded-full blur-3xl"
+          />
+          <motion.div
+            animate={{ 
+              rotate: [360, 0],
+              scale: [1, 1.2, 1]
+            }}
+            transition={{ 
+              rotate: { duration: 28, repeat: Infinity, ease: "linear" },
+              scale: { duration: 11, repeat: Infinity, ease: "easeInOut" }
+            }}
+            className="absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"
+          />
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          {/* Section Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={normalTransition}
+            viewport={optimizedViewport}
+            className="text-center mb-20"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              viewport={optimizedViewport}
+            >
+              <ProvnBadge className="bg-provn-accent/10 text-provn-accent border-provn-accent/20 mb-6">
+                <DollarSign className="w-4 h-4 mr-1" />
+                Revenue Calculator
+              </ProvnBadge>
+            </motion.div>
+            
+            <h2 className="font-headline text-4xl md:text-6xl font-bold text-provn-text mb-6 leading-tight">
+              Calculate Your{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-provn-accent to-provn-accent/80">
+                Creator Income
+              </span>
+            </h2>
+            <p className="text-xl font-headline md:text-2xl text-provn-muted max-w-3xl mx-auto leading-relaxed">
+              See how much you could earn from licensing your videos to other creators worldwide
+            </p>
+          </motion.div>
+
+          {/* Licensing Features */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-20">
+            {/* Left: Features List */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ ...normalTransition, delay: 0.2 }}
+              viewport={optimizedViewport}
+              className="space-y-8"
+            >
+              {[
+                {
+                  icon: FileText,
+                  title: "Set Once, Earn Forever",
+                  description: "Configure your licensing terms once and let smart contracts handle all future sales automatically."
+                },
+                {
+                  icon: TrendingUp,
+                  title: "Passive Income Stream",
+                  description: "Earn money while you sleep. Get paid every time someone licenses your video content."
+                },
+                {
+                  icon: Globe,
+                  title: "Worldwide Reach",
+                  description: "Your videos are discoverable by creators globally. No borders, no platform restrictions."
+                },
+                {
+                  icon: Award,
+                  title: "Track Your Success",
+                  description: "See exactly how your content is performing and who's using your videos worldwide."
+                }
+              ].map((feature, index) => {
+                const Icon = feature.icon
+                return (
+                  <motion.div
+                    key={feature.title}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ ...fastTransition, delay: 0.1 * index }}
+                    viewport={optimizedViewport}
+                    className="flex items-start gap-4 group"
+                  >
+                    <div className="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                      <Icon className="w-6 h-6 text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-provn-text mb-2 font-headline">
+                        {feature.title}
+                      </h3>
+                      <p className="text-provn-muted leading-relaxed">
+                        {feature.description}
+                      </p>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </motion.div>
+
+            {/* Right: Dynamic Revenue Calculator */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ ...normalTransition, delay: 0.3 }}
+              viewport={optimizedViewport}
+              className="relative"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-provn-accent/20 to-purple-500/20 rounded-2xl blur-2xl"></div>
+              
+              <RevenueCalculator className="relative" />
+            </motion.div>
+          </div>
+
         </div>
       </section>
 
@@ -658,79 +804,9 @@ export default function HomePage() {
         </div>
       </section>
 
+
       {/* User Journey Section */}
       <UserJourney onGetStarted={() => handleProtectedNavigation("/upload")} />
-
-      {/* Platform Comparison */}
-      <section className="py-24 bg-provn-surface/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={normalTransition}
-            viewport={optimizedViewport}
-            className="text-center mb-16"
-          >
-            <h2 className="font-headline text-4xl md:text-6xl font-bold text-provn-text mb-6">
-              Stop Losing Money to Platform Fees
-            </h2>
-            <p className="text-xl text-provn-muted max-w-3xl mx-auto">
-              See exactly how much more you could be earning
-            </p>
-          </motion.div>
-
-          {/* Comparison Table */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            viewport={optimizedViewport}
-            className="bg-provn-surface border border-provn-border rounded-2xl overflow-hidden max-w-4xl mx-auto"
-          >
-            <div className="grid grid-cols-4 bg-provn-surface-2 p-4">
-              <div className="font-headline font-bold text-provn-text">Platform</div>
-              <div className="font-headline font-bold text-provn-text text-center">Platform Cut</div>
-              <div className="font-headline font-bold text-provn-text text-center">Creator Gets</div>
-              <div className="font-headline font-bold text-provn-text text-center">$1000 Revenue</div>
-            </div>
-            
-            {[
-              { platform: "YouTube", cut: "45%", creator: "55%", amount: "$550", color: "red" },
-              { platform: "TikTok", cut: "50%", creator: "50%", amount: "$500", color: "purple" },
-              { platform: "Instagram", cut: "35%", creator: "65%", amount: "$650", color: "pink" },
-              { platform: "Provn", cut: "0%", creator: "100%", amount: "$1000", color: "accent", highlight: true }
-            ].map((row) => (
-              <div key={row.platform} className={`grid grid-cols-4 p-4 border-t border-provn-border ${row.highlight ? 'bg-provn-accent/5' : ''}`}>
-                <div className={`font-semibold ${row.highlight ? 'text-provn-accent' : 'text-provn-text'}`}>
-                  {row.platform}
-                </div>
-                <div className={`text-center ${row.color === 'accent' ? 'text-provn-success font-bold' : 'text-red-400'}`}>
-                  {row.cut}
-                </div>
-                <div className={`text-center ${row.color === 'accent' ? 'text-provn-success font-bold' : 'text-provn-muted'}`}>
-                  {row.creator}
-                </div>
-                <div className={`text-center font-bold ${row.color === 'accent' ? 'text-provn-accent text-lg' : 'text-provn-text'}`}>
-                  {row.amount}
-                </div>
-              </div>
-            ))}
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ ...fastTransition, delay: 0.3 }}
-            viewport={optimizedViewport}
-            className="text-center mt-8"
-          >
-            <div className="text-2xl font-bold text-provn-success mb-2">
-              Keep up to 82% more of your revenue on Provn
-            </div>
-            <p className="text-provn-muted">Based on $1000 monthly revenue comparison</p>
-          </motion.div>
-        </div>
-      </section>
 
       {/* Live Platform Metrics */}
       <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -742,67 +818,16 @@ export default function HomePage() {
           className="text-center mb-16"
         >
           <h2 className="font-headline text-4xl md:text-6xl font-bold text-provn-text mb-6">
-            Join the Creator Revolution
+Join the Creator Revolution
           </h2>
           <p className="text-xl text-provn-muted max-w-3xl mx-auto">
-            Real-time metrics from creators building financial independence
+Real-time metrics from creators building passive income empires
           </p>
         </motion.div>
 
         <LiveMetrics creatorsCount={platformData.creatorsCount} videosCount={platformData.videosCount} />
       </section>
 
-      {/* Final CTA */}
-      <section className="py-24 text-center bg-gradient-to-r from-provn-accent/5 via-provn-accent/10 to-provn-accent/5">
-        <div className="max-w-4xl mx-auto space-y-8 px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={normalTransition}
-            viewport={optimizedViewport}
-          >
-            <h2 className="font-headline text-4xl md:text-6xl font-bold text-provn-text mb-6">
-              Ready to Keep 100% of Your Earnings?
-            </h2>
-            <p className="text-xl text-provn-muted mb-8 max-w-2xl mx-auto">
-              Join thousands of creators who've taken control of their content and are earning more than ever before.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <ProvnButton
-                size="lg"
-                onClick={() => handleProtectedNavigation("/upload")}
-                className="px-12 py-4 text-xl font-semibold group"
-              >
-                <Upload className="w-6 h-6 mr-2 group-hover:rotate-12 transition-transform" />
-                Start Earning More Today
-                <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
-              </ProvnButton>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            viewport={optimizedViewport}
-            className="flex flex-wrap justify-center gap-4 pt-8"
-          >
-            <ProvnBadge variant="success" className="text-sm px-4 py-2">
-              <CheckCircle className="w-4 h-4 mr-1" />
-              Zero Setup Fees
-            </ProvnBadge>
-            <ProvnBadge variant="success" className="text-sm px-4 py-2">
-              <CheckCircle className="w-4 h-4 mr-1" />
-              Instant Uploads
-            </ProvnBadge>
-            <ProvnBadge variant="success" className="text-sm px-4 py-2">
-              <CheckCircle className="w-4 h-4 mr-1" />
-              Lifetime Ownership
-            </ProvnBadge>
-          </motion.div>
-        </div>
-      </section>
 
       {/* Premium Footer */}
       <footer className="relative py-20 bg-gradient-to-b from-provn-bg to-provn-surface/30">
@@ -831,10 +856,10 @@ export default function HomePage() {
             {/* Bold Statement */}
             <div className="space-y-4">
               <h3 className="font-headline text-2xl md:text-3xl font-bold text-provn-text leading-tight">
-                The future of creator economics
+                The future of content creation
               </h3>
               <p className="text-lg text-provn-muted max-w-2xl mx-auto">
-                Zero fees. True ownership. Built for creators who demand more.
+Protected videos. Automated licensing. Built for creators who own their empire.
               </p>
             </div>
 

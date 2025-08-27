@@ -26,6 +26,7 @@ interface CreatorScore {
   consistency_score: number
   quality_score: number
   videos_count: number
+  derivatives_count: number
   total_views: number
   total_tips: number
   total_licenses: number
@@ -206,7 +207,8 @@ export async function GET(request: NextRequest) {
         engagement_score: Math.round(engagement_score),
         consistency_score: Math.round(consistency_score),
         quality_score: Math.round(quality_score),
-        videos_count: metrics.videos_count, // Real video/derivative count
+        videos_count: metrics.videos_count, // Real video count (original content)
+        derivatives_count: 0, // TODO: Track derivative videos separately
         total_views: metrics.videos_count, // Show derivatives count as "views" in UI
         total_tips: metrics.total_tips, // Real tips count
         total_licenses: 0, // No licenses data yet

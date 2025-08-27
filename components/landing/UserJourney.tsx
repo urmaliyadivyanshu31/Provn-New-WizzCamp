@@ -16,60 +16,60 @@ import { ProvnButton } from '@/components/provn/button'
 import { ProvnBadge } from '@/components/provn/badge'
 import { fastTransition, normalTransition, optimizedViewport } from '@/lib/utils/animation-config'
 
-// Journey steps with distinct, meaningful icons
+// Journey steps focused on video creators
 const journeySteps = [
   {
     id: 1,
-    title: "Discover",
-    description: "Realize you're losing 50% to platform fees",
-    icon: Eye,
-    stat: "50%",
-    statLabel: "Revenue Lost",
+    title: "Create",
+    description: "Make your short-form videos as usual",
+    icon: Play,
+    stat: "0%",
+    statLabel: "Protection",
     color: "text-red-400"
   },
   {
     id: 2,
     title: "Connect", 
-    description: "30-second wallet setup, instant profile",
+    description: "Link your wallet to get started",
     icon: Wallet,
     stat: "30s",
-    statLabel: "Setup Time",
+    statLabel: "Setup",
     color: "text-blue-400"
   },
   {
     id: 3,
-    title: "Create",
-    description: "Upload & mint content as IP-NFTs instantly",
+    title: "Upload",
+    description: "Upload your video and it becomes protected IP",
     icon: Upload,
     stat: "100%",
-    statLabel: "IP Protection",
+    statLabel: "Protected",
     color: "text-purple-400"
   },
   {
     id: 4,
-    title: "Earn",
-    description: "Keep everything you make from day one",
-    icon: Coins,
-    stat: "0%",
-    statLabel: "Platform Fees",
+    title: "License",
+    description: "Others can license your video for their content",
+    icon: Lock,
+    stat: "∞",
+    statLabel: "Global Reach",
     color: "text-provn-success"
   },
   {
     id: 5,
-    title: "Scale",
-    description: "Build authentic community, no algorithms",
-    icon: Rocket,
-    stat: "∞",
-    statLabel: "Growth Potential", 
+    title: "Earn",
+    description: "Get paid when people use your videos",
+    icon: Coins,
+    stat: "24/7",
+    statLabel: "Passive Income", 
     color: "text-green-400"
   },
   {
     id: 6,
-    title: "Own",
-    description: "License, monetize, control forever",
-    icon: Lock,
-    stat: "100%",
-    statLabel: "Ownership",
+    title: "Scale",
+    description: "Build a library of videos that pay you",
+    icon: Rocket,
+    stat: "10x+",
+    statLabel: "Growth",
     color: "text-provn-accent"
   }
 ]
@@ -111,15 +111,15 @@ export function UserJourney({ onGetStarted }: UserJourneyProps) {
           <h2 className="font-headline text-5xl md:text-7xl font-bold text-provn-text mb-8 leading-tight">
             From{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-red-400 to-red-600">
-              Platform Fees
+              Content Creator
             </span>{" "}
             to{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-provn-accent to-provn-accent/80">
-              True Freedom
+              IP Mogul
             </span>
           </h2>
           <p className="text-xl font-headline md:text-2xl text-provn-muted max-w-3xl mx-auto leading-relaxed">
-            The 6-step journey thousands of creators have taken to financial independence
+            The 6-step transformation to intellectual property ownership and wealth building
           </p>
         </motion.div>
 
@@ -202,8 +202,8 @@ export function UserJourney({ onGetStarted }: UserJourneyProps) {
               onClick={onGetStarted}
               className="px-12 py-4 text-xl font-semibold group"
             >
-              <Play className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
-              Start Your Evolution
+              <Upload className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
+              Begin IP Transformation
               <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
             </ProvnButton>
             
@@ -213,8 +213,8 @@ export function UserJourney({ onGetStarted }: UserJourneyProps) {
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
               className="px-12 py-4 text-xl group"
             >
-              <ArrowRight className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
-              Learn More
+              <Eye className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" />
+              See IP Gallery
             </ProvnButton>
           </div>
         </motion.div>
