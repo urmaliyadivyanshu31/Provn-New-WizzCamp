@@ -38,7 +38,7 @@ PROVN revolutionizes content creation and monetization through intellectual prop
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   Frontend      │    │   Backend API    │    │   Blockchain    │
-│   (Next.js)     │◄──►│   (Node.js)      │◄──►│   (Ethereum)    │
+│   (Next.js)     │◄──►│   (Node.js)      │◄──►│ (Camp Network)  │
 ├─────────────────┤    ├──────────────────┤    ├─────────────────┤
 │ • React 18      │    │ • REST APIs      │    │ • Smart         │
 │ • TypeScript    │    │ • Authentication │    │   Contracts     │
@@ -95,7 +95,7 @@ PROVN revolutionizes content creation and monetization through intellectual prop
 ### 🛡️ Platform Features
 - **Decentralized Storage**: IPFS integration for content persistence
 - **Smart Contracts**: Automated licensing and payment distribution
-- **Cross-Chain**: Multi-blockchain support (Ethereum, Polygon, Base)
+- **Camp Network**: Built natively on Camp Network blockchain
 - **Social Layer**: Built-in social features for content discovery
 
 ---
@@ -123,7 +123,7 @@ PROVN revolutionizes content creation and monetization through intellectual prop
 | Analytics | Usage tracking | Custom metrics |
 
 ### Blockchain Integration
-- **Network**: Ethereum Mainnet, Polygon, Base
+- **Network**: Camp Network (Primary), Ethereum Compatible
 - **Contracts**: Solidity 0.8.20+
 - **Token Standard**: ERC-20 (PROVN), ERC-721 (IP-NFTs)
 - **Development**: Foundry, Hardhat
@@ -199,10 +199,10 @@ IPFS_API_KEY=your_ipfs_key
 ```
 📊 Frontend Technologies    📊 Backend Technologies     📊 Blockchain Integration
 ┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐
-│ React      ████ 40% │    │ Next.js    ████ 35% │    │ Ethereum   ████ 45%│
-│ TypeScript ███░ 30% │    │ Supabase   ███░ 25% │    │ Base       ███░ 30%│
-│ Tailwind   ██░░ 20% │    │ Redis      ██░░ 20% │    │ Polygon    ██░░ 25%│
-│ Wagmi      █░░░ 10% │    │ Node.js    ██░░ 20% │    │            │        │
+│ React      ████ 40% │    │ Next.js    ████ 35% │    │ Camp Network ████ 80%│
+│ TypeScript ███░ 30% │    │ Supabase   ███░ 25% │    │ PROVN Token  ██░░ 20%│
+│ Tailwind   ██░░ 20% │    │ Redis      ██░░ 20% │    │              │        │
+│ Wagmi      █░░░ 10% │    │ Node.js    ██░░ 20% │    │              │        │
 └─────────────────────┘    └─────────────────────┘    └─────────────────────┘
 ```
 
@@ -286,7 +286,7 @@ forge deploy --network base    # Deploy to Base
 
 ### Q1 2025 ✅ Foundation Complete
 - [x] Smart contract architecture design
-- [x] Core blockchain integration (Ethereum, Base)
+- [x] Core blockchain integration (Camp Network)
 - [x] Initial marketplace contract deployment
 - [x] Basic token economics implementation
 
