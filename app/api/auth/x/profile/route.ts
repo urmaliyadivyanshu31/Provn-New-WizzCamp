@@ -39,10 +39,6 @@ export async function GET(request: NextRequest) {
     try {
       console.log('🔑 Using Twitter API for:', username)
       
-      // Properly decode the URL-encoded bearer token
-      const decodedToken = decodeURIComponent(bearerToken)
-      console.log('🔑 Token decoded length:', decodedToken.length)
-      
       const apiUrl = twitterId 
         ? `https://api.twitter.com/2/users/${twitterId}`
         : `https://api.twitter.com/2/users/by/username/${username}`
@@ -54,7 +50,7 @@ export async function GET(request: NextRequest) {
       
       const response = await fetch(fullUrl, {
         headers: {
-          'Authorization': `Bearer ${decodedToken}`,
+          'Authorization': `Bearer ${bearerToken}`,
           'User-Agent': 'ProvnApp/1.0'
         }
       })
