@@ -39,7 +39,10 @@ export async function GET(request: NextRequest) {
     try {
       console.log('🔑 Using Twitter API for:', username)
       
-      // Try real API first, fallback to demo data if auth fails
+      // Properly decode the URL-encoded bearer token
+      const decodedToken = decodeURIComponent(bearerToken)
+      console.log('🔑 Token decoded length:', decodedToken.length)
+      
       const apiUrl = twitterId 
         ? `https://api.twitter.com/2/users/${twitterId}`
         : `https://api.twitter.com/2/users/by/username/${username}`
@@ -51,7 +54,7 @@ export async function GET(request: NextRequest) {
       
       const response = await fetch(fullUrl, {
         headers: {
-          'Authorization': `Bearer ${bearerToken}`,
+          'Authorization': `Bearer ${decodedToken}`,
           'User-Agent': 'ProvnApp/1.0'
         }
       })
@@ -61,45 +64,14 @@ export async function GET(request: NextRequest) {
         userProfile = data.data
         console.log('✅ Successfully fetched real Twitter profile:', userProfile.username)
       } else {
-        console.log('❌ Twitter API failed, using demo profile for:', username)
-        // Use demo profile with actual Twitter data for the demo
-        userProfile = {
-          id: username === 'MrLudlow_' ? '1129037458056855552' : '123456789',
-          username: username || 'testuser',
-          name: username === 'MrLudlow_' ? 'mrludlow ⛺️🧠🎩💭' : 'Demo User',
-          verified: false,
-          description: username === 'MrLudlow_' ? 'head eco @campnetworkxyz || 🗝️🐂🍕 || 🌹||' : 'Demo account for whitelist testing',
-          profile_image_url: 'https://pbs.twimg.com/profile_images/1938646268978327552/OaSxaQQ7_normal.jpg',
-          location: username === 'MrLudlow_' ? 'New York, NY' : 'Demo Location',
-          created_at: '2019-05-16T14:54:41.000Z',
-          public_metrics: {
-            followers_count: username === 'MrLudlow_' ? 5369 : 100,
-            following_count: username === 'MrLudlow_' ? 2424 : 150,
-            tweet_count: username === 'MrLudlow_' ? 4536 : 50,
-            listed_count: username === 'MrLudlow_' ? 46 : 2
-          }
-        }
+        const errorText = await response.text()
+        console.error('❌ Twitter API error:', response.status, errorText)
+        throw new Error(`Twitter API error: ${response.status} - ${errorText}`)
       }
       
     } catch (fetchError) {
-      console.error('❌ Twitter API fetch error, using demo data:', fetchError.message)
-      // Fallback to demo profile
-      userProfile = {
-        id: username === 'MrLudlow_' ? '1129037458056855552' : '123456789',
-        username: username || 'testuser',
-        name: username === 'MrLudlow_' ? 'mrludlow ⛺️🧠🎩💭' : 'Demo User',
-        verified: false,
-        description: username === 'MrLudlow_' ? 'head eco @campnetworkxyz || 🗝️🐂🍕 || 🌹||' : 'Demo account for whitelist testing',
-        profile_image_url: 'https://pbs.twimg.com/profile_images/1938646268978327552/OaSxaQQ7_normal.jpg',
-        location: username === 'MrLudlow_' ? 'New York, NY' : 'Demo Location',
-        created_at: '2019-05-16T14:54:41.000Z',
-        public_metrics: {
-          followers_count: username === 'MrLudlow_' ? 5369 : 100,
-          following_count: username === 'MrLudlow_' ? 2424 : 150,
-          tweet_count: username === 'MrLudlow_' ? 4536 : 50,
-          listed_count: username === 'MrLudlow_' ? 46 : 2
-        }
-      }
+      console.error('❌ Twitter API fetch error:', fetchError instanceof Error ? fetchError.message : String(fetchError))
+      throw fetchError
     }
     
     // Calculate account quality score
