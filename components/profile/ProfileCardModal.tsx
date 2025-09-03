@@ -42,9 +42,21 @@ export function ProfileCardModal({
       // Dynamic import to avoid SSR issues
       const html2canvas = (await import('html2canvas')).default
       
+      // Wait a bit for modal animation to complete and DOM to be ready
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
       const cardElement = document.getElementById('profile-card')
       if (!cardElement) {
-        toast.error('Card not found')
+        console.error('❌ Profile card element not found in DOM')
+        toast.error('Profile card not ready. Please wait a moment and try again.')
+        return
+      }
+
+      // Ensure the element is visible and has dimensions
+      const rect = cardElement.getBoundingClientRect()
+      if (rect.width === 0 || rect.height === 0) {
+        console.error('❌ Profile card element has no dimensions:', rect)
+        toast.error('Profile card not properly loaded. Please try again.')
         return
       }
 
@@ -128,17 +140,31 @@ export function ProfileCardModal({
         y: 0,
         foreignObjectRendering: true,
         removeContainer: false,
+        imageTimeout: 15000,
         onclone: (clonedDoc) => {
           // Ensure clean styling in the cloned document
           const clonedElement = clonedDoc.getElementById('profile-card-clone')
           if (clonedElement) {
             clonedElement.style.transform = 'none'
             clonedElement.style.filter = 'none'
-            clonedElement.style.boxShadow = clonedElement.style.boxShadow // Keep original shadows
+            clonedElement.style.opacity = '1'
+            clonedElement.style.visibility = 'visible'
+            // Keep original shadows and styles but remove transforms
+            const computedStyle = window.getComputedStyle(cardElement)
+            clonedElement.style.background = computedStyle.background
+            clonedElement.style.borderRadius = computedStyle.borderRadius
           }
+          
+          // Ensure all images are loaded
+          const images = clonedDoc.querySelectorAll('img')
+          images.forEach(img => {
+            if (img.src && img.complete) {
+              img.style.opacity = '1'
+            }
+          })
         },
         ignoreElements: (element) => {
-          // Only capture our specific cloned card
+          // Only capture our specific cloned card and its contents
           if (element.id === 'profile-card-clone' || cardClone.contains(element)) {
             return false
           }
@@ -169,18 +195,34 @@ export function ProfileCardModal({
       // Draw the card centered with padding
       paddedCtx.drawImage(canvas, padding, padding)
 
-      // Create download link
+      // Create download link with better error handling
       const link = document.createElement('a')
-      link.download = `${profile.handle}-profile-card.png`
-      link.href = paddedCanvas.toDataURL('image/png', 1.0)
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')
+      link.download = `${profile.handle}-profile-card-${timestamp}.png`
       
-      // Trigger download
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-
-      console.log('✅ Profile card downloaded successfully!')
-      toast.success('Profile card downloaded successfully!')
+      // Convert to blob for better browser compatibility
+      await new Promise<void>((resolve, reject) => {
+        paddedCanvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob)
+            link.href = url
+            
+            // Trigger download
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            
+            // Clean up the blob URL
+            setTimeout(() => URL.revokeObjectURL(url), 100)
+            
+            console.log('✅ Profile card downloaded successfully!')
+            toast.success('Profile card downloaded successfully!')
+            resolve()
+          } else {
+            reject(new Error('Failed to create download blob'))
+          }
+        }, 'image/png', 1.0)
+      })
     } catch (error) {
       console.error('❌ Download error:', error)
       
