@@ -138,7 +138,7 @@ export function ProfileCardModal({
 
           // Ensure proper styling on cloned card
           const clonedCard = clonedDoc.getElementById('profile-card')
-          if (clonedCard) {
+          if (clonedCard && cardElement) {
             console.log('🎯 Found cloned profile card, applying styles...')
             clonedCard.style.transform = 'none'
             clonedCard.style.transition = 'none'
