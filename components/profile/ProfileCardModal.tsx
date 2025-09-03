@@ -46,11 +46,8 @@ export function ProfileCardModal({
     let cardElement: HTMLElement | null = null
     
     try {
-      // Dynamic import to avoid SSR issues - using dom-to-image-more instead of html2canvas
-      const domtoimage = (await import('dom-to-image-more')).default
-      
       // Wait a bit for modal animation to complete and DOM to be ready
-      await new Promise(resolve => setTimeout(resolve, 300))
+      await new Promise(resolve => setTimeout(resolve, 500))
       
       cardElement = document.getElementById('profile-card')
       if (!cardElement) {
@@ -67,78 +64,78 @@ export function ProfileCardModal({
         return
       }
 
-      console.log('🎯 Starting profile card download with dom-to-image...', { width: rect.width, height: rect.height })
+      console.log('🎯 Starting profile card download...', { width: rect.width, height: rect.height })
 
-      // Store original styles to restore later
-      originalTransform = cardElement.style.transform
-      originalTransition = cardElement.style.transition
-      
-      // Temporarily disable animations and transforms for clean capture
-      cardElement.style.transform = 'none'
-      cardElement.style.transition = 'none'
-      
-      // Clean any child elements that might have transforms
-      const elementsWithTransforms = cardElement.querySelectorAll('*')
-      
-      elementsWithTransforms.forEach(child => {
-        if (child instanceof HTMLElement) {
-          originalChildStyles.push({
-            element: child,
-            transform: child.style.transform,
-            transition: child.style.transition
-          })
-          child.style.transform = 'none'
-          child.style.transition = 'none'
+      // Create a temporary fixed container to ensure consistent rendering
+      const tempContainer = document.createElement('div')
+      tempContainer.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 340px;
+        height: 440px;
+        z-index: 999999;
+        background: transparent;
+        pointer-events: none;
+      `
+      document.body.appendChild(tempContainer)
+
+      // Clone the profile card element
+      const cardClone = cardElement.cloneNode(true) as HTMLElement
+      cardClone.id = 'profile-card-capture'
+      cardClone.style.cssText = `
+        width: 340px !important;
+        height: 440px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        transform: none !important;
+        transition: none !important;
+        animation: none !important;
+        position: relative !important;
+        top: 0 !important;
+        left: 0 !important;
+        border-radius: 24px !important;
+        background: linear-gradient(135deg, #161b22 0%, #0d1117 50%, #161b22 100%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        box-shadow: 0 0 60px rgba(255, 109, 1, 0.1) !important;
+        overflow: hidden !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+      `
+
+      // Fix all child elements to ensure proper styling
+      const allElements = cardClone.querySelectorAll('*')
+      allElements.forEach(el => {
+        if (el instanceof HTMLElement) {
+          el.style.transform = 'none'
+          el.style.transition = 'none'
+          el.style.animation = 'none'
+          el.style.visibility = 'visible'
+          el.style.opacity = '1'
         }
       })
 
-      // Ensure all images in the card are fully loaded before capture
-      const images = cardElement.querySelectorAll('img')
-      await Promise.all(Array.from(images).map(img => {
-        if (img.complete) return Promise.resolve()
-        return new Promise((resolve, reject) => {
-          img.onload = resolve
-          img.onerror = reject
-          // Timeout after 5 seconds
-          setTimeout(() => resolve(null), 5000)
-        })
-      }))
+      tempContainer.appendChild(cardClone)
 
-      // Wait for styles to apply and images to render
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Wait for the clone to render
+      await new Promise(resolve => setTimeout(resolve, 300))
 
-      console.log('📸 Capturing profile card with dom-to-image...')
-
-      // Use dom-to-image-more which handles Next.js + Tailwind better
-      const dataUrl = await domtoimage.toPng(cardElement, {
+      // Use dom-to-image-more to capture the cloned element
+      const domtoimage = (await import('dom-to-image-more')).default
+      const dataUrl = await domtoimage.toPng(cardClone, {
         quality: 1.0,
         pixelRatio: 2,
-        width: rect.width,
-        height: rect.height,
-        style: {
-          transform: 'none',
-          transition: 'none',
-          animation: 'none'
-        },
-        filter: (node) => {
-          // Only include nodes that are part of our profile card
-          return cardElement?.contains(node) || node === cardElement
-        }
+        width: 340,
+        height: 440,
+        bgcolor: '#0d1117'
       })
 
-      console.log('✅ dom-to-image capture successful!')
+      // Remove the temporary container
+      document.body.removeChild(tempContainer)
 
-      // Restore original styles
-      cardElement.style.transform = originalTransform
-      cardElement.style.transition = originalTransition
-      
-      // Restore child element styles
-      originalChildStyles.forEach(({element, transform, transition}) => {
-        element.style.transform = transform
-        element.style.transition = transition
-      })
-
-      console.log('✅ Image captured successfully with dom-to-image!')
+      console.log('✅ Profile card captured successfully!')
 
       // Create an image from the data URL to add padding
       const img = new Image()
@@ -199,20 +196,13 @@ export function ProfileCardModal({
     } catch (error) {
       console.error('❌ Download error:', error)
       
-      // Restore styles even if there's an error
-      if (cardElement) {
+      // Clean up any leftover temporary containers
+      const leftoverContainer = document.getElementById('profile-card-capture')?.parentElement
+      if (leftoverContainer && document.body.contains(leftoverContainer)) {
         try {
-          // Restore original styles
-          cardElement.style.transform = originalTransform
-          cardElement.style.transition = originalTransition
-          
-          // Restore child styles
-          originalChildStyles.forEach(({element, transform, transition}) => {
-            element.style.transform = transform
-            element.style.transition = transition
-          })
-        } catch (restoreError) {
-          console.warn('Failed to restore styles:', restoreError)
+          document.body.removeChild(leftoverContainer)
+        } catch (cleanupError) {
+          console.warn('Cleanup warning:', cleanupError)
         }
       }
       
