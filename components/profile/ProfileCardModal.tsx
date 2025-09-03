@@ -128,6 +128,37 @@ export function ProfileCardModal({
           console.log('🔄 html2canvas onclone - Document:', clonedDoc)
           console.log('🔄 html2canvas onclone - Element:', element)
           
+          // Function to convert oklch/modern colors to rgb
+          const convertModernColors = (cssValue: string): string => {
+            if (!cssValue) return cssValue
+            
+            // Replace oklch() with fallback colors
+            let converted = cssValue
+            
+            // Common oklch colors used in the app - convert to hex equivalents
+            const colorMap: { [key: string]: string } = {
+              'oklch(0.15 0.02 240)': '#0d1117',  // provn-bg
+              'oklch(0.20 0.02 240)': '#161b22',  // provn-surface
+              'oklch(0.25 0.02 240)': '#21262d',  // provn-surface-2
+              'oklch(0.30 0.02 240)': '#30363d',  // provn-border
+              'oklch(0.85 0.02 240)': '#f0f6fc',  // provn-text
+              'oklch(0.65 0.02 240)': '#7d8590',  // provn-muted
+              'oklch(0.65 0.20 35)': '#ff6d01',   // provn-accent
+              'oklch(0.55 0.20 35)': '#e85d00',   // provn-accent-press
+            }
+            
+            // Replace any oklch functions with their hex equivalents
+            Object.entries(colorMap).forEach(([oklch, hex]) => {
+              converted = converted.replace(new RegExp(oklch.replace(/[()]/g, '\\$&'), 'g'), hex)
+            })
+            
+            // Remove any remaining oklch functions that we don't have mappings for
+            // and replace with a safe fallback
+            converted = converted.replace(/oklch\([^)]+\)/g, '#ffffff')
+            
+            return converted
+          }
+          
           // Find the cloned profile card
           const clonedCard = clonedDoc.getElementById('profile-card')
           console.log('🎯 Cloned card found:', !!clonedCard)
@@ -141,19 +172,45 @@ export function ProfileCardModal({
             clonedCard.style.transition = 'none'
             clonedCard.style.animation = 'none'
             
-            // Ensure background gradients are preserved
-            const originalCard = document.getElementById('profile-card')
-            if (originalCard) {
-              const computedStyle = window.getComputedStyle(originalCard)
-              clonedCard.style.background = computedStyle.background
-              clonedCard.style.backgroundImage = computedStyle.backgroundImage
-              clonedCard.style.backgroundColor = computedStyle.backgroundColor
-              clonedCard.style.borderRadius = computedStyle.borderRadius
-              clonedCard.style.border = computedStyle.border
-              clonedCard.style.boxShadow = computedStyle.boxShadow
-              
-              console.log('✅ Applied styles to cloned card')
-            }
+            // Convert all elements to use compatible colors
+            const allElements = clonedCard.querySelectorAll('*')
+            console.log('🎨 Converting modern colors for', allElements.length, 'elements')
+            
+            // Convert colors for each element using computed styles
+            Array.from(allElements).forEach((el) => {
+              if (el instanceof HTMLElement) {
+                // Use the element's current computed style
+                const computedStyle = window.getComputedStyle(el)
+                
+                // Convert background colors
+                if (computedStyle.backgroundColor && computedStyle.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+                  el.style.backgroundColor = convertModernColors(computedStyle.backgroundColor)
+                }
+                if (computedStyle.backgroundImage && computedStyle.backgroundImage !== 'none') {
+                  el.style.backgroundImage = convertModernColors(computedStyle.backgroundImage)
+                }
+                if (computedStyle.color) {
+                  el.style.color = convertModernColors(computedStyle.color)
+                }
+                if (computedStyle.borderColor) {
+                  el.style.borderColor = convertModernColors(computedStyle.borderColor)
+                }
+                if (computedStyle.boxShadow && computedStyle.boxShadow !== 'none') {
+                  el.style.boxShadow = convertModernColors(computedStyle.boxShadow)
+                }
+                
+                // Force visibility
+                el.style.opacity = '1'
+                el.style.visibility = 'visible'
+                el.style.display = el.style.display || 'block'
+              }
+            })
+            
+            // Set safe fallback background for the main card
+            clonedCard.style.background = 'linear-gradient(135deg, #161b22 0%, #0d1117 50%, #161b22 100%)'
+            clonedCard.style.borderRadius = '24px'
+            clonedCard.style.border = '1px solid rgba(255, 255, 255, 0.1)'
+            clonedCard.style.boxShadow = '0 0 60px rgba(255, 109, 1, 0.1)'
             
             // Handle all images in the cloned card
             const images = clonedCard.querySelectorAll('img')
@@ -165,17 +222,7 @@ export function ProfileCardModal({
               img.style.display = 'block'
             })
             
-            // Handle all gradient backgrounds
-            const gradientElements = clonedCard.querySelectorAll('*')
-            gradientElements.forEach(el => {
-              if (el instanceof HTMLElement) {
-                const style = window.getComputedStyle(el)
-                if (style.backgroundImage && style.backgroundImage !== 'none') {
-                  el.style.backgroundImage = style.backgroundImage
-                  el.style.backgroundColor = style.backgroundColor
-                }
-              }
-            })
+            console.log('✅ Applied safe colors and styles to cloned card')
           } else {
             console.error('❌ Cloned profile card not found!')
           }
