@@ -66,65 +66,135 @@ export function ProfileCardModal({
 
       console.log('🎯 Starting profile card download...', { width: rect.width, height: rect.height })
 
-      // Create a temporary fixed container to ensure consistent rendering
-      const tempContainer = document.createElement('div')
-      tempContainer.style.cssText = `
+      // Create a completely new standalone profile card HTML structure for capture
+      const captureContainer = document.createElement('div')
+      captureContainer.style.cssText = `
         position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
+        top: -9999px;
+        left: -9999px;
         width: 340px;
         height: 440px;
-        z-index: 999999;
-        background: transparent;
-        pointer-events: none;
+        z-index: -1;
+        font-family: 'Space Grotesk', sans-serif;
       `
-      document.body.appendChild(tempContainer)
+      document.body.appendChild(captureContainer)
 
-      // Clone the profile card element
-      const cardClone = cardElement.cloneNode(true) as HTMLElement
-      cardClone.id = 'profile-card-capture'
-      cardClone.style.cssText = `
-        width: 340px !important;
-        height: 440px !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        transform: none !important;
-        transition: none !important;
-        animation: none !important;
-        position: relative !important;
-        top: 0 !important;
-        left: 0 !important;
-        border-radius: 24px !important;
-        background: linear-gradient(135deg, #161b22 0%, #0d1117 50%, #161b22 100%) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        box-shadow: 0 0 60px rgba(255, 109, 1, 0.1) !important;
-        overflow: hidden !important;
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
+      // Create the exact profile card structure manually with inline styles
+      captureContainer.innerHTML = `
+        <div style="
+          position: relative;
+          width: 340px;
+          height: 440px;
+          background: linear-gradient(135deg, #161b22 0%, #0d1117 50%, #161b22 100%);
+          border-radius: 24px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 0 0 1px rgba(255, 109, 1, 0.2), 0 4px 20px rgba(0, 0, 0, 0.4), 0 8px 32px rgba(255, 109, 1, 0.08), 0 0 60px rgba(255, 109, 1, 0.05);
+          overflow: hidden;
+          padding: 24px;
+          box-sizing: border-box;
+          font-family: 'Space Grotesk', sans-serif;
+        ">
+          <!-- Background patterns -->
+          <div style="position: absolute; top: 0; right: 0; width: 128px; height: 128px; background: linear-gradient(135deg, rgba(255, 109, 1, 0.1), transparent); border-radius: 50%; filter: blur(48px);"></div>
+          <div style="position: absolute; bottom: 0; left: 0; width: 96px; height: 96px; background: linear-gradient(45deg, rgba(255, 109, 1, 0.05), transparent); border-radius: 50%; filter: blur(32px);"></div>
+          
+          <!-- Card Content -->
+          <div style="position: relative; height: 100%; display: flex; flex-direction: column;">
+            <!-- Header with Profile Picture -->
+            <div style="display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 24px;">
+              <!-- Profile Picture -->
+              <div style="position: relative; width: 128px; height: 128px; margin-bottom: 16px;">
+                <img src="${profile.avatar_url || '/placeholder-user.jpg'}" 
+                     style="width: 128px; height: 128px; border-radius: 24px; object-fit: cover; border: 2px solid rgba(255, 109, 1, 0.3); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);" />
+                <!-- Online status -->
+                <div style="position: absolute; top: -8px; right: -8px; width: 32px; height: 32px; background: #22c55e; border-radius: 50%; border: 4px solid #161b22; display: flex; align-items: center; justify-content: center;">
+                  <div style="width: 12px; height: 12px; background: white; border-radius: 50%;"></div>
+                </div>
+              </div>
+              
+              <!-- Name and Handle -->
+              <div>
+                <h1 style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: #f0f6fc; margin: 0 0 4px 0;">
+                  ${profile.display_name || profile.handle}
+                </h1>
+                ${profile.display_name ? `<p style="font-family: 'Space Grotesk', sans-serif; color: #7d8590; font-size: 14px; margin: 0;">@${profile.handle}</p>` : ''}
+              </div>
+            </div>
+
+            <!-- Badges -->
+            <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 24px;">
+              <div style="padding: 8px 16px; background: linear-gradient(to right, #1f2937, #111827, #1f2937); border: 1px solid rgba(107, 114, 128, 0.5); border-radius: 8px; backdrop-filter: blur(4px);">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="width: 8px; height: 8px; background: linear-gradient(to right, #fbbf24, #f59e0b); border-radius: 50%;"></div>
+                  <span style="color: #e5e7eb; font-size: 12px; font-family: 'Space Grotesk', sans-serif; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;">Rising Star</span>
+                </div>
+              </div>
+              
+              <div style="padding: 8px 16px; background: linear-gradient(to right, #1f2937, #111827, #1f2937); border: 1px solid rgba(107, 114, 128, 0.5); border-radius: 8px; backdrop-filter: blur(4px);">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="width: 8px; height: 8px; background: linear-gradient(to right, #60a5fa, #a855f7); border-radius: 50%;"></div>
+                  <span style="color: #e5e7eb; font-size: 12px; font-family: 'Space Grotesk', sans-serif; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;">Creator</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Spacer -->
+            <div style="flex: 1;"></div>
+
+            <!-- Wallet Address -->
+            <div style="margin-bottom: 24px;">
+              <div style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; background: #21262d; border-radius: 12px; border: 1px solid rgba(48, 54, 61, 0.5);">
+                <span style="font-family: 'Space Grotesk', sans-serif; color: #7d8590; font-size: 12px;">
+                  ${profile.wallet_address.slice(0, 6)}...${profile.wallet_address.slice(-4)}
+                </span>
+              </div>
+            </div>
+
+            <!-- Member Since -->
+            <div style="text-align: center; margin-bottom: 16px;">
+              <p style="font-family: 'Space Grotesk', sans-serif; color: #7d8590; font-size: 12px; margin: 0;">
+                Member since ${new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </p>
+            </div>
+
+            <!-- Bottom Section -->
+            <div style="display: flex; align-items: end; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <!-- Provn Logo -->
+                <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #ff6d01, rgba(255, 109, 1, 0.8)); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                  <div style="width: 12px; height: 12px; background: #0d1117; border-radius: 2px; transform: rotate(12deg);"></div>
+                </div>
+                
+                <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 14px;">
+                  <span style="color: #f0f6fc;">Prov</span><span style="color: #ff6d01;">n</span>
+                </div>
+              </div>
+
+              <!-- QR Pattern -->
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; opacity: 0.3;">
+                <div style="width: 4px; height: 4px; background: #ff6d01; border-radius: 1px;"></div>
+                <div style="width: 4px; height: 4px; background: transparent;"></div>
+                <div style="width: 4px; height: 4px; background: #ff6d01; border-radius: 1px;"></div>
+                <div style="width: 4px; height: 4px; background: transparent;"></div>
+                <div style="width: 4px; height: 4px; background: #ff6d01; border-radius: 1px;"></div>
+                <div style="width: 4px; height: 4px; background: #ff6d01; border-radius: 1px;"></div>
+                <div style="width: 4px; height: 4px; background: transparent;"></div>
+                <div style="width: 4px; height: 4px; background: #ff6d01; border-radius: 1px;"></div>
+                <div style="width: 4px; height: 4px; background: #ff6d01; border-radius: 1px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       `
 
-      // Fix all child elements to ensure proper styling
-      const allElements = cardClone.querySelectorAll('*')
-      allElements.forEach(el => {
-        if (el instanceof HTMLElement) {
-          el.style.transform = 'none'
-          el.style.transition = 'none'
-          el.style.animation = 'none'
-          el.style.visibility = 'visible'
-          el.style.opacity = '1'
-        }
-      })
+      // Wait for the HTML to render
+      await new Promise(resolve => setTimeout(resolve, 500))
 
-      tempContainer.appendChild(cardClone)
-
-      // Wait for the clone to render
-      await new Promise(resolve => setTimeout(resolve, 300))
-
-      // Use dom-to-image-more to capture the cloned element
+      // Capture the manually created profile card
       const domtoimage = (await import('dom-to-image-more')).default
-      const dataUrl = await domtoimage.toPng(cardClone, {
+      const captureElement = captureContainer.firstElementChild as HTMLElement
+      
+      const dataUrl = await domtoimage.toPng(captureElement, {
         quality: 1.0,
         pixelRatio: 2,
         width: 340,
@@ -133,7 +203,7 @@ export function ProfileCardModal({
       })
 
       // Remove the temporary container
-      document.body.removeChild(tempContainer)
+      document.body.removeChild(captureContainer)
 
       console.log('✅ Profile card captured successfully!')
 
@@ -197,14 +267,16 @@ export function ProfileCardModal({
       console.error('❌ Download error:', error)
       
       // Clean up any leftover temporary containers
-      const leftoverContainer = document.getElementById('profile-card-capture')?.parentElement
-      if (leftoverContainer && document.body.contains(leftoverContainer)) {
-        try {
-          document.body.removeChild(leftoverContainer)
-        } catch (cleanupError) {
-          console.warn('Cleanup warning:', cleanupError)
+      const leftoverContainers = document.querySelectorAll('[style*="top: -9999px"]')
+      leftoverContainers.forEach(container => {
+        if (document.body.contains(container)) {
+          try {
+            document.body.removeChild(container)
+          } catch (cleanupError) {
+            console.warn('Cleanup warning:', cleanupError)
+          }
         }
-      }
+      })
       
       toast.error('Failed to download profile card. Please try again.')
     } finally {
