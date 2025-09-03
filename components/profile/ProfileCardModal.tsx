@@ -92,28 +92,66 @@ export function ProfileCardModal({
         }
       })
 
-      // Wait for styles to apply
-      await new Promise(resolve => setTimeout(resolve, 100))
+      // Ensure all images in the card are fully loaded before capture
+      const images = cardElement.querySelectorAll('img')
+      await Promise.all(Array.from(images).map(img => {
+        if (img.complete) return Promise.resolve()
+        return new Promise((resolve, reject) => {
+          img.onload = resolve
+          img.onerror = reject
+          // Timeout after 5 seconds
+          setTimeout(() => resolve(null), 5000)
+        })
+      }))
 
-      // Capture the card element directly
+      // Wait for styles to apply and images to render
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      console.log('📸 Capturing profile card...', { width: rect.width, height: rect.height })
+
+      // Capture the card element directly with enhanced settings
       const canvas = await html2canvas(cardElement, {
         backgroundColor: '#0d1117',
         scale: 2,
         useCORS: true,
         allowTaint: true,
-        logging: false,
+        logging: true, // Enable logging for debugging
         width: rect.width,
         height: rect.height,
         foreignObjectRendering: true,
         imageTimeout: 15000,
-        onclone: (clonedDoc) => {
-          // Ensure all images are loaded in cloned document
-          const images = clonedDoc.querySelectorAll('img')
-          images.forEach(img => {
+        proxy: undefined,
+        removeContainer: false,
+        onclone: (clonedDoc, element) => {
+          console.log('🔄 onclone called, cloned element:', element)
+          
+          // Ensure all images are visible and loaded in cloned document
+          const clonedImages = clonedDoc.querySelectorAll('img')
+          clonedImages.forEach((img, index) => {
+            console.log(`🖼️ Image ${index}:`, img.src, 'complete:', img.complete)
             if (img.src && img.complete) {
               img.style.opacity = '1'
+              img.style.display = 'block'
+              img.style.visibility = 'visible'
             }
           })
+
+          // Ensure proper styling on cloned card
+          const clonedCard = clonedDoc.getElementById('profile-card')
+          if (clonedCard) {
+            console.log('🎯 Found cloned profile card, applying styles...')
+            clonedCard.style.transform = 'none'
+            clonedCard.style.transition = 'none'
+            clonedCard.style.opacity = '1'
+            clonedCard.style.visibility = 'visible'
+            
+            // Force background to show
+            const computedStyle = window.getComputedStyle(cardElement)
+            clonedCard.style.background = computedStyle.background
+            clonedCard.style.border = computedStyle.border
+            clonedCard.style.borderRadius = computedStyle.borderRadius
+            clonedCard.style.boxShadow = computedStyle.boxShadow
+          }
         }
       })
 
@@ -125,6 +163,13 @@ export function ProfileCardModal({
       originalChildStyles.forEach(({element, transform, transition}) => {
         element.style.transform = transform
         element.style.transition = transition
+      })
+
+      console.log('✅ Canvas captured successfully!', { 
+        canvasWidth: canvas.width, 
+        canvasHeight: canvas.height,
+        originalWidth: rect.width,
+        originalHeight: rect.height 
       })
 
       // Add some padding around the card for better presentation
