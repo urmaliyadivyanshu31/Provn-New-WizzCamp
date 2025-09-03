@@ -109,48 +109,75 @@ export function ProfileCardModal({
 
       console.log('📸 Capturing profile card...', { width: rect.width, height: rect.height })
 
-      // Capture the card element directly with enhanced settings
+      // Capture the card element with simplified settings to ensure it works
       const canvas = await html2canvas(cardElement, {
         backgroundColor: '#0d1117',
         scale: 2,
         useCORS: true,
         allowTaint: true,
-        logging: true, // Enable logging for debugging
+        logging: true,
         width: rect.width,
         height: rect.height,
-        foreignObjectRendering: true,
-        imageTimeout: 15000,
-        proxy: undefined,
-        removeContainer: false,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
+        foreignObjectRendering: false, // Try without this first
+        imageTimeout: 30000,
         onclone: (clonedDoc, element) => {
-          console.log('🔄 onclone called, cloned element:', element)
+          console.log('🔄 html2canvas onclone - Document:', clonedDoc)
+          console.log('🔄 html2canvas onclone - Element:', element)
           
-          // Ensure all images are visible and loaded in cloned document
-          const clonedImages = clonedDoc.querySelectorAll('img')
-          clonedImages.forEach((img, index) => {
-            console.log(`🖼️ Image ${index}:`, img.src, 'complete:', img.complete)
-            if (img.src && img.complete) {
-              img.style.opacity = '1'
-              img.style.display = 'block'
-              img.style.visibility = 'visible'
-            }
-          })
-
-          // Ensure proper styling on cloned card
+          // Find the cloned profile card
           const clonedCard = clonedDoc.getElementById('profile-card')
-          if (clonedCard && cardElement) {
-            console.log('🎯 Found cloned profile card, applying styles...')
-            clonedCard.style.transform = 'none'
-            clonedCard.style.transition = 'none'
+          console.log('🎯 Cloned card found:', !!clonedCard)
+          
+          if (clonedCard) {
+            // Force visibility and remove any problematic styles
             clonedCard.style.opacity = '1'
             clonedCard.style.visibility = 'visible'
+            clonedCard.style.display = 'block'
+            clonedCard.style.transform = 'none'
+            clonedCard.style.transition = 'none'
+            clonedCard.style.animation = 'none'
             
-            // Force background to show
-            const computedStyle = window.getComputedStyle(cardElement)
-            clonedCard.style.background = computedStyle.background
-            clonedCard.style.border = computedStyle.border
-            clonedCard.style.borderRadius = computedStyle.borderRadius
-            clonedCard.style.boxShadow = computedStyle.boxShadow
+            // Ensure background gradients are preserved
+            const originalCard = document.getElementById('profile-card')
+            if (originalCard) {
+              const computedStyle = window.getComputedStyle(originalCard)
+              clonedCard.style.background = computedStyle.background
+              clonedCard.style.backgroundImage = computedStyle.backgroundImage
+              clonedCard.style.backgroundColor = computedStyle.backgroundColor
+              clonedCard.style.borderRadius = computedStyle.borderRadius
+              clonedCard.style.border = computedStyle.border
+              clonedCard.style.boxShadow = computedStyle.boxShadow
+              
+              console.log('✅ Applied styles to cloned card')
+            }
+            
+            // Handle all images in the cloned card
+            const images = clonedCard.querySelectorAll('img')
+            console.log('🖼️ Found images in cloned card:', images.length)
+            images.forEach((img, index) => {
+              console.log(`Image ${index}:`, img.src, 'complete:', img.complete)
+              img.style.opacity = '1'
+              img.style.visibility = 'visible'
+              img.style.display = 'block'
+            })
+            
+            // Handle all gradient backgrounds
+            const gradientElements = clonedCard.querySelectorAll('*')
+            gradientElements.forEach(el => {
+              if (el instanceof HTMLElement) {
+                const style = window.getComputedStyle(el)
+                if (style.backgroundImage && style.backgroundImage !== 'none') {
+                  el.style.backgroundImage = style.backgroundImage
+                  el.style.backgroundColor = style.backgroundColor
+                }
+              }
+            })
+          } else {
+            console.error('❌ Cloned profile card not found!')
           }
         }
       })
@@ -171,6 +198,18 @@ export function ProfileCardModal({
         originalWidth: rect.width,
         originalHeight: rect.height 
       })
+
+      // Debug: Check if canvas actually has content
+      const ctx = canvas.getContext('2d')
+      const imageData = ctx?.getImageData(0, 0, canvas.width, canvas.height)
+      const hasContent = imageData?.data.some(pixel => pixel !== 0)
+      console.log('🔍 Canvas has visible content:', hasContent)
+      
+      if (!hasContent) {
+        console.error('❌ Canvas is empty! This means html2canvas failed to capture content.')
+        toast.error('Canvas capture failed - please check console for details')
+        return
+      }
 
       // Add some padding around the card for better presentation
       const paddedCanvas = document.createElement('canvas')
