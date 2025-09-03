@@ -38,6 +38,13 @@ export function ProfileCardModal({
 
   const handleDownload = async () => {
     setIsDownloading(true)
+    
+    // Declare variables outside try block for proper cleanup scope
+    let originalTransform = ''
+    let originalTransition = ''
+    let originalChildStyles: Array<{element: HTMLElement, transform: string, transition: string}> = []
+    let cardElement: HTMLElement | null = null
+    
     try {
       // Dynamic import to avoid SSR issues
       const html2canvas = (await import('html2canvas')).default
@@ -45,7 +52,7 @@ export function ProfileCardModal({
       // Wait a bit for modal animation to complete and DOM to be ready
       await new Promise(resolve => setTimeout(resolve, 300))
       
-      const cardElement = document.getElementById('profile-card')
+      cardElement = document.getElementById('profile-card')
       if (!cardElement) {
         console.error('❌ Profile card element not found in DOM')
         toast.error('Profile card not ready. Please wait a moment and try again.')
@@ -62,118 +69,63 @@ export function ProfileCardModal({
 
       console.log('🎯 Starting profile card download...')
 
-      // Create a hidden container for clean capture without affecting the original layout
-      const captureContainer = document.createElement('div')
-      captureContainer.style.cssText = `
-        position: fixed;
-        top: -9999px;
-        left: -9999px;
-        width: 340px;
-        height: 440px;
-        background: #0d1117;
-        z-index: -1;
-        visibility: hidden;
-        pointer-events: none;
-        overflow: hidden;
-        isolation: isolate;
-      `
-      document.body.appendChild(captureContainer)
-
-      // Clone the profile card element with deep cloning
-      const cardClone = cardElement.cloneNode(true) as HTMLElement
-      cardClone.style.cssText = `
-        transform: none !important;
-        position: relative !important;
-        top: 0 !important;
-        left: 0 !important;
-        margin: 0 !important;
-        width: 340px !important;
-        height: 440px !important;
-        display: block !important;
-        visibility: visible !important;
-      `
+      // Store original styles to restore later
+      originalTransform = cardElement.style.transform
+      originalTransition = cardElement.style.transition
       
-      // Ensure cloned element has unique ID and clean any transforms
-      cardClone.id = 'profile-card-clone'
+      // Temporarily disable animations and transforms for clean capture
+      cardElement.style.transform = 'none'
+      cardElement.style.transition = 'none'
       
-      // Remove any motion/animation classes and reset transforms that might interfere
-      const cleanElementForCapture = (element: Element) => {
-        if (element instanceof HTMLElement) {
-          // Remove animation/motion classes
-          element.classList.remove('transform', 'transition-all', 'hover:scale-105')
-          
-          // Reset any inline transforms that might be applied by motion libraries
-          element.style.transform = 'none'
-          element.style.transition = 'none'
+      // Clean any child elements that might have transforms
+      const elementsWithTransforms = cardElement.querySelectorAll('*')
+      
+      elementsWithTransforms.forEach(child => {
+        if (child instanceof HTMLElement) {
+          originalChildStyles.push({
+            element: child,
+            transform: child.style.transform,
+            transition: child.style.transition
+          })
+          child.style.transform = 'none'
+          child.style.transition = 'none'
         }
-        
-        // Clean all child elements recursively
-        element.querySelectorAll('*').forEach(child => {
-          if (child instanceof HTMLElement) {
-            child.classList.remove('transform', 'transition-all', 'hover:scale-105')
-            child.style.transform = 'none'
-            child.style.transition = 'none'
-          }
-        })
-      }
-      cleanElementForCapture(cardClone)
-      
-      captureContainer.appendChild(cardClone)
+      })
 
-      // Wait for clone to be ready and styles to apply
-      await new Promise(resolve => setTimeout(resolve, 200))
+      // Wait for styles to apply
+      await new Promise(resolve => setTimeout(resolve, 100))
 
-      // Capture the cloned card without affecting the original
-      const canvas = await html2canvas(cardClone, {
+      // Capture the card element directly
+      const canvas = await html2canvas(cardElement, {
         backgroundColor: '#0d1117',
         scale: 2,
         useCORS: true,
         allowTaint: true,
         logging: false,
-        width: 340,
-        height: 440,
-        windowWidth: 340,
-        windowHeight: 440,
-        scrollX: 0,
-        scrollY: 0,
-        x: 0,
-        y: 0,
+        width: rect.width,
+        height: rect.height,
         foreignObjectRendering: true,
-        removeContainer: false,
         imageTimeout: 15000,
         onclone: (clonedDoc) => {
-          // Ensure clean styling in the cloned document
-          const clonedElement = clonedDoc.getElementById('profile-card-clone')
-          if (clonedElement) {
-            clonedElement.style.transform = 'none'
-            clonedElement.style.filter = 'none'
-            clonedElement.style.opacity = '1'
-            clonedElement.style.visibility = 'visible'
-            // Keep original shadows and styles but remove transforms
-            const computedStyle = window.getComputedStyle(cardElement)
-            clonedElement.style.background = computedStyle.background
-            clonedElement.style.borderRadius = computedStyle.borderRadius
-          }
-          
-          // Ensure all images are loaded
+          // Ensure all images are loaded in cloned document
           const images = clonedDoc.querySelectorAll('img')
           images.forEach(img => {
             if (img.src && img.complete) {
               img.style.opacity = '1'
             }
           })
-        },
-        ignoreElements: (element) => {
-          // Only capture our specific cloned card and its contents
-          if (element.id === 'profile-card-clone' || cardClone.contains(element)) {
-            return false
-          }
-          return !captureContainer.contains(element)
         }
       })
 
-      // Clean up the hidden container
-      document.body.removeChild(captureContainer)
+      // Restore original styles
+      cardElement.style.transform = originalTransform
+      cardElement.style.transition = originalTransition
+      
+      // Restore child element styles
+      originalChildStyles.forEach(({element, transform, transition}) => {
+        element.style.transform = transform
+        element.style.transition = transition
+      })
 
       // Add some padding around the card for better presentation
       const paddedCanvas = document.createElement('canvas')
@@ -226,25 +178,26 @@ export function ProfileCardModal({
     } catch (error) {
       console.error('❌ Download error:', error)
       
-      // Ensure cleanup happens even if there's an error
-      const leftoverContainer = document.querySelector('#profile-card-clone')?.parentElement
-      if (leftoverContainer && document.body.contains(leftoverContainer)) {
-        document.body.removeChild(leftoverContainer)
+      // Restore styles even if there's an error
+      if (cardElement) {
+        try {
+          // Restore original styles
+          cardElement.style.transform = originalTransform
+          cardElement.style.transition = originalTransition
+          
+          // Restore child styles
+          originalChildStyles.forEach(({element, transform, transition}) => {
+            element.style.transform = transform
+            element.style.transition = transition
+          })
+        } catch (restoreError) {
+          console.warn('Failed to restore styles:', restoreError)
+        }
       }
       
       toast.error('Failed to download profile card. Please try again.')
     } finally {
       setIsDownloading(false)
-      
-      // Final safety cleanup
-      const leftoverContainer = document.querySelector('#profile-card-clone')?.parentElement
-      if (leftoverContainer && document.body.contains(leftoverContainer)) {
-        try {
-          document.body.removeChild(leftoverContainer)
-        } catch (cleanupError) {
-          console.warn('Cleanup warning:', cleanupError)
-        }
-      }
     }
   }
 
