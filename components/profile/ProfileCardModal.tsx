@@ -46,8 +46,8 @@ export function ProfileCardModal({
     let cardElement: HTMLElement | null = null
     
     try {
-      // Dynamic import to avoid SSR issues
-      const html2canvas = (await import('html2canvas')).default
+      // Dynamic import to avoid SSR issues - using dom-to-image-more instead of html2canvas
+      const domtoimage = (await import('dom-to-image-more')).default
       
       // Wait a bit for modal animation to complete and DOM to be ready
       await new Promise(resolve => setTimeout(resolve, 300))
@@ -67,7 +67,7 @@ export function ProfileCardModal({
         return
       }
 
-      console.log('🎯 Starting profile card download...')
+      console.log('🎯 Starting profile card download with dom-to-image...', { width: rect.width, height: rect.height })
 
       // Store original styles to restore later
       originalTransform = cardElement.style.transform
@@ -107,127 +107,26 @@ export function ProfileCardModal({
       // Wait for styles to apply and images to render
       await new Promise(resolve => setTimeout(resolve, 500))
 
-      console.log('📸 Capturing profile card...', { width: rect.width, height: rect.height })
+      console.log('📸 Capturing profile card with dom-to-image...')
 
-      // Capture the card element with simplified settings to ensure it works
-      const canvas = await html2canvas(cardElement, {
-        backgroundColor: '#0d1117',
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: true,
+      // Use dom-to-image-more which handles Next.js + Tailwind better
+      const dataUrl = await domtoimage.toPng(cardElement, {
+        quality: 1.0,
+        pixelRatio: 2,
         width: rect.width,
         height: rect.height,
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: window.innerWidth,
-        windowHeight: window.innerHeight,
-        foreignObjectRendering: false, // Try without this first
-        imageTimeout: 30000,
-        onclone: (clonedDoc, element) => {
-          console.log('🔄 html2canvas onclone - Document:', clonedDoc)
-          console.log('🔄 html2canvas onclone - Element:', element)
-          
-          // Function to convert oklch/modern colors to rgb
-          const convertModernColors = (cssValue: string): string => {
-            if (!cssValue) return cssValue
-            
-            // Replace oklch() with fallback colors
-            let converted = cssValue
-            
-            // Common oklch colors used in the app - convert to hex equivalents
-            const colorMap: { [key: string]: string } = {
-              'oklch(0.15 0.02 240)': '#0d1117',  // provn-bg
-              'oklch(0.20 0.02 240)': '#161b22',  // provn-surface
-              'oklch(0.25 0.02 240)': '#21262d',  // provn-surface-2
-              'oklch(0.30 0.02 240)': '#30363d',  // provn-border
-              'oklch(0.85 0.02 240)': '#f0f6fc',  // provn-text
-              'oklch(0.65 0.02 240)': '#7d8590',  // provn-muted
-              'oklch(0.65 0.20 35)': '#ff6d01',   // provn-accent
-              'oklch(0.55 0.20 35)': '#e85d00',   // provn-accent-press
-            }
-            
-            // Replace any oklch functions with their hex equivalents
-            Object.entries(colorMap).forEach(([oklch, hex]) => {
-              converted = converted.replace(new RegExp(oklch.replace(/[()]/g, '\\$&'), 'g'), hex)
-            })
-            
-            // Remove any remaining oklch functions that we don't have mappings for
-            // and replace with a safe fallback
-            converted = converted.replace(/oklch\([^)]+\)/g, '#ffffff')
-            
-            return converted
-          }
-          
-          // Find the cloned profile card
-          const clonedCard = clonedDoc.getElementById('profile-card')
-          console.log('🎯 Cloned card found:', !!clonedCard)
-          
-          if (clonedCard) {
-            // Force visibility and remove any problematic styles
-            clonedCard.style.opacity = '1'
-            clonedCard.style.visibility = 'visible'
-            clonedCard.style.display = 'block'
-            clonedCard.style.transform = 'none'
-            clonedCard.style.transition = 'none'
-            clonedCard.style.animation = 'none'
-            
-            // Convert all elements to use compatible colors
-            const allElements = clonedCard.querySelectorAll('*')
-            console.log('🎨 Converting modern colors for', allElements.length, 'elements')
-            
-            // Convert colors for each element using computed styles
-            Array.from(allElements).forEach((el) => {
-              if (el instanceof HTMLElement) {
-                // Use the element's current computed style
-                const computedStyle = window.getComputedStyle(el)
-                
-                // Convert background colors
-                if (computedStyle.backgroundColor && computedStyle.backgroundColor !== 'rgba(0, 0, 0, 0)') {
-                  el.style.backgroundColor = convertModernColors(computedStyle.backgroundColor)
-                }
-                if (computedStyle.backgroundImage && computedStyle.backgroundImage !== 'none') {
-                  el.style.backgroundImage = convertModernColors(computedStyle.backgroundImage)
-                }
-                if (computedStyle.color) {
-                  el.style.color = convertModernColors(computedStyle.color)
-                }
-                if (computedStyle.borderColor) {
-                  el.style.borderColor = convertModernColors(computedStyle.borderColor)
-                }
-                if (computedStyle.boxShadow && computedStyle.boxShadow !== 'none') {
-                  el.style.boxShadow = convertModernColors(computedStyle.boxShadow)
-                }
-                
-                // Force visibility
-                el.style.opacity = '1'
-                el.style.visibility = 'visible'
-                el.style.display = el.style.display || 'block'
-              }
-            })
-            
-            // Set safe fallback background for the main card
-            clonedCard.style.background = 'linear-gradient(135deg, #161b22 0%, #0d1117 50%, #161b22 100%)'
-            clonedCard.style.borderRadius = '24px'
-            clonedCard.style.border = '1px solid rgba(255, 255, 255, 0.1)'
-            clonedCard.style.boxShadow = '0 0 60px rgba(255, 109, 1, 0.1)'
-            
-            // Handle all images in the cloned card
-            const images = clonedCard.querySelectorAll('img')
-            console.log('🖼️ Found images in cloned card:', images.length)
-            images.forEach((img, index) => {
-              console.log(`Image ${index}:`, img.src, 'complete:', img.complete)
-              img.style.opacity = '1'
-              img.style.visibility = 'visible'
-              img.style.display = 'block'
-            })
-            
-            console.log('✅ Applied safe colors and styles to cloned card')
-          } else {
-            console.error('❌ Cloned profile card not found!')
-          }
+        style: {
+          transform: 'none',
+          transition: 'none',
+          animation: 'none'
+        },
+        filter: (node) => {
+          // Only include nodes that are part of our profile card
+          return cardElement?.contains(node) || node === cardElement
         }
       })
+
+      console.log('✅ dom-to-image capture successful!')
 
       // Restore original styles
       cardElement.style.transform = originalTransform
@@ -239,32 +138,23 @@ export function ProfileCardModal({
         element.style.transition = transition
       })
 
-      console.log('✅ Canvas captured successfully!', { 
-        canvasWidth: canvas.width, 
-        canvasHeight: canvas.height,
-        originalWidth: rect.width,
-        originalHeight: rect.height 
+      console.log('✅ Image captured successfully with dom-to-image!')
+
+      // Create an image from the data URL to add padding
+      const img = new Image()
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve()
+        img.onerror = () => reject(new Error('Failed to load captured image'))
+        img.src = dataUrl
       })
 
-      // Debug: Check if canvas actually has content
-      const ctx = canvas.getContext('2d')
-      const imageData = ctx?.getImageData(0, 0, canvas.width, canvas.height)
-      const hasContent = imageData?.data.some(pixel => pixel !== 0)
-      console.log('🔍 Canvas has visible content:', hasContent)
-      
-      if (!hasContent) {
-        console.error('❌ Canvas is empty! This means html2canvas failed to capture content.')
-        toast.error('Canvas capture failed - please check console for details')
-        return
-      }
-
-      // Add some padding around the card for better presentation
+      // Create a canvas to add padding around the captured image
       const paddedCanvas = document.createElement('canvas')
       const paddedCtx = paddedCanvas.getContext('2d')!
       const padding = 40
       
-      paddedCanvas.width = canvas.width + (padding * 2)
-      paddedCanvas.height = canvas.height + (padding * 2)
+      paddedCanvas.width = img.width + (padding * 2)
+      paddedCanvas.height = img.height + (padding * 2)
       
       // Fill with a nice gradient background
       const gradient = paddedCtx.createLinearGradient(0, 0, 0, paddedCanvas.height)
@@ -275,10 +165,10 @@ export function ProfileCardModal({
       paddedCtx.fillStyle = gradient
       paddedCtx.fillRect(0, 0, paddedCanvas.width, paddedCanvas.height)
       
-      // Draw the card centered with padding
-      paddedCtx.drawImage(canvas, padding, padding)
+      // Draw the captured image centered with padding
+      paddedCtx.drawImage(img, padding, padding)
 
-      // Create download link with better error handling
+      // Create download link
       const link = document.createElement('a')
       const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')
       link.download = `${profile.handle}-profile-card-${timestamp}.png`
