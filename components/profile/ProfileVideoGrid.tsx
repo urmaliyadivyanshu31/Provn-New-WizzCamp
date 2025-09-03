@@ -102,8 +102,8 @@ export function ProfileVideoGrid({
     e.stopPropagation()
     if (video.blockchain.transactionHash) {
       window.open(`https://basecamp.cloud.blockscout.com/tx/${video.blockchain.transactionHash}`, '_blank')
-    } else if (video.tokenId) {
-      window.open(`https://basecamp.cloud.blockscout.com/token/0x5a3f832b47b948dA27aE788E96A0CD7BB0dCd1c1/instance/${video.tokenId}`, '_blank')
+    } else {
+      toast.error('Transaction hash not available for this video')
     }
   }
 

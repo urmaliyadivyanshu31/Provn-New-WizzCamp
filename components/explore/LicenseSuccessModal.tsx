@@ -74,9 +74,9 @@ export function LicenseSuccessModal({
       }
     } catch (error) {
       console.error('Download failed:', error);
-      toast.error("Download failed. Opening IP-NFT page instead...");
-      // Fallback to opening the IP-NFT page
-      window.open(`https://basecamp.cloud.blockscout.com/token/0x5a3f832b47b948dA27aE788E96A0CD7BB0dCd1c1/instance/${tokenId}`, '_blank');
+      toast.error("Download failed. Please try again later.");
+      // Don't open any URL if download fails
+      console.log('Video download failed, no fallback URL available');
     } finally {
       setIsDownloading(false);
     }

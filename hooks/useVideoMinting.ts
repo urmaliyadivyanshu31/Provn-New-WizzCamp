@@ -26,19 +26,22 @@ export function useVideoMinting() {
 
   async function fetchTransactionHash(walletAddress: string): Promise<string | null> {
     try {
-      // Fetch recent transactions from BaseCAMP API
+      // Fetch recent transactions from BaseCAMP API (without problematic parameters)
       const response = await fetch(
-        `https://basecamp.cloud.blockscout.com/api/v2/addresses/${walletAddress}/transactions?filter=validated&type=contract_call`
+        `https://basecamp.cloud.blockscout.com/api/v2/addresses/${walletAddress}/transactions`
       );
       
       if (response.ok) {
         const data = await response.json();
         console.log('📊 BaseCAMP API response:', data);
         
-        // Get the most recent transaction
+        // Get the most recent successful transaction  
         if (data.items && data.items.length > 0) {
-          const recentTx = data.items[0];
-          return recentTx.hash;
+          // Find the most recent successful transaction (not error)
+          const successfulTx = data.items.find((tx: any) => tx.status === 'ok');
+          if (successfulTx) {
+            return successfulTx.hash;
+          }
         }
       }
     } catch (error) {
@@ -190,7 +193,7 @@ export function useVideoMinting() {
       const royalty = parseInt(license.royalty || '0');
       
       // Ensure minimum valid values
-      const validPrice = Math.max(price, 0.001); // Minimum 0.001 PROVN
+      const validPrice = Math.max(price, 0.001); // Minimum 0.001 for payment token
       const validDuration = Math.max(duration, 86400); // Minimum 1 day
       const validRoyalty = Math.min(Math.max(royalty, 0), 50); // 0-50% royalty
       
@@ -263,6 +266,7 @@ export function useVideoMinting() {
       }
 
       setSuccess(`🎉 IP-NFT minted successfully on BaseCAMP! Token ID: ${tokenId}`)
+      
       return { tokenId, ipfsUrl }
     } catch (err) {
       console.error('Video minting error:', err)

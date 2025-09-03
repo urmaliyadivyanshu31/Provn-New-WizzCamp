@@ -198,10 +198,10 @@ export default function UploadPage() {
                 tokenId: tokenIdStr,
                 ipfsHash: ipfsUrl.split("/ipfs/")[1] || "unknown",
                 metadataHash: metadata.metadataHash,
-                transactionHash: metadata.transactionHash || "View on Explorer",
+                transactionHash: metadata.transactionHash || undefined,
                 blockscoutUrl: metadata.transactionHash
                   ? `https://basecamp.cloud.blockscout.com/tx/${metadata.transactionHash}`
-                  : `https://basecamp.cloud.blockscout.com/token/0x5a3f832b47b948dA27aE788E96A0CD7BB0dCd1c1/instance/${tokenIdStr}`,
+                  : undefined,
                 fileUrl: preview,
                 videoUrl: metadata.videoUrl || ipfsUrl,
               };
