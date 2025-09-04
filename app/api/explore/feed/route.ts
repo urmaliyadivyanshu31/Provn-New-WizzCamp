@@ -275,8 +275,10 @@ function convertPlatformVideoToExploreVideo(platformVideo: VideoWithCreator): Ex
       paymentToken: platformVideo.payment_token_address || "0x1aE9c40eCd2DD6ad5858E5430A556d7aff28A44b"
     },
     remixing: {
-      enabled: (platformVideo.price_per_period != null && platformVideo.price_per_period >= 0 && 
-                platformVideo.license_duration != null && platformVideo.license_duration > 0), // Enable if has valid license config
+      // Enable licensing if the video has commercial or derivative rights, OR has a payment token configured
+      enabled: (platformVideo.commercial_rights === true || 
+                platformVideo.derivative_rights === true || 
+                platformVideo.payment_token_address != null), 
       permissionLevel: 'basic',
       template: 'remix',
       requiresAttribution: true,
