@@ -634,7 +634,7 @@ export function useOriginLicensing() {
               duration_seconds: terms.duration * periods,
               expires_at: expiryDate,
               transaction_hash: result.hash,
-              block_number: result.receipt?.blockNumber
+              block_number: result.receipt?.blockNumber ? Number(result.receipt.blockNumber) : null
             })
           })
           console.log('✅ License purchase tracked in backend')
