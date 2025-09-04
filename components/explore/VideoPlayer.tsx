@@ -25,98 +25,79 @@ const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: Vi
   const [loadingState, setLoadingState] = useState<'loading' | 'poster' | 'video' | 'ready'>('loading');
   const [isBuffered, setIsBuffered] = useState(false);
 
-  // Auto-play/pause based on active state with better error handling
+  // Simplified auto-play/pause based on active state
   useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement) return;
 
-    // Cancel any pending play requests to prevent interruption errors
-    const abortController = new AbortController();
+    // Store the current play promise to avoid interruption errors
+    let playPromise: Promise<void> | null = null;
 
-    if (isActive && isVisible) {
-      // Add a small delay to prevent rapid play/pause cycles
-      const timer = setTimeout(() => {
-        if (!abortController.signal.aborted && videoElement) {
-          videoElement
-            .play()
-            .then(() => {
-              if (!abortController.signal.aborted) {
-                setIsPlaying(true);
-              }
-            })
-            .catch((error) => {
-              // Only log non-abort errors and avoid spamming console
-              if (error.name !== 'AbortError' && !abortController.signal.aborted && error.name !== 'NotSupportedError') {
-                console.warn("Auto-play failed:", error.name, error.message);
-              }
-              setIsPlaying(false);
+    if (isActive && isVisible && videoSrc) {
+      // Only attempt to play if video has a source and is ready
+      const attemptPlay = async () => {
+        try {
+          // Ensure any previous play operation has completed
+          if (playPromise) {
+            await playPromise.catch(() => {
+              // Ignore errors from cancelled play attempts
             });
+          }
+          
+          if (videoElement.readyState >= 2) { // HAVE_CURRENT_DATA
+            playPromise = videoElement.play();
+            await playPromise;
+            setIsPlaying(true);
+            console.log(`🎬 Video ${video.tokenId} playing successfully`);
+          }
+        } catch (error) {
+          // Only log meaningful errors
+          if (error instanceof Error && error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
+            console.warn(`⚠️ Auto-play failed for ${video.tokenId}:`, error.name);
+          }
+          setIsPlaying(false);
         }
-      }, 100);
-
-      return () => {
-        clearTimeout(timer);
-        abortController.abort();
       };
-    } else {
-      videoElement.pause();
-      setIsPlaying(false);
+
+      // Small delay to prevent race conditions
+      const timer = setTimeout(attemptPlay, 150);
       
       return () => {
-        abortController.abort();
+        clearTimeout(timer);
+        if (playPromise) {
+          playPromise.catch(() => {}); // Ignore errors from cleanup
+        }
       };
+    } else {
+      // Immediately pause when not active
+      if (!videoElement.paused) {
+        videoElement.pause();
+        setIsPlaying(false);
+      }
     }
-  }, [isActive, isVisible]);
+  }, [isActive, isVisible, videoSrc, video.tokenId]);
 
-  // Progressive loading with buffer manager integration
+  // Simplified video loading without buffer manager interference
   useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement || !video.videoUrl) return;
 
     let isCancelled = false;
     
-    const loadProgressively = async () => {
+    const loadVideo = async () => {
       try {
         setLoadingState('loading');
         
         // Start performance tracking
-        const gatewayName = 'ipfs-gateway'; // Will be updated with actual gateway
-        performanceTracker.startVideoLoad(video.tokenId, gatewayName);
+        performanceTracker.startVideoLoad(video.tokenId, 'direct-load');
         
-        // Check if video is already buffered (with timeout handling)
-        try {
-          const bufferedVideo = await videoBufferManager.getBufferedVideo(video);
-          if (isCancelled) return;
-          
-          if (bufferedVideo && bufferedVideo !== videoElement) {
-            // Use buffered video element - instant load!
-            setIsBuffered(true);
-            setVideoSrc(bufferedVideo.src);
-            setPosterSrc(bufferedVideo.poster || '');
-            setLoadingState('ready');
-            
-            // Track buffer hit
-            performanceTracker.markBufferHit(video.tokenId);
-            performanceTracker.markVideoLoaded(video.tokenId);
-            performanceTracker.markFirstPlay(video.tokenId);
-            
-            console.log(`🎯 Using buffered video for ${video.tokenId}`);
-            return; // Exit early if buffered video was successful
-          }
-        } catch (bufferError) {
-          console.warn(`⚠️ Buffer video load failed for ${video.tokenId}, falling back to progressive loading:`, bufferError);
-          // Continue with progressive loading fallback
-        }
-
-        // Step 1: Load poster first for immediate visual feedback
-        if (video.thumbnailUrl) {
+        // Load poster first if available
+        if (video.thumbnailUrl && !isCancelled) {
           try {
             const posterUrl = await ipfsGateway.getOptimalUrl(video.thumbnailUrl, true);
             if (!isCancelled) {
               setPosterSrc(posterUrl);
               setLoadingState('poster');
-              
-              // Track poster load time
               performanceTracker.markPosterLoaded(video.tokenId);
               console.log(`📸 Poster loaded for ${video.tokenId}`);
             }
@@ -125,39 +106,40 @@ const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: Vi
           }
         }
 
-        // Step 2: Load video with optimal gateway
-        const videoUrl = await ipfsGateway.getOptimalUrl(video.videoUrl, true);
+        // Load video with optimal gateway
         if (!isCancelled) {
+          const videoUrl = await ipfsGateway.getOptimalUrl(video.videoUrl, true);
           setVideoSrc(videoUrl);
           setLoadingState('video');
+          
+          // Setup simple error handler for gateway fallbacks
+          const handleError = () => {
+            if (!isCancelled) {
+              console.warn(`❌ Video load failed for ${video.tokenId}, trying fallback...`);
+              const fallbacks = ipfsGateway.getFallbackUrls(video.videoUrl);
+              if (fallbacks.length > 1) {
+                setVideoSrc(fallbacks[1]); // Try second gateway
+              }
+            }
+          };
+
+          videoElement.addEventListener("error", handleError, { once: true });
+          
+          return () => {
+            videoElement.removeEventListener("error", handleError);
+          };
         }
-
-        // Setup error handler for automatic fallbacks
-        const errorHandler = ipfsGateway.createErrorHandler(video.videoUrl);
-        const handleError = () => {
-          if (!isCancelled) {
-            console.warn("Video failed to load, trying fallback gateway...");
-            errorHandler(videoElement);
-          }
-        };
-
-        videoElement.addEventListener("error", handleError);
-        
-        // Clean up error handler
-        return () => {
-          videoElement.removeEventListener("error", handleError);
-        };
 
       } catch (error) {
         if (!isCancelled) {
-          console.error("Progressive loading failed:", error);
+          console.error(`❌ Video loading failed for ${video.tokenId}:`, error);
           setVideoSrc(video.videoUrl); // Fallback to original URL
           setLoadingState('video');
         }
       }
     };
 
-    loadProgressively();
+    loadVideo();
 
     return () => {
       isCancelled = true;
@@ -276,7 +258,7 @@ const VideoPlayer = memo(function VideoPlayer({ video, isActive, isVisible }: Vi
         onLoadedData={() => {
           // Set initial muted state and mark as ready
           const videoElement = videoRef.current;
-          if (videoElement) {
+          if (videoElement && loadingState !== 'ready') {
             videoElement.muted = false; // Start with sound ON
             setIsMuted(false);
             setLoadingState('ready');

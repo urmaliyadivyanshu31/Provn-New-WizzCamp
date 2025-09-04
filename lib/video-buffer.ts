@@ -25,8 +25,8 @@ interface BufferStats {
 
 export class VideoBufferManager {
   private buffer = new Map<string, BufferedVideo>()
-  private maxBufferSize = 15 // Keep 15 videos in buffer
-  private preloadDistance = 7 // Preload 7 videos ahead
+  private maxBufferSize = 8 // Reduced buffer size to prevent memory issues
+  private preloadDistance = 3 // Reduced preload distance to prevent conflicts
   private stats: BufferStats = {
     totalBuffered: 0,
     memoryUsage: 0,
@@ -70,10 +70,12 @@ export class VideoBufferManager {
       }
     }
 
-    // Execute preloading with controlled concurrency (max 3 at once)
-    const chunks = this.chunkArray(preloadTasks, 3)
+    // Execute preloading with reduced concurrency (max 2 at once)
+    const chunks = this.chunkArray(preloadTasks, 2)
     for (const chunk of chunks) {
       await Promise.allSettled(chunk)
+      // Add small delay between chunks to prevent overwhelming
+      await new Promise(resolve => setTimeout(resolve, 100))
     }
 
     // Clean up old videos to prevent memory bloat
@@ -82,25 +84,30 @@ export class VideoBufferManager {
 
   /**
    * Get a buffered video element, creating if necessary
+   * Modified to not interfere with active video playback
    */
   async getBufferedVideo(video: ExploreVideo): Promise<HTMLVideoElement | null> {
     const tokenId = video.tokenId
     const buffered = this.buffer.get(tokenId)
 
-    if (buffered) {
+    if (buffered && buffered.videoElement && buffered.videoLoaded) {
       this.stats.cacheHits++
       buffered.lastAccessed = Date.now()
       
-      if (buffered.videoElement) {
+      // Only return buffered video if it's not currently playing elsewhere
+      if (buffered.videoElement.paused) {
         console.log(`🎯 Cache hit for video ${tokenId}`)
         return buffered.videoElement
+      } else {
+        console.log(`⚠️ Skipping buffered video ${tokenId} - currently playing`)
       }
     } else {
       this.stats.cacheMisses++
     }
 
-    // Video not buffered, load it now
-    return await this.loadVideoElement(video)
+    // Return null to let the VideoPlayer handle direct loading
+    // This prevents interference with active video playback
+    return null
   }
 
   /**

@@ -60,26 +60,37 @@ export function VideoFeed({
     }
   }, [currentIndex, videos.length, hasNextPage, isFetching, loadMoreVideos]);
 
-  // Simple scroll handler for TikTok-style navigation
+  // Improved scroll handler with debouncing to prevent video interruptions
   const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (isScrolling) return;
+    if (isScrolling || videos.length === 0) return;
     e.preventDefault();
     
-    const scrollThreshold = 100;
+    const scrollThreshold = 80; // Lowered threshold for better responsiveness
     
     if (Math.abs(e.deltaY) > scrollThreshold) {
       setIsScrolling(true);
       
+      // Determine direction and update index
       if (e.deltaY > 0 && currentIndex < videos.length - 1) {
         // Scroll down - next video
-        setCurrentIndex(prev => prev + 1);
+        setCurrentIndex(prev => {
+          const newIndex = prev + 1;
+          console.log(`📹 Scrolling to video ${newIndex}/${videos.length}`);
+          return newIndex;
+        });
       } else if (e.deltaY < 0 && currentIndex > 0) {
         // Scroll up - previous video
-        setCurrentIndex(prev => prev - 1);
+        setCurrentIndex(prev => {
+          const newIndex = prev - 1;
+          console.log(`📹 Scrolling to video ${newIndex}/${videos.length}`);
+          return newIndex;
+        });
       }
       
-      // Reset scrolling state
-      setTimeout(() => setIsScrolling(false), 500);
+      // Longer reset time to prevent rapid scrolling interruptions
+      setTimeout(() => {
+        setIsScrolling(false);
+      }, 800);
     }
   }, [currentIndex, videos.length, isScrolling]);
 
@@ -92,25 +103,33 @@ export function VideoFeed({
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (isScrolling) return;
+    if (isScrolling || videos.length === 0) return;
     
     touchEndY.current = e.changedTouches[0].clientY;
     const deltaY = touchStartY.current - touchEndY.current;
 
     // Minimum swipe distance
-    if (Math.abs(deltaY) > 80) {
+    if (Math.abs(deltaY) > 60) {
       setIsScrolling(true);
       
       if (deltaY > 0 && currentIndex < videos.length - 1) {
         // Swipe up - next video
-        setCurrentIndex(prev => prev + 1);
+        setCurrentIndex(prev => {
+          const newIndex = prev + 1;
+          console.log(`📱 Swiped to video ${newIndex}/${videos.length}`);
+          return newIndex;
+        });
       } else if (deltaY < 0 && currentIndex > 0) {
         // Swipe down - previous video
-        setCurrentIndex(prev => prev - 1);
+        setCurrentIndex(prev => {
+          const newIndex = prev - 1;
+          console.log(`📱 Swiped to video ${newIndex}/${videos.length}`);
+          return newIndex;
+        });
       }
       
-      // Reset scrolling state
-      setTimeout(() => setIsScrolling(false), 500);
+      // Consistent reset time with scroll handler
+      setTimeout(() => setIsScrolling(false), 800);
     }
   };
 

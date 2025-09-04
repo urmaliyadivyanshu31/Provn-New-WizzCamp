@@ -39,35 +39,24 @@ export function ProfileCardModal({
   const handleDownload = async () => {
     setIsDownloading(true)
     
-    // Declare variables outside try block for proper cleanup scope
-    let originalTransform = ''
-    let originalTransition = ''
-    let originalChildStyles: Array<{element: HTMLElement, transform: string, transition: string}> = []
-    let cardElement: HTMLElement | null = null
+    let captureContainer: HTMLDivElement | null = null
+    let clonedCardElement: HTMLDivElement | null = null
     
     try {
-      // Wait a bit for modal animation to complete and DOM to be ready
+      // Wait for modal animation to complete and DOM to be ready
       await new Promise(resolve => setTimeout(resolve, 500))
       
-      cardElement = document.getElementById('profile-card')
-      if (!cardElement) {
+      const originalCardElement = document.getElementById('profile-card')
+      if (!originalCardElement) {
         console.error('❌ Profile card element not found in DOM')
         toast.error('Profile card not ready. Please wait a moment and try again.')
         return
       }
 
-      // Ensure the element is visible and has dimensions
-      const rect = cardElement.getBoundingClientRect()
-      if (rect.width === 0 || rect.height === 0) {
-        console.error('❌ Profile card element has no dimensions:', rect)
-        toast.error('Profile card not properly loaded. Please try again.')
-        return
-      }
+      console.log('🎯 Starting professional profile card capture...')
 
-      console.log('🎯 Starting profile card download...', { width: rect.width, height: rect.height })
-
-      // Create a completely new standalone profile card HTML structure for capture
-      const captureContainer = document.createElement('div')
+      // Create completely clean HTML structure with zero CSS classes - only inline styles
+      captureContainer = document.createElement('div')
       captureContainer.style.cssText = `
         position: fixed;
         top: -9999px;
@@ -75,211 +64,231 @@ export function ProfileCardModal({
         width: 340px;
         height: 440px;
         z-index: -1;
-        font-family: 'Space Grotesk', sans-serif;
+        background: transparent;
+        padding: 0;
+        margin: 0;
+        border: none;
+        outline: none;
       `
       document.body.appendChild(captureContainer)
 
-      // Create the exact profile card structure manually with inline styles
+      // Create completely fresh card HTML with zero borders/lines
       captureContainer.innerHTML = `
         <div style="
-          position: relative;
           width: 340px;
           height: 440px;
           background: linear-gradient(135deg, #161b22 0%, #0d1117 50%, #161b22 100%);
           border-radius: 24px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          box-shadow: 0 0 0 1px rgba(255, 109, 1, 0.2), 0 4px 20px rgba(0, 0, 0, 0.4), 0 8px 32px rgba(255, 109, 1, 0.08), 0 0 60px rgba(255, 109, 1, 0.05);
           overflow: hidden;
-          padding: 24px;
-          box-sizing: border-box;
-          font-family: 'Space Grotesk', sans-serif;
+          position: relative;
+          margin: 0;
+          padding: 0;
+          border: none;
+          outline: none;
+          box-shadow: none;
         ">
           <!-- Background patterns -->
           <div style="position: absolute; top: 0; right: 0; width: 128px; height: 128px; background: linear-gradient(135deg, rgba(255, 109, 1, 0.1), transparent); border-radius: 50%; filter: blur(48px);"></div>
           <div style="position: absolute; bottom: 0; left: 0; width: 96px; height: 96px; background: linear-gradient(45deg, rgba(255, 109, 1, 0.05), transparent); border-radius: 50%; filter: blur(32px);"></div>
           
           <!-- Card Content -->
-          <div style="position: relative; height: 100%; display: flex; flex-direction: column;">
+          <div style="position: relative; height: 100%; padding: 24px; display: flex; flex-direction: column; margin: 0; border: none; outline: none;">
             <!-- Header with Profile Picture -->
-            <div style="display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 24px;">
+            <div style="display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 24px; border: none; outline: none;">
               <!-- Profile Picture -->
-              <div style="position: relative; width: 128px; height: 128px; margin-bottom: 16px;">
+              <div style="position: relative; width: 128px; height: 128px; margin-bottom: 16px; border: none; outline: none;">
                 <img src="${profile.avatar_url || '/placeholder-user.jpg'}" 
-                     style="width: 128px; height: 128px; border-radius: 24px; object-fit: cover; border: 2px solid rgba(255, 109, 1, 0.3); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);" />
+                     style="width: 128px; height: 128px; border-radius: 24px; object-fit: cover; border: 2px solid rgba(255, 109, 1, 0.3); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); outline: none;" />
                 <!-- Online status -->
-                <div style="position: absolute; top: -8px; right: -8px; width: 32px; height: 32px; background: #22c55e; border-radius: 50%; border: 4px solid #161b22; display: flex; align-items: center; justify-content: center;">
-                  <div style="width: 12px; height: 12px; background: white; border-radius: 50%;"></div>
+                <div style="position: absolute; top: -8px; right: -8px; width: 32px; height: 32px; background: #22c55e; border-radius: 50%; border: 4px solid #161b22; display: flex; align-items: center; justify-content: center; outline: none;">
+                  <div style="width: 12px; height: 12px; background: white; border-radius: 50%; border: none; outline: none;"></div>
                 </div>
               </div>
               
               <!-- Name and Handle -->
-              <div>
-                <h1 style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: #f0f6fc; margin: 0 0 4px 0;">
+              <div style="border: none; outline: none; margin: 0; padding: 0;">
+                <h1 style="font-family: 'Space Grotesk', -apple-system, sans-serif; font-size: 20px; font-weight: 700; color: #f0f6fc; margin: 0 0 4px 0; border: none; outline: none;">
                   ${profile.display_name || profile.handle}
                 </h1>
-                ${profile.display_name ? `<p style="font-family: 'Space Grotesk', sans-serif; color: #7d8590; font-size: 14px; margin: 0;">@${profile.handle}</p>` : ''}
+                ${profile.display_name ? `<p style="font-family: 'Space Grotesk', -apple-system, sans-serif; color: #7d8590; font-size: 14px; margin: 0; border: none; outline: none;">@${profile.handle}</p>` : ''}
               </div>
             </div>
 
             <!-- Badges -->
-            <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 24px;">
-              <div style="padding: 8px 16px; background: linear-gradient(to right, #1f2937, #111827, #1f2937); border: 1px solid rgba(107, 114, 128, 0.5); border-radius: 8px; backdrop-filter: blur(4px);">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <div style="width: 8px; height: 8px; background: linear-gradient(to right, #fbbf24, #f59e0b); border-radius: 50%;"></div>
-                  <span style="color: #e5e7eb; font-size: 12px; font-family: 'Space Grotesk', sans-serif; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;">Rising Star</span>
+            <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 24px; border: none; outline: none;">
+              <div style="padding: 8px 16px; background: linear-gradient(to right, #1f2937, #111827, #1f2937); border: 1px solid rgba(107, 114, 128, 0.5); border-radius: 8px; backdrop-filter: blur(4px); outline: none;">
+                <div style="display: flex; align-items: center; gap: 8px; border: none; outline: none;">
+                  <div style="width: 8px; height: 8px; background: linear-gradient(to right, #fbbf24, #f59e0b); border-radius: 50%; border: none; outline: none;"></div>
+                  <span style="color: #e5e7eb; font-size: 12px; font-family: 'Space Grotesk', -apple-system, sans-serif; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; border: none; outline: none;">Rising Star</span>
                 </div>
               </div>
               
-              <div style="padding: 8px 16px; background: linear-gradient(to right, #1f2937, #111827, #1f2937); border: 1px solid rgba(107, 114, 128, 0.5); border-radius: 8px; backdrop-filter: blur(4px);">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <div style="width: 8px; height: 8px; background: linear-gradient(to right, #60a5fa, #a855f7); border-radius: 50%;"></div>
-                  <span style="color: #e5e7eb; font-size: 12px; font-family: 'Space Grotesk', sans-serif; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;">Creator</span>
+              <div style="padding: 8px 16px; background: linear-gradient(to right, #1f2937, #111827, #1f2937); border: 1px solid rgba(107, 114, 128, 0.5); border-radius: 8px; backdrop-filter: blur(4px); outline: none;">
+                <div style="display: flex; align-items: center; gap: 8px; border: none; outline: none;">
+                  <div style="width: 8px; height: 8px; background: linear-gradient(to right, #60a5fa, #a855f7); border-radius: 50%; border: none; outline: none;"></div>
+                  <span style="color: #e5e7eb; font-size: 12px; font-family: 'Space Grotesk', -apple-system, sans-serif; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; border: none; outline: none;">Creator</span>
                 </div>
               </div>
             </div>
 
             <!-- Spacer -->
-            <div style="flex: 1;"></div>
+            <div style="flex: 1; border: none; outline: none;"></div>
 
             <!-- Wallet Address -->
-            <div style="margin-bottom: 24px;">
-              <div style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; background: #21262d; border-radius: 12px; border: 1px solid rgba(48, 54, 61, 0.5);">
-                <span style="font-family: 'Space Grotesk', sans-serif; color: #7d8590; font-size: 12px;">
+            <div style="margin-bottom: 24px; border: none; outline: none;">
+              <div style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; background: #21262d; border-radius: 12px; border: 1px solid rgba(48, 54, 61, 0.5); outline: none;">
+                <span style="font-family: 'Space Grotesk', -apple-system, sans-serif; color: #7d8590; font-size: 12px; border: none; outline: none;">
                   ${profile.wallet_address.slice(0, 6)}...${profile.wallet_address.slice(-4)}
                 </span>
               </div>
             </div>
 
             <!-- Member Since -->
-            <div style="text-align: center; margin-bottom: 16px;">
-              <p style="font-family: 'Space Grotesk', sans-serif; color: #7d8590; font-size: 12px; margin: 0;">
+            <div style="text-align: center; margin-bottom: 16px; border: none; outline: none;">
+              <p style="font-family: 'Space Grotesk', -apple-system, sans-serif; color: #7d8590; font-size: 12px; margin: 0; border: none; outline: none;">
                 Member since ${new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </p>
             </div>
 
             <!-- Bottom Section -->
-            <div style="display: flex; align-items: end; justify-content: space-between;">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <!-- Provn Logo -->
-                <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #ff6d01, rgba(255, 109, 1, 0.8)); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                  <div style="width: 12px; height: 12px; background: #0d1117; border-radius: 2px; transform: rotate(12deg);"></div>
+            <div style="display: flex; align-items: end; justify-content: space-between; border: none; outline: none;">
+              <div style="display: flex; align-items: center; gap: 8px; border: none; outline: none;">
+                <!-- Provn Logo (matching navbar exactly) -->
+                <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #ffa501, rgba(255, 165, 1, 0.8)); border-radius: 8px; display: flex; align-items: center; justify-content: center; border: none; outline: none;">
+                  <div style="width: 12px; height: 12px; background: #111111; border-radius: 2px; transform: rotate(12deg); border: none; outline: none;"></div>
                 </div>
                 
-                <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 14px;">
-                  <span style="color: #f0f6fc;">Prov</span><span style="color: #ff6d01;">n</span>
+                <div style="font-family: 'Space Grotesk', -apple-system, sans-serif; font-weight: 700; font-size: 14px; border: none; outline: none;">
+                  <span style="color: #e0e0e0; border: none; outline: none;">Prov</span><span style="color: #ffa501; border: none; outline: none;">n</span>
                 </div>
               </div>
 
               <!-- QR Pattern -->
-              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; opacity: 0.3;">
-                <div style="width: 4px; height: 4px; background: #ff6d01; border-radius: 1px;"></div>
-                <div style="width: 4px; height: 4px; background: transparent;"></div>
-                <div style="width: 4px; height: 4px; background: #ff6d01; border-radius: 1px;"></div>
-                <div style="width: 4px; height: 4px; background: transparent;"></div>
-                <div style="width: 4px; height: 4px; background: #ff6d01; border-radius: 1px;"></div>
-                <div style="width: 4px; height: 4px; background: #ff6d01; border-radius: 1px;"></div>
-                <div style="width: 4px; height: 4px; background: transparent;"></div>
-                <div style="width: 4px; height: 4px; background: #ff6d01; border-radius: 1px;"></div>
-                <div style="width: 4px; height: 4px; background: #ff6d01; border-radius: 1px;"></div>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; opacity: 0.3; border: none; outline: none;">
+                <div style="width: 4px; height: 4px; background: #ffa501; border-radius: 1px; border: none; outline: none;"></div>
+                <div style="width: 4px; height: 4px; background: transparent; border: none; outline: none;"></div>
+                <div style="width: 4px; height: 4px; background: #ffa501; border-radius: 1px; border: none; outline: none;"></div>
+                <div style="width: 4px; height: 4px; background: transparent; border: none; outline: none;"></div>
+                <div style="width: 4px; height: 4px; background: #ffa501; border-radius: 1px; border: none; outline: none;"></div>
+                <div style="width: 4px; height: 4px; background: #ffa501; border-radius: 1px; border: none; outline: none;"></div>
+                <div style="width: 4px; height: 4px; background: transparent; border: none; outline: none;"></div>
+                <div style="width: 4px; height: 4px; background: #ffa501; border-radius: 1px; border: none; outline: none;"></div>
+                <div style="width: 4px; height: 4px; background: #ffa501; border-radius: 1px; border: none; outline: none;"></div>
               </div>
             </div>
           </div>
         </div>
       `
-
-      // Wait for the HTML to render
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      // Capture the manually created profile card
-      const domtoimage = (await import('dom-to-image-more')).default
-      const captureElement = captureContainer.firstElementChild as HTMLElement
       
-      const dataUrl = await domtoimage.toPng(captureElement, {
+      clonedCardElement = captureContainer.firstElementChild as HTMLDivElement
+
+      // Ensure all images are loaded before capture
+      const images = captureContainer.querySelectorAll('img')
+      const imageLoadPromises = Array.from(images).map(img => {
+        if (img.complete) return Promise.resolve()
+        
+        return new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            console.warn('⏰ Image load timeout, proceeding anyway')
+            resolve()
+          }, 5000)
+          
+          img.onload = () => {
+            clearTimeout(timeout)
+            resolve()
+          }
+          img.onerror = () => {
+            clearTimeout(timeout)
+            console.warn('❌ Image failed to load, using placeholder')
+            resolve() // Continue anyway
+          }
+        })
+      })
+
+      await Promise.all(imageLoadPromises)
+      
+      // Wait for fonts and styles to fully load
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      console.log('📸 Capturing profile card with professional quality...')
+
+      // Use dom-to-image-more for high-quality capture with professional settings
+      const domtoimage = (await import('dom-to-image-more')).default
+      
+      const dataUrl = await domtoimage.toPng(clonedCardElement, {
         quality: 1.0,
         pixelRatio: 2,
         width: 340,
         height: 440,
-        bgcolor: '#0d1117'
+        bgcolor: 'transparent',
+        cacheBust: true,
+        style: {
+          margin: '0',
+          padding: '0',
+          border: 'none',
+          outline: 'none',
+          boxShadow: 'none'
+        } as any
       })
-
-      // Remove the temporary container
-      document.body.removeChild(captureContainer)
 
       console.log('✅ Profile card captured successfully!')
 
-      // Create an image from the data URL to add padding
-      const img = new Image()
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve()
-        img.onerror = () => reject(new Error('Failed to load captured image'))
-        img.src = dataUrl
-      })
-
-      // Create a canvas to add padding around the captured image
-      const paddedCanvas = document.createElement('canvas')
-      const paddedCtx = paddedCanvas.getContext('2d')!
-      const padding = 40
-      
-      paddedCanvas.width = img.width + (padding * 2)
-      paddedCanvas.height = img.height + (padding * 2)
-      
-      // Fill with a nice gradient background
-      const gradient = paddedCtx.createLinearGradient(0, 0, 0, paddedCanvas.height)
-      gradient.addColorStop(0, '#0d1117')
-      gradient.addColorStop(0.5, '#161b22')  
-      gradient.addColorStop(1, '#0d1117')
-      
-      paddedCtx.fillStyle = gradient
-      paddedCtx.fillRect(0, 0, paddedCanvas.width, paddedCanvas.height)
-      
-      // Draw the captured image centered with padding
-      paddedCtx.drawImage(img, padding, padding)
-
-      // Create download link
+      // Create professional download with proper file naming
       const link = document.createElement('a')
-      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')
-      link.download = `${profile.handle}-profile-card-${timestamp}.png`
+      const timestamp = new Date().toISOString().slice(0, 10) // YYYY-MM-DD format
+      const profileName = (profile.display_name || profile.handle).replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()
+      link.download = `provn-profile-${profileName}-${timestamp}.png`
       
-      // Convert to blob for better browser compatibility
-      await new Promise<void>((resolve, reject) => {
-        paddedCanvas.toBlob((blob) => {
-          if (blob) {
-            const url = URL.createObjectURL(blob)
-            link.href = url
-            
-            // Trigger download
-            document.body.appendChild(link)
-            link.click()
-            document.body.removeChild(link)
-            
-            // Clean up the blob URL
-            setTimeout(() => URL.revokeObjectURL(url), 100)
-            
-            console.log('✅ Profile card downloaded successfully!')
-            toast.success('Profile card downloaded successfully!')
-            resolve()
-          } else {
-            reject(new Error('Failed to create download blob'))
-          }
-        }, 'image/png', 1.0)
+      // Convert to high-quality blob
+      const response = await fetch(dataUrl)
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      link.href = url
+      
+      // Trigger download
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      // Clean up the blob URL
+      setTimeout(() => URL.revokeObjectURL(url), 100)
+      
+      console.log('✅ Professional profile card downloaded successfully!')
+      toast.success('Profile card downloaded in ultra-high quality!', {
+        description: `Saved as: ${link.download}`
       })
+
     } catch (error) {
-      console.error('❌ Download error:', error)
+      console.error('❌ Professional capture failed:', error)
       
-      // Clean up any leftover temporary containers
+      // Fallback error message with technical details
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      toast.error('Failed to capture profile card', {
+        description: `Error: ${errorMessage}. Please try again.`
+      })
+      
+    } finally {
+      // Clean up temporary elements
+      if (captureContainer && document.body.contains(captureContainer)) {
+        try {
+          document.body.removeChild(captureContainer)
+        } catch (cleanupError) {
+          console.warn('Cleanup warning:', cleanupError)
+        }
+      }
+      
+      // Clean up any other leftover containers
       const leftoverContainers = document.querySelectorAll('[style*="top: -9999px"]')
       leftoverContainers.forEach(container => {
         if (document.body.contains(container)) {
           try {
             document.body.removeChild(container)
           } catch (cleanupError) {
-            console.warn('Cleanup warning:', cleanupError)
+            console.warn('Multiple cleanup warning:', cleanupError)
           }
         }
       })
       
-      toast.error('Failed to download profile card. Please try again.')
-    } finally {
       setIsDownloading(false)
     }
   }
