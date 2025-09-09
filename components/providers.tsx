@@ -186,7 +186,6 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           clientId={process.env.NEXT_PUBLIC_ORIGIN_CLIENT_ID || 'fce77d7a-8085-47ca-adff-306a933e76aa'}
           redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3004'}
           allowAnalytics={false}
-          apiKey={process.env.NEXT_PUBLIC_CAMP_NETWORK_API_KEY || '4f1a2c9c-008e-4a2e-8712-055fa04f9ffa'}
         >
           <FollowStateProvider>
             <VideoModalProvider>

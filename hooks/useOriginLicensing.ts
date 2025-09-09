@@ -412,7 +412,7 @@ export function useOriginLicensing() {
           }) as readonly [bigint, number, number, `0x${string}`]
           
           // Check if terms are properly set (price > 0 and duration > 0)
-          marketplaceTermsExist = marketplaceTerms[0] > 0n && marketplaceTerms[1] > 0
+          marketplaceTermsExist = marketplaceTerms[0] > BigInt(0) && marketplaceTerms[1] > 0
           console.log('📋 Marketplace terms exist:', marketplaceTermsExist, {
             price: marketplaceTerms[0].toString(),
             duration: marketplaceTerms[1],
