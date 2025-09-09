@@ -65,7 +65,55 @@ export function Navigation({ currentPage }: NavigationProps) {
   const { isAuthenticated, walletAddress } = useAuth();
   const { authenticated } = useAuthState();
   const { openModal, closeModal } = useModal();
-  const { profile, loading, error } = useProfile(walletAddress || undefined);
+  
+  // DEMO DAY: Demo wallet functionality
+  const [demoWallet, setDemoWallet] = useState<string | undefined>();
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Check URL for demo wallet parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const demoWalletParam = urlParams.get('demo_wallet');
+      if (demoWalletParam && demoWalletParam.match(/^0x[a-fA-F0-9]{40}$/)) {
+        setDemoWallet(demoWalletParam);
+        setIsDemoMode(true);
+        // Store in localStorage for persistence
+        localStorage.setItem('demo_wallet_address', demoWalletParam);
+        console.log("🎯 DEMO: Demo wallet from URL:", demoWalletParam);
+        return;
+      }
+      
+      // Check cookie for demo wallet (set by middleware)
+      const cookies = document.cookie.split(';');
+      const demoWalletCookie = cookies.find(cookie => cookie.trim().startsWith('demo_wallet_address='));
+      if (demoWalletCookie) {
+        const cookieValue = demoWalletCookie.split('=')[1];
+        if (cookieValue && cookieValue.match(/^0x[a-fA-F0-9]{40}$/)) {
+          setDemoWallet(cookieValue);
+          setIsDemoMode(true);
+          // Store in localStorage for persistence
+          localStorage.setItem('demo_wallet_address', cookieValue);
+          console.log("🎯 DEMO: Demo wallet from cookie:", cookieValue);
+          return;
+        }
+      }
+      
+      // Check localStorage for demo wallet
+      const storedDemoWallet = localStorage.getItem('demo_wallet_address');
+      if (storedDemoWallet && storedDemoWallet.match(/^0x[a-fA-F0-9]{40}$/)) {
+        setDemoWallet(storedDemoWallet);
+        setIsDemoMode(true);
+        console.log("🎯 DEMO: Demo wallet from storage:", storedDemoWallet);
+      }
+    }
+  }, []);
+  
+  // Use demo wallet in demo mode, otherwise use real wallet
+  const currentWallet = isDemoMode ? demoWallet : walletAddress;
+  const currentIsAuthenticated = isDemoMode ? !!demoWallet : isAuthenticated;
+  
+  const { profile, loading, error } = useProfile(currentWallet || undefined);
   
   // Debug modal state
   useEffect(() => {
@@ -78,10 +126,14 @@ export function Navigation({ currentPage }: NavigationProps) {
       isAuthenticated, 
       authenticated, 
       walletAddress,
+      isDemoMode,
+      demoWallet,
+      currentWallet,
+      currentIsAuthenticated,
       hasOpenModal: typeof openModal === 'function',
       hasCloseModal: typeof closeModal === 'function'
     });
-  }, [isAuthenticated, authenticated, walletAddress, openModal, closeModal]);
+  }, [isAuthenticated, authenticated, walletAddress, isDemoMode, demoWallet, currentWallet, currentIsAuthenticated, openModal, closeModal]);
   
   useEffect(() => {
     console.log("🔍 Navigation: Wallet address:", authenticated);
@@ -90,6 +142,7 @@ export function Navigation({ currentPage }: NavigationProps) {
   useEffect(() => {
     console.log("🔍 Navigation: Profile state:", {
       walletAddress,
+      currentWallet,
       profile,
       loading,
       error,
@@ -97,9 +150,9 @@ export function Navigation({ currentPage }: NavigationProps) {
     });
 
     // Debug: Check if profile API is working
-    if (walletAddress && !profile && !loading) {
+    if (currentWallet && !profile && !loading) {
       console.log("🔍 Navigation: Testing profile API directly...");
-      fetch(`/api/profile/${walletAddress}`)
+      fetch(`/api/profile/${currentWallet}`)
         .then((res) => res.json())
         .then((data) => {
           console.log("🔍 Navigation: Direct API test result:", data);
@@ -108,7 +161,7 @@ export function Navigation({ currentPage }: NavigationProps) {
           console.error("🔍 Navigation: Direct API test error:", err);
         });
     }
-  }, [walletAddress, profile, loading, error]);
+  }, [currentWallet, profile, loading, error]);
 
   // Handle scroll effect
   useEffect(() => {
@@ -160,73 +213,73 @@ export function Navigation({ currentPage }: NavigationProps) {
               transition={{ duration: 0.6, delay: 0.1 }}
             >
               <NavLink 
-                href={isAuthenticated && profile ? "/explore" : "#"} 
+                href={currentIsAuthenticated && profile ? "/explore" : "#"} 
                 currentPage={currentPage} 
                 page="explore"
-                onClick={!isAuthenticated || !profile ? (e) => {
+                onClick={!currentIsAuthenticated || !profile ? (e) => {
                   e?.preventDefault()
-                  if (!isAuthenticated) {
+                  if (!currentIsAuthenticated) {
                     openModal()
                   } else if (!profile) {
                     setShowCreateProfile(true)
                   }
                 } : undefined}
-                disabled={!isAuthenticated || !profile}
+                disabled={!currentIsAuthenticated || !profile}
               >
                 Explore
               </NavLink>
               <NavLink 
-                href={isAuthenticated && profile ? "/upload" : "#"} 
+                href={currentIsAuthenticated && profile ? "/upload" : "#"} 
                 currentPage={currentPage} 
                 page="upload"
-                onClick={!isAuthenticated || !profile ? (e) => {
+                onClick={!currentIsAuthenticated || !profile ? (e) => {
                   e?.preventDefault()
-                  if (!isAuthenticated) {
+                  if (!currentIsAuthenticated) {
                     openModal()
                   } else if (!profile) {
                     setShowCreateProfile(true)
                   }
                 } : undefined}
-                disabled={!isAuthenticated || !profile}
+                disabled={!currentIsAuthenticated || !profile}
               >
                 Create
               </NavLink>
               <NavLink
-                href={isAuthenticated && profile ? "/dashboard" : "#"}
+                href={currentIsAuthenticated && profile ? "/dashboard" : "#"}
                 currentPage={currentPage}
                 page="dashboard"
-                onClick={!isAuthenticated || !profile ? (e) => {
+                onClick={!currentIsAuthenticated || !profile ? (e) => {
                   e?.preventDefault()
-                  if (!isAuthenticated) {
+                  if (!currentIsAuthenticated) {
                     openModal()
                   } else if (!profile) {
                     setShowCreateProfile(true)
                   }
                 } : undefined}
-                disabled={!isAuthenticated || !profile}
+                disabled={!currentIsAuthenticated || !profile}
               >
                 Leaderboard
               </NavLink>
               
               <NavLink
-                href={isAuthenticated && profile ? "/communities" : "#"}
+                href={currentIsAuthenticated && profile ? "/communities" : "#"}
                 currentPage={currentPage}
                 page="communities"
-                onClick={!isAuthenticated || !profile ? (e) => {
+                onClick={!currentIsAuthenticated || !profile ? (e) => {
                   e?.preventDefault()
-                  if (!isAuthenticated) {
+                  if (!currentIsAuthenticated) {
                     openModal()
                   } else if (!profile) {
                     setShowCreateProfile(true)
                   }
                 } : undefined}
-                disabled={!isAuthenticated || !profile}
+                disabled={!currentIsAuthenticated || !profile}
               >
                 Communities
               </NavLink>
 
               {/* Profile and Connect Wallet */}
-              {isAuthenticated ? (
+              {currentIsAuthenticated ? (
                 <>
                   <motion.button
                     onClick={() => {
@@ -253,8 +306,8 @@ export function Navigation({ currentPage }: NavigationProps) {
                     whileTap={{ scale: 0.95 }}
                   >
                     <Wallet className="w-4 h-4" />
-                    {walletAddress
-                      ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(
+                    {currentWallet
+                      ? `${currentWallet.slice(0, 6)}...${currentWallet.slice(
                           -4
                         )}`
                       : "Wallet"}
@@ -322,70 +375,70 @@ export function Navigation({ currentPage }: NavigationProps) {
         >
           <div className="px-4 py-6 space-y-4">
             <MobileNavLink 
-              href={isAuthenticated && profile ? "/explore" : "#"} 
-              onClick={!isAuthenticated || !profile ? (e) => {
+              href={currentIsAuthenticated && profile ? "/explore" : "#"} 
+              onClick={!currentIsAuthenticated || !profile ? (e) => {
                 e?.preventDefault()
-                if (!isAuthenticated) {
+                if (!currentIsAuthenticated) {
                   openModal()
                 } else if (!profile) {
                   setShowCreateProfile(true)
                 }
                 setIsMenuOpen(false)
               } : () => setIsMenuOpen(false)}
-              disabled={!isAuthenticated || !profile}
+              disabled={!currentIsAuthenticated || !profile}
             >
               Explore Provs
             </MobileNavLink>
             <MobileNavLink 
-              href={isAuthenticated && profile ? "/upload" : "#"} 
-              onClick={!isAuthenticated || !profile ? (e) => {
+              href={currentIsAuthenticated && profile ? "/upload" : "#"} 
+              onClick={!currentIsAuthenticated || !profile ? (e) => {
                 e?.preventDefault()
-                if (!isAuthenticated) {
+                if (!currentIsAuthenticated) {
                   openModal()
                 } else if (!profile) {
                   setShowCreateProfile(true)
                 }
                 setIsMenuOpen(false)
               } : () => setIsMenuOpen(false)}
-              disabled={!isAuthenticated || !profile}
+              disabled={!currentIsAuthenticated || !profile}
             >
               Create Content
             </MobileNavLink>
             <MobileNavLink
-              href={isAuthenticated && profile ? "/dashboard" : "#"}
-              onClick={!isAuthenticated || !profile ? (e) => {
+              href={currentIsAuthenticated && profile ? "/dashboard" : "#"}
+              onClick={!currentIsAuthenticated || !profile ? (e) => {
                 e?.preventDefault()
-                if (!isAuthenticated) {
+                if (!currentIsAuthenticated) {
                   openModal()
                 } else if (!profile) {
                   setShowCreateProfile(true)
                 }
                 setIsMenuOpen(false)
               } : () => setIsMenuOpen(false)}
-              disabled={!isAuthenticated || !profile}
+              disabled={!currentIsAuthenticated || !profile}
             >
               Leaderboard
             </MobileNavLink>
             
             <MobileNavLink
-              href={isAuthenticated && profile ? "/communities" : "#"}
-              onClick={!isAuthenticated || !profile ? (e) => {
+              href={currentIsAuthenticated && profile ? "/communities" : "#"}
+              onClick={!currentIsAuthenticated || !profile ? (e) => {
                 e?.preventDefault()
-                if (!isAuthenticated) {
+                if (!currentIsAuthenticated) {
                   openModal()
                 } else if (!profile) {
                   setShowCreateProfile(true)
                 }
                 setIsMenuOpen(false)
               } : () => setIsMenuOpen(false)}
-              disabled={!isAuthenticated || !profile}
+              disabled={!currentIsAuthenticated || !profile}
             >
               Communities
             </MobileNavLink>
 
             {/* Mobile Wallet Connection */}
             <div className="pt-4 border-t border-provn-border/30 font-headline">
-              {authenticated ? (
+              {currentIsAuthenticated ? (
                 <>
                   <motion.button
                     onClick={() => {
@@ -410,8 +463,8 @@ export function Navigation({ currentPage }: NavigationProps) {
                         {profile ? "View Profile" : "Create Profile"}
                       </div>
                       <div className="text-sm text-provn-muted">
-                        {walletAddress
-                          ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(
+                        {currentWallet
+                          ? `${currentWallet.slice(0, 6)}...${currentWallet.slice(
                               -4
                             )}`
                           : "Wallet"}

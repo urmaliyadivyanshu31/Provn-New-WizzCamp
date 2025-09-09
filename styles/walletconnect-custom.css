@@ -1,0 +1,183 @@
+/* Custom WalletConnect Modal Styling - Premium Dark Theme */
+
+/* Modal backdrop - make it more premium */
+w3m-modal {
+  --w3m-background-color: rgba(17, 24, 39, 0.95) !important;
+  --w3m-backdrop-filter: blur(20px) !important;
+}
+
+/* Main modal container */
+w3m-modal-container {
+  --w3m-background-border-radius: 16px !important;
+  --w3m-background-color: #111827 !important;
+  border: 1px solid rgba(75, 85, 99, 0.2) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Header styling */
+w3m-modal-header {
+  background: linear-gradient(135deg, #1F2937 0%, #111827 100%) !important;
+  border-bottom: 1px solid rgba(75, 85, 99, 0.2) !important;
+}
+
+/* Button styling - make them look like your premium buttons */
+w3m-connect-button,
+w3m-wallet-button {
+  background: linear-gradient(135deg, #374151 0%, #1F2937 100%) !important;
+  border: 1px solid rgba(75, 85, 99, 0.3) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(10px) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+w3m-connect-button:hover,
+w3m-wallet-button:hover {
+  background: linear-gradient(135deg, #4B5563 0%, #374151 100%) !important;
+  border-color: #F59E0B !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Primary action button (like Connect) */
+w3m-button[variant="main"] {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+  color: #000 !important;
+  font-weight: 600 !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 12px 24px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+w3m-button[variant="main"]:hover {
+  background: linear-gradient(135deg, #D97706 0%, #B45309 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.4) !important;
+}
+
+/* Text styling */
+w3m-text {
+  color: #F9FAFB !important;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+w3m-text[variant="medium-400"] {
+  color: #D1D5DB !important;
+}
+
+w3m-text[variant="small-400"] {
+  color: #9CA3AF !important;
+}
+
+/* Loading states */
+w3m-spinner {
+  color: #F59E0B !important;
+}
+
+/* QR Code styling */
+w3m-qr-code {
+  border: 2px solid #374151 !important;
+  border-radius: 16px !important;
+  background: #1F2937 !important;
+  padding: 20px !important;
+}
+
+/* Input fields */
+w3m-input {
+  background: #1F2937 !important;
+  border: 1px solid rgba(75, 85, 99, 0.3) !important;
+  border-radius: 10px !important;
+  color: #F9FAFB !important;
+  font-family: "Inter", sans-serif !important;
+}
+
+w3m-input:focus {
+  border-color: #F59E0B !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1) !important;
+}
+
+/* Social login buttons - match your style */
+w3m-social-button {
+  background: rgba(31, 41, 55, 0.8) !important;
+  border: 1px solid rgba(75, 85, 99, 0.3) !important;
+  border-radius: 10px !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+w3m-social-button:hover {
+  background: rgba(55, 65, 81, 0.9) !important;
+  border-color: rgba(156, 163, 175, 0.5) !important;
+}
+
+/* Remove default padding/margin that might make it look cheap */
+w3m-modal-content {
+  padding: 24px !important;
+}
+
+/* Close button styling */
+w3m-modal-close-button {
+  background: rgba(55, 65, 81, 0.8) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  color: #D1D5DB !important;
+  width: 32px !important;
+  height: 32px !important;
+}
+
+w3m-modal-close-button:hover {
+  background: rgba(75, 85, 99, 1) !important;
+  color: #F9FAFB !important;
+}
+
+/* Custom scrollbar */
+w3m-modal ::-webkit-scrollbar {
+  width: 6px;
+}
+
+w3m-modal ::-webkit-scrollbar-track {
+  background: rgba(31, 41, 55, 0.5);
+  border-radius: 3px;
+}
+
+w3m-modal ::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}
+
+w3m-modal ::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
+}
+
+/* Animation improvements */
+w3m-modal {
+  animation: modalFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Wallet icons - make them look more premium */
+w3m-wallet-image {
+  border-radius: 12px !important;
+  border: 1px solid rgba(75, 85, 99, 0.2) !important;
+}
+
+/* Network selection */
+w3m-network-button {
+  background: rgba(31, 41, 55, 0.8) !important;
+  border: 1px solid rgba(75, 85, 99, 0.3) !important;
+  border-radius: 10px !important;
+}
+
+w3m-network-button:hover {
+  border-color: #F59E0B !important;
+  background: rgba(55, 65, 81, 0.9) !important;
+}

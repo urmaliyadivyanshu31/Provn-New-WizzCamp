@@ -27,6 +27,52 @@ export default function ProfilePage() {
   const router = useRouter()
   const { walletAddress: currentUserAddress } = useAuth()
   const handle = params?.handle as string
+  
+  // DEMO DAY: Demo wallet functionality
+  const [demoWallet, setDemoWallet] = useState<string | undefined>();
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Check URL for demo wallet parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const demoWalletParam = urlParams.get('demo_wallet');
+      if (demoWalletParam && demoWalletParam.match(/^0x[a-fA-F0-9]{40}$/)) {
+        setDemoWallet(demoWalletParam);
+        setIsDemoMode(true);
+        // Store in localStorage for persistence
+        localStorage.setItem('demo_wallet_address', demoWalletParam);
+        console.log("👤 DEMO: Profile demo wallet from URL:", demoWalletParam);
+        return;
+      }
+      
+      // Check cookie for demo wallet (set by middleware)
+      const cookies = document.cookie.split(';');
+      const demoWalletCookie = cookies.find(cookie => cookie.trim().startsWith('demo_wallet_address='));
+      if (demoWalletCookie) {
+        const cookieValue = demoWalletCookie.split('=')[1];
+        if (cookieValue && cookieValue.match(/^0x[a-fA-F0-9]{40}$/)) {
+          setDemoWallet(cookieValue);
+          setIsDemoMode(true);
+          // Store in localStorage for persistence
+          localStorage.setItem('demo_wallet_address', cookieValue);
+          console.log("👤 DEMO: Profile demo wallet from cookie:", cookieValue);
+          return;
+        }
+      }
+      
+      // Check localStorage for demo wallet
+      const storedDemoWallet = localStorage.getItem('demo_wallet_address');
+      if (storedDemoWallet && storedDemoWallet.match(/^0x[a-fA-F0-9]{40}$/)) {
+        setDemoWallet(storedDemoWallet);
+        setIsDemoMode(true);
+        console.log("👤 DEMO: Profile demo wallet from storage:", storedDemoWallet);
+      }
+    }
+  }, []);
+  
+  // Use demo wallet in demo mode, otherwise use real wallet
+  const currentWallet = isDemoMode ? demoWallet : currentUserAddress;
 
   const { profile, loading, error } = useProfile(handle)
   const { followers, following, isFollowing, loading: followLoading, followUser, unfollowUser } = useFollow(handle)
@@ -38,10 +84,23 @@ export default function ProfilePage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [showProfileCard, setShowProfileCard] = useState(false)
 
-  // Check if this is the current user's profile
-  const isOwnProfile = currentUserAddress && 
+  // Check if this is the current user's profile (with demo mode support)
+  const isOwnProfile = currentWallet && 
     profile && 
-    currentUserAddress.toLowerCase() === profile.wallet_address.toLowerCase()
+    currentWallet.toLowerCase() === profile.wallet_address.toLowerCase()
+  
+  // Debug profile ownership for demo
+  useEffect(() => {
+    console.log("👤 DEMO: Profile ownership check:", {
+      currentUserAddress,
+      demoWallet,
+      currentWallet,
+      profileWallet: profile?.wallet_address,
+      isOwnProfile,
+      isDemoMode,
+      handle: profile?.handle
+    });
+  }, [currentUserAddress, demoWallet, currentWallet, profile, isOwnProfile, isDemoMode]);
 
   useEffect(() => {
     if (error && !loading) {
@@ -102,7 +161,7 @@ export default function ProfilePage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'x-wallet-address': currentUserAddress!
+          'x-wallet-address': currentWallet!
         },
         body: JSON.stringify({
           handle: updatedProfile.handle.startsWith('@') ? updatedProfile.handle.slice(1) : updatedProfile.handle,

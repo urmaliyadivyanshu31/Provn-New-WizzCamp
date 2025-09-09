@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '@campnetwork/origin/react'
 import { motion } from 'framer-motion'
 import { Wallet, Sparkles } from 'lucide-react'
@@ -23,18 +23,64 @@ export function AuthGuard({
 }: AuthGuardProps) {
   const { isAuthenticated } = useAuth()
   const { openModal } = useModal()
+  
+  // DEMO DAY: Demo wallet functionality
+  const [demoWallet, setDemoWallet] = useState<string | undefined>();
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Check URL for demo wallet parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const demoWalletParam = urlParams.get('demo_wallet');
+      if (demoWalletParam && demoWalletParam.match(/^0x[a-fA-F0-9]{40}$/)) {
+        setDemoWallet(demoWalletParam);
+        setIsDemoMode(true);
+        // Store in localStorage for persistence
+        localStorage.setItem('demo_wallet_address', demoWalletParam);
+        console.log("🛡️ DEMO: AuthGuard demo wallet from URL:", demoWalletParam);
+        return;
+      }
+      
+      // Check cookie for demo wallet (set by middleware)
+      const cookies = document.cookie.split(';');
+      const demoWalletCookie = cookies.find(cookie => cookie.trim().startsWith('demo_wallet_address='));
+      if (demoWalletCookie) {
+        const cookieValue = demoWalletCookie.split('=')[1];
+        if (cookieValue && cookieValue.match(/^0x[a-fA-F0-9]{40}$/)) {
+          setDemoWallet(cookieValue);
+          setIsDemoMode(true);
+          // Store in localStorage for persistence
+          localStorage.setItem('demo_wallet_address', cookieValue);
+          console.log("🛡️ DEMO: AuthGuard demo wallet from cookie:", cookieValue);
+          return;
+        }
+      }
+      
+      // Check localStorage for demo wallet
+      const storedDemoWallet = localStorage.getItem('demo_wallet_address');
+      if (storedDemoWallet && storedDemoWallet.match(/^0x[a-fA-F0-9]{40}$/)) {
+        setDemoWallet(storedDemoWallet);
+        setIsDemoMode(true);
+        console.log("🛡️ DEMO: AuthGuard demo wallet from storage:", storedDemoWallet);
+      }
+    }
+  }, []);
+  
+  // Use demo mode or real authentication
+  const currentIsAuthenticated = isDemoMode ? !!demoWallet : isAuthenticated;
 
-  // Auto-trigger wallet connection modal immediately - hooks must be at top
+  // Auto-trigger wallet connection modal immediately - hooks must be at top (but only for real auth, not demo)
   React.useEffect(() => {
-    if (!isAuthenticated) {
+    if (!currentIsAuthenticated && !isDemoMode) {
       const timer = setTimeout(() => {
         openModal()
       }, 100)
       return () => clearTimeout(timer)
     }
-  }, [isAuthenticated, openModal])
+  }, [currentIsAuthenticated, isDemoMode, openModal])
 
-  if (isAuthenticated) {
+  if (currentIsAuthenticated) {
     return <>{children}</>
   }
 

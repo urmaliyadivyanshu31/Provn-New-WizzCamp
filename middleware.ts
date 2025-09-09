@@ -41,6 +41,20 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
     
+    // DEMO DAY: Check if demo wallet parameter is present and set cookie
+    const demoWalletParam = request.nextUrl.searchParams.get('demo_wallet');
+    let response = NextResponse.next();
+    
+    if (demoWalletParam && isValidWalletAddress(demoWalletParam)) {
+      console.log('🎯 MIDDLEWARE: Setting demo wallet cookie:', demoWalletParam);
+      response.cookies.set('demo_wallet_address', demoWalletParam.toLowerCase(), {
+        maxAge: 60 * 60 * 24, // 24 hours
+        httpOnly: false, // Allow client-side access for demo
+        secure: false, // Allow over HTTP for local development
+        sameSite: 'lax'
+      });
+    }
+    
     // Simple check: Get wallet address from cookie or header
     const walletAddress = getWalletFromRequest(request);
     
@@ -55,7 +69,7 @@ export async function middleware(request: NextRequest) {
     if (isWhitelisted) {
       // Allow access
       console.log('✅ Wallet is whitelisted:', walletAddress);
-      return NextResponse.next();
+      return response;
     } else {
       console.log('❌ Wallet not whitelisted:', walletAddress);
       return redirectToWhitelist(request, 'Wallet not whitelisted');
@@ -68,9 +82,23 @@ export async function middleware(request: NextRequest) {
 }
 
 /**
- * Get wallet address from request (simplified)
+ * Get wallet address from request (simplified) - with DEMO SUPPORT
  */
 function getWalletFromRequest(request: NextRequest): string | null {
+  // DEMO DAY: Check URL for demo wallet parameter first
+  const demoWallet = request.nextUrl.searchParams.get('demo_wallet');
+  if (demoWallet && isValidWalletAddress(demoWallet)) {
+    console.log('🎯 MIDDLEWARE: Found demo wallet in URL:', demoWallet);
+    return demoWallet.toLowerCase();
+  }
+  
+  // DEMO DAY: Check for demo wallet cookie
+  const demoWalletCookie = request.cookies.get('demo_wallet_address')?.value;
+  if (demoWalletCookie && isValidWalletAddress(demoWalletCookie)) {
+    console.log('🎯 MIDDLEWARE: Found demo wallet in cookie:', demoWalletCookie);
+    return demoWalletCookie.toLowerCase();
+  }
+  
   // Check cookies first (most reliable)
   const walletCookie = request.cookies.get('wallet_address')?.value;
   if (walletCookie && isValidWalletAddress(walletCookie)) {
