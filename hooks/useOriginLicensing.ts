@@ -4,6 +4,13 @@ import { toast } from 'sonner'
 import { LicenseTerms } from '@/types/explore'
 import { useAccount, useWalletClient, usePublicClient } from 'wagmi'
 import { encodeFunctionData, parseAbi } from 'viem'
+import { createClient } from '@supabase/supabase-js'
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 // Extend window interface for ethereum
 declare global {
@@ -391,14 +398,47 @@ export function useOriginLicensing() {
       const totalCost = terms.price * BigInt(periods)
       console.log('💰 Total cost:', totalCost.toString(), 'wei')
       
-      // CRITICAL FIX: Attempt to sync license terms from IP-NFT to ProvnMarketplace before purchase
-      console.log('🔄 Attempting to sync license terms to ProvnMarketplace...')
+      // CRITICAL FIX: Check if license terms exist in Marketplace contract
+      console.log('🔍 Checking license terms in Marketplace contract...')
+      let marketplaceTermsExist = false
+      
       try {
-        await syncLicenseTerms(tokenIdNum)
-        console.log('✅ License terms sync successful')
-      } catch (syncError) {
-        console.warn('⚠️ License terms sync failed, but continuing with purchase (contract now reads from IP-NFT directly):', syncError)
+        if (publicClient) {
+          const marketplaceTerms = await publicClient.readContract({
+            address: MARKETPLACE_CONTRACT as `0x${string}`,
+            abi: marketplaceABI,
+            functionName: 'getTerms',
+            args: [BigInt(tokenIdNum)]
+          }) as readonly [bigint, number, number, `0x${string}`]
+          
+          // Check if terms are properly set (price > 0 and duration > 0)
+          marketplaceTermsExist = marketplaceTerms[0] > 0n && marketplaceTerms[1] > 0
+          console.log('📋 Marketplace terms exist:', marketplaceTermsExist, {
+            price: marketplaceTerms[0].toString(),
+            duration: marketplaceTerms[1],
+            royalty: marketplaceTerms[2],
+            paymentToken: marketplaceTerms[3]
+          })
+        }
+      } catch (marketplaceError) {
+        console.warn('⚠️ Could not check Marketplace terms:', marketplaceError)
+        marketplaceTermsExist = false
       }
+      
+      // If terms don't exist in Marketplace, the creator needs to sync them
+      if (!marketplaceTermsExist) {
+        const { data: video } = await supabase
+          .from('platform_videos')
+          .select('creator_wallet')
+          .eq('token_id', tokenIdNum)
+          .single()
+        
+        const creatorWallet = video?.creator_wallet || 'the creator'
+        
+        throw new Error(`LicenseNotSynced: The license terms for this content haven't been synced to the marketplace yet. The creator (${creatorWallet}) needs to visit their dashboard and sync the license terms before this content can be purchased. Please contact the creator or try again later.`)
+      }
+      
+      console.log('✅ License terms verified in Marketplace contract')
       
       let result
       
@@ -658,7 +698,12 @@ export function useOriginLicensing() {
       if (err instanceof Error) {
         const message = err.message.toLowerCase()
         
-        if (message.includes('licensenotavailable') || message.includes('license not available')) {
+        if (message.includes('licensenotsynced') || message.includes('license not synced')) {
+          // Extract the creator wallet from the error message if present
+          const creatorMatch = err.message.match(/creator \((0x[a-fA-F0-9]{40})\)/)
+          const creatorWallet = creatorMatch ? creatorMatch[1] : 'the creator'
+          errorMessage = `License terms not synced. Creator (${creatorWallet}) must sync license terms in their dashboard before this content can be purchased.`
+        } else if (message.includes('licensenotavailable') || message.includes('license not available')) {
           errorMessage = 'This content is not available for licensing. The creator may need to set up license terms.'
         } else if (message.includes('invalidperiods') || message.includes('invalid periods')) {
           errorMessage = 'Invalid license period selected. Please try a different period.'
