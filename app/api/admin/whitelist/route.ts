@@ -183,8 +183,9 @@ export async function PATCH(request: NextRequest) {
             wallet_address: data[0].wallet_address.toLowerCase(),
             added_by: 'admin',
             added_at: new Date().toISOString(),
-            source: 'beta_whitelist',
-            source_id: data[0].id
+            reason: 'beta_approval',
+            active: true,
+            notes: `Auto-added from beta_whitelist approval (${data[0].submission_type}: ${data[0].twitter_username || data[0].email})`
           }, {
             onConflict: 'wallet_address'
           })
