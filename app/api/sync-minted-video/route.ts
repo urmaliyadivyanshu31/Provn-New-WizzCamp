@@ -27,20 +27,22 @@ export async function POST(request: NextRequest) {
     
     step = 'parsing_request_body'
     body = await request.json()
-    const { 
-      tokenId, 
-      transactionHash, 
-      creatorWallet, 
-      title, 
-      description, 
-      tags, 
-      videoUrl, 
+    const {
+      tokenId,
+      transactionHash,
+      creatorWallet,
+      title,
+      description,
+      tags,
+      videoUrl,
       thumbnailUrl,
       metadataUri,
       license,
       remixing,
       blockNumber,
-      mintTimestamp
+      mintTimestamp,
+      parentTokenId,
+      isDerivative
     } = body
 
     // Validate and truncate large fields to prevent payload issues
@@ -196,6 +198,9 @@ export async function POST(request: NextRequest) {
       paymentTokenAddress: license?.paymentToken,
       commercialRights: true,
       derivativeRights: false,
+      // Derivative tracking
+      parentTokenId,
+      isDerivative: isDerivative ?? false,
       // Remixing configuration
       remixingEnabled: remixing?.enabled ?? true,
       remixingPermissionLevel: remixing?.permissionLevel || 'basic',

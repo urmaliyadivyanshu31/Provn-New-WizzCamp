@@ -161,6 +161,9 @@ export class PlatformVideoService {
     paymentTokenAddress?: string
     commercialRights?: boolean
     derivativeRights?: boolean
+    // Derivative tracking
+    parentTokenId?: string
+    isDerivative?: boolean
     // Remixing parameters
     remixingEnabled?: boolean
     remixingPermissionLevel?: 'none' | 'basic' | 'advanced' | 'custom'
@@ -198,6 +201,10 @@ export class PlatformVideoService {
       if (videoData.metadataUri) videoRecord.metadata_uri = videoData.metadataUri
       if (videoData.duration) videoRecord.duration = videoData.duration
       if (videoData.category) videoRecord.category = videoData.category
+
+      // Add derivative tracking fields
+      if (videoData.parentTokenId) videoRecord.parent_token_id = videoData.parentTokenId
+      if (videoData.isDerivative !== undefined) videoRecord.is_derivative = videoData.isDerivative
       
       const { data, error } = await supabaseAdmin
         .from('platform_videos')

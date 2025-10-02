@@ -4,6 +4,7 @@ import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, useAuthState } from "@campnetwork/origin/react";
 import { useVideoMinting } from "@/hooks/useVideoMinting";
+import { useOriginLicensing } from "@/hooks/useOriginLicensing";
 import { ProvnButton } from "@/components/provn/button";
 import { ProvnCard, ProvnCardContent } from "@/components/provn/card";
 import { ProvnBadge } from "@/components/provn/badge";
@@ -62,6 +63,7 @@ export default function UploadPage() {
     clearError,
     clearSuccess,
   } = useVideoMinting();
+  const { syncLicenseTerms } = useOriginLicensing();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string>("");
@@ -267,6 +269,27 @@ export default function UploadPage() {
                   console.log("✅ Platform video ID:", syncData.video?.id);
                   console.log("✅ Sync completed in:", syncData.duration);
                   toast.success("Video synced to your profile!");
+
+                  // Automatically sync license terms to marketplace
+                  console.log("🔄 Syncing license terms to marketplace...");
+                  toast.info("Syncing license terms to marketplace...");
+                  try {
+                    const syncSuccess = await syncLicenseTerms(tokenIdStr);
+                    if (syncSuccess) {
+                      console.log("✅ License terms synced to marketplace!");
+                      toast.success("License terms synced! Your content is ready for sale.");
+                    } else {
+                      console.warn("⚠️ License sync failed, but video is minted.");
+                      toast.warning(
+                        "License sync failed. Visit your dashboard to sync manually."
+                      );
+                    }
+                  } catch (syncError) {
+                    console.error("❌ License sync error:", syncError);
+                    toast.warning(
+                      "License sync failed. Visit your dashboard to sync manually."
+                    );
+                  }
                 } else if (syncData.success && !syncData.synced) {
                   console.warn("⚠️ Video minted but not synced to platform");
                   console.warn("⚠️ Reason:", syncData.message);

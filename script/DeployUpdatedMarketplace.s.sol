@@ -5,10 +5,10 @@ import {Script, console} from "forge-std/Script.sol";
 import {ProvnMarketplace} from "../src/ProvnMarketplace.sol";
 
 contract DeployUpdatedMarketplace is Script {
-    // BaseCAMP testnet contract addresses
-    address constant IP_NFT_CONTRACT = 0x5a3f832b47b948dA27aE788E96A0CD7BB0dCd1c1;
-    address constant CAMP_TOKEN_CONTRACT = 0x618a32EAe7deE87Dd7DF8dF24d18dc98FB6DF8ab;
-    address constant TREASURY_ADDRESS = 0x592544471e26B60edfa018B03e9adE320fD81095; // Current marketplace as treasury for now
+    // BaseCAMP testnet contract addresses (VERIFIED ON-CHAIN)
+    address constant IP_NFT_CONTRACT = 0x5a3f832b47b948dA27aE788E96A0CD7BB0dCd1c1; // Origin Protocol IP-NFT (correct)
+    address constant CAMP_TOKEN_CONTRACT = 0xa673B3E946A64037AdBAe22a0f56916dE43c678c; // PROVN Token (verified on-chain)
+    address constant TREASURY_ADDRESS = 0x7669aB66996022A0d2fAFcdB1c4Dc20FB3dc1961; // Admin wallet as treasury (checksummed)
 
     function run() external {
         vm.startBroadcast();

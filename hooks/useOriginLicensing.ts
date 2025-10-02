@@ -5,6 +5,7 @@ import { LicenseTerms } from '@/types/explore'
 import { useAccount, useWalletClient, usePublicClient } from 'wagmi'
 import { encodeFunctionData, parseAbi } from 'viem'
 import { createClient } from '@supabase/supabase-js'
+import { CONTRACTS, MARKETPLACE_ABI, PROVN_TOKEN_ABI, IP_NFT_ABI } from '@/lib/contracts'
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -146,18 +147,18 @@ export function useOriginLicensing() {
   const { address } = useAccount()
   const publicClient = usePublicClient()
   
-  // Actual Marketplace contract ABI with buyAccess() function
+  // Actual Marketplace contract ABI - UPDATED to match deployed contract
   const marketplaceABI = parseAbi([
-    'function buyAccess(address buyer, uint256 tokenId, uint32 periods) external',
-    'function subscriptionExpiry(uint256 tokenId, address buyer) external view returns (uint256)',
-    'function hasAccess(address buyer, uint256 tokenId) external view returns (bool)',
+    'function purchaseLicense(uint256 tokenId, uint32 periods) external',
+    'function hasActiveLicense(address user, uint256 tokenId) external view returns (bool)',
     'function getTerms(uint256 tokenId) external view returns (uint128 price, uint32 duration, uint16 royaltyBps, address paymentToken)',
     'function setTerms(uint256 tokenId, uint128 price, uint32 duration, uint16 royaltyBps, address paymentToken) external',
-    'function totalRevenue(address creator) external view returns (uint256)',
-    'function totalRoyalty(address creator) external view returns (uint256)',
+    'function syncLicenseTermsFromIPNFT(uint256 tokenId) external',
     'function ipToken() external view returns (address)',
-    'function provnToken() external view returns (address)',
-    'event AccessPurchased(uint256 indexed tokenId, address indexed buyer, uint256 price, uint32 periods, uint256 expiry)'
+    'function campToken() external view returns (address)',
+    'function creatorRevenue(address creator) external view returns (uint256)',
+    'function licenseExpiry(uint256 tokenId, address user) external view returns (uint64)',
+    'event LicensePurchased(uint256 indexed tokenId, address indexed licensee, uint8 licenseType, uint128 price, uint64 expiryTimestamp)'
   ])
   
   // IP-NFT contract ABI for getting license terms
@@ -174,14 +175,15 @@ export function useOriginLicensing() {
     'function balanceOf(address account) external view returns (uint256)'
   ])
   
-  // Contract addresses - using actual Marketplace contract
-  const MARKETPLACE_CONTRACT = '0xBe611BFBDcb45C5E8C3E81a3ec36CBee31E52981'
-  const IP_NFT_CONTRACT = '0x5a3f832b47b948dA27aE788E96A0CD7BB0dCd1c1'
-  const PROVN_TOKEN_CONTRACT = '0xa673B3E946A64037AdBAe22a0f56916dE43c678c'
-  
+  // Contract addresses - using unified config
+  const MARKETPLACE_CONTRACT = CONTRACTS.MARKETPLACE
+  const IP_NFT_CONTRACT = CONTRACTS.IP_NFT
+  const PROVN_TOKEN_CONTRACT = CONTRACTS.PROVN_TOKEN
+
   // Debug log to verify contract address
   console.log('🔧 Using Marketplace contract:', MARKETPLACE_CONTRACT)
   console.log('🔧 Using PROVN token contract:', PROVN_TOKEN_CONTRACT)
+  console.log('🔧 Using IP-NFT contract:', IP_NFT_CONTRACT)
   
   // Set up wallet client for Origin SDK
   useEffect(() => {
@@ -219,7 +221,7 @@ export function useOriginLicensing() {
             if (!accounts || accounts.length === 0) {
               throw new Error('No accounts available')
             }
-            
+
             // Convert BigInt values to hex strings for JSON serialization
             const txParams = {
               from: accounts[0],
@@ -228,7 +230,7 @@ export function useOriginLicensing() {
               gas: typeof tx.gas === 'bigint' ? '0x' + tx.gas.toString(16) : tx.gas,
               value: typeof tx.value === 'bigint' ? '0x' + tx.value.toString(16) : (tx.value || '0x0')
             }
-            
+
             return await window.ethereum!.request({
               method: 'eth_sendTransaction',
               params: [txParams]
@@ -247,21 +249,17 @@ export function useOriginLicensing() {
 
     try {
       const tokenIdBigInt = BigInt(tokenId)
-      console.log('🔄 Syncing license terms for tokenId:', tokenId)
+      console.log('🔄 Syncing license terms from IP-NFT to Marketplace for tokenId:', tokenId)
 
-      // First get terms from IP-NFT contract
-      const ipNftTerms = await publicClient.readContract({
-        address: IP_NFT_CONTRACT as `0x${string}`,
-        abi: ipNftABI,
-        functionName: 'getTerms',
-        args: [tokenIdBigInt]
-      })
+      // Call syncLicenseTermsFromIPNFT - this automatically reads from IP-NFT and writes to Marketplace
+      const syncABI = parseAbi([
+        'function syncLicenseTermsFromIPNFT(uint256 tokenId) external'
+      ])
 
-      // Then set them in Marketplace contract with PROVN token
       const txData = encodeFunctionData({
-        abi: marketplaceABI,
-        functionName: 'setTerms', 
-        args: [tokenIdBigInt, ipNftTerms[0], ipNftTerms[1], ipNftTerms[2], PROVN_TOKEN_CONTRACT as `0x${string}`]
+        abi: syncABI,
+        functionName: 'syncLicenseTermsFromIPNFT',
+        args: [tokenIdBigInt]
       })
 
       const hash = await currentWalletClient.sendTransaction({
@@ -271,7 +269,25 @@ export function useOriginLicensing() {
       })
 
       await publicClient.waitForTransactionReceipt({ hash })
-      console.log('✅ License terms synced successfully:', hash)
+      console.log('✅ License terms synced successfully from IP-NFT to Marketplace:', hash)
+
+      // Update database to mark license as synced
+      try {
+        await fetch('/api/videos/sync-license-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token_id: tokenId,
+            license_synced: true,
+            transaction_hash: hash
+          })
+        })
+        console.log('✅ Database updated with license sync status')
+      } catch (dbError) {
+        console.warn('⚠️ Failed to update database with sync status:', dbError)
+        // Don't fail the sync for database errors
+      }
+
       return true
     } catch (error) {
       console.warn('⚠️ Failed to sync license terms:', error)
@@ -562,17 +578,17 @@ export function useOriginLicensing() {
           }
           
           try {
-            // Prepare transaction data for buyAccess(buyer, tokenId, periods)
+            // Prepare transaction data for purchaseLicense(tokenId, periods)
             const txData = encodeFunctionData({
               abi: marketplaceABI,
-              functionName: 'buyAccess',
-              args: [walletAddress as `0x${string}`, BigInt(tokenIdNum), periods]
+              functionName: 'purchaseLicense',
+              args: [BigInt(tokenIdNum), periods]
             })
-            
+
             console.log('📝 Transaction data prepared:', {
               to: MARKETPLACE_CONTRACT,
               data: txData,
-              buyer: walletAddress,
+              from: walletAddress,
               tokenId: tokenIdNum,
               tokenIdBigInt: BigInt(tokenIdNum).toString(),
               periods
@@ -611,17 +627,17 @@ export function useOriginLicensing() {
         console.log('🔄 Origin SDK not available, using direct contract interaction...')
         
         try {
-          // Prepare transaction data for buyAccess(buyer, tokenId, periods)
+          // Prepare transaction data for purchaseLicense(tokenId, periods)
           const txData = encodeFunctionData({
             abi: marketplaceABI,
-            functionName: 'buyAccess',
-            args: [walletAddress as `0x${string}`, BigInt(tokenIdNum), periods]
+            functionName: 'purchaseLicense',
+            args: [BigInt(tokenIdNum), periods]
           })
-          
+
           console.log('📝 Direct transaction data prepared:', {
             to: MARKETPLACE_CONTRACT,
             data: txData,
-            buyer: walletAddress,
+            from: walletAddress,
             tokenId: tokenIdNum,
             tokenIdBigInt: BigInt(tokenIdNum).toString(),
             periods
@@ -781,15 +797,15 @@ export function useOriginLicensing() {
           }
         }
 
-        // Fallback to direct contract call
-        const hasAccess = await publicClient.readContract({
+        // Fallback to direct contract call - hasActiveLicense(user, tokenId)
+        const hasActiveLicense = await publicClient.readContract({
           address: MARKETPLACE_CONTRACT as `0x${string}`,
           abi: marketplaceABI,
-          functionName: 'hasAccess',
+          functionName: 'hasActiveLicense',
           args: [address as `0x${string}`, BigInt(tokenIdNum)]
         })
-        
-        return hasAccess
+
+        return hasActiveLicense
       }, 2, 2000) // 2 retries, 2s base delay for rate limiting
     } catch (error) {
       console.error('Failed to check access after retries:', error)
@@ -924,19 +940,16 @@ export function useOriginLicensing() {
       if (!address) return null
 
       const expiry = await retryWithBackoff(async () => {
-        // Try Origin SDK first
-        if (origin && typeof (origin as any).subscriptionExpiry === 'function') {
-          return await (origin as any).subscriptionExpiry(BigInt(tokenIdNum), address)
-        } else if (publicClient) {
-          // Fallback to direct Marketplace contract call
+        // Direct Marketplace contract call - licenseExpiry(tokenId, user)
+        if (publicClient) {
           return await publicClient.readContract({
             address: MARKETPLACE_CONTRACT as `0x${string}`,
             abi: marketplaceABI,
-            functionName: 'subscriptionExpiry',
+            functionName: 'licenseExpiry',
             args: [BigInt(tokenIdNum), address as `0x${string}`]
           })
         } else {
-          throw new Error('No client available for subscription expiry check')
+          throw new Error('No client available for license expiry check')
         }
       }, 2, 2000)
       
@@ -996,18 +1009,18 @@ export function useOriginLicensing() {
     }
   }
 
-  // Creator revenue tracking
+  // Creator revenue tracking - FIXED to use correct contract function
   const getTotalRevenue = async (creatorAddress: string): Promise<string> => {
     if (!publicClient) return '0'
-    
+
     try {
       const revenue = await publicClient.readContract({
         address: MARKETPLACE_CONTRACT as `0x${string}`,
         abi: marketplaceABI,
-        functionName: 'totalRevenue',
+        functionName: 'creatorRevenue',
         args: [creatorAddress as `0x${string}`]
       }) as bigint
-      
+
       return revenue.toString()
     } catch (error) {
       console.error('Failed to get creator revenue:', error)
@@ -1015,22 +1028,12 @@ export function useOriginLicensing() {
     }
   }
 
+  // Note: totalRoyalty not implemented in current contract version
   const getTotalRoyalty = async (creatorAddress: string): Promise<string> => {
-    if (!publicClient) return '0'
-    
-    try {
-      const royalty = await publicClient.readContract({
-        address: MARKETPLACE_CONTRACT as `0x${string}`,
-        abi: marketplaceABI,
-        functionName: 'totalRoyalty',
-        args: [creatorAddress as `0x${string}`]
-      }) as bigint
-      
-      return royalty.toString()
-    } catch (error) {
-      console.error('Failed to get creator royalty:', error)
-      return '0'
-    }
+    // Royalty tracking not yet implemented in contract
+    // Returns 0 for now - feature can be added in future contract upgrade
+    console.warn('getTotalRoyalty: Royalty tracking not implemented in current contract version')
+    return '0'
   }
 
 

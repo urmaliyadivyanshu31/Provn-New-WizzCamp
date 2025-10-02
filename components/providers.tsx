@@ -12,6 +12,7 @@ import { VideoModalProvider } from '@/contexts/VideoModalContext';
 import { FollowStateProvider } from '@/contexts/FollowStateContext';
 import { useServiceWorker } from '@/hooks/useServiceWorker';
 import { ProvnBrandLoader } from '@/components/common/LoadingStates';
+import { CONTRACTS } from '@/lib/contracts';
 
 // Define BaseCAMP chain with correct configuration
 const baseCamp = defineChain({
@@ -34,9 +35,9 @@ const baseCamp = defineChain({
     },
   },
   contracts: {
-    // Add Origin Protocol contracts
+    // Add Origin Protocol contracts (from unified config)
     marketplace: {
-      address: '0xBe611BFBDcb45C5E8C3E81a3ec36CBee31E52981',
+      address: CONTRACTS.MARKETPLACE,
     },
   },
 });

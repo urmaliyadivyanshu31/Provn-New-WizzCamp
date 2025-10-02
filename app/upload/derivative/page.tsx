@@ -8,6 +8,7 @@ import { ProvnCard, ProvnCardContent } from "@/components/provn/card"
 import { ProvnBadge } from "@/components/provn/badge"
 import { Navigation } from "@/components/provn/navigation"
 import { useAuth } from "@campnetwork/origin/react"
+import { useOriginLicensing } from "@/hooks/useOriginLicensing"
 import { toast } from "sonner"
 
 interface UploadedFile {
@@ -45,8 +46,11 @@ export default function DerivativeUploadPage() {
   const parentTitle = searchParams.get("title")
   const parentCreator = searchParams.get("creator")
   const { origin, isAuthenticated, walletAddress } = useAuth()
+  const { hasAccess } = useOriginLicensing()
 
   const [parentVideo, setParentVideo] = useState<ParentVideo | null>(null)
+  const [hasLicense, setHasLicense] = useState<boolean | null>(null)
+  const [checkingLicense, setCheckingLicense] = useState(false)
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const [title, setTitle] = useState("")
@@ -90,6 +94,40 @@ export default function DerivativeUploadPage() {
       }
     }
   }, [parentId, parentTitle, parentCreator])
+
+  // Check if user has license for parent content
+  useEffect(() => {
+    const checkLicense = async () => {
+      if (!parentId || !isAuthenticated || !walletAddress) {
+        setHasLicense(null)
+        return
+      }
+
+      setCheckingLicense(true)
+      console.log('🔍 Checking license for derivative creation:', {
+        parentId,
+        walletAddress
+      })
+
+      try {
+        const access = await hasAccess(parentId, walletAddress)
+        setHasLicense(access)
+        console.log('✅ License check result:', access)
+
+        if (!access) {
+          toast.error('You need an active license for the parent content to create derivatives')
+        }
+      } catch (error) {
+        console.error('❌ Failed to check license:', error)
+        setHasLicense(false)
+        toast.error('Failed to verify license. Please try again.')
+      } finally {
+        setCheckingLicense(false)
+      }
+    }
+
+    checkLicense()
+  }, [parentId, isAuthenticated, walletAddress, hasAccess])
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -179,6 +217,17 @@ export default function DerivativeUploadPage() {
       return
     }
 
+    // Verify license before allowing derivative creation
+    if (hasLicense === false) {
+      toast.error('You need an active license for the parent content to create derivatives. Please purchase a license first.')
+      return
+    }
+
+    if (hasLicense === null || checkingLicense) {
+      toast.error('Still verifying your license. Please wait...')
+      return
+    }
+
     setIsProcessing(true)
 
     try {
@@ -265,7 +314,50 @@ export default function DerivativeUploadPage() {
       }
 
       setMintResult(result)
-      
+
+      // Sync derivative to platform database
+      try {
+        console.log("🔄 Syncing derivative to platform database...")
+        const syncPayload = {
+          tokenId: tokenId.toString(),
+          creatorWallet: walletAddress,
+          title: title.trim(),
+          description: derivativeDescription.trim() || `Derivative of ${parentVideo?.title}`,
+          tags: tags.split(',').map(tag => tag.trim()).filter(Boolean),
+          videoUrl: "", // Will be populated later
+          thumbnailUrl: "",
+          metadataUri: "",
+          parentTokenId: parentId,
+          isDerivative: true,
+          license: {
+            price: "0",
+            duration: "2592000",
+            royalty: "5",
+            paymentToken: "0x0000000000000000000000000000000000000000",
+          },
+          mintTimestamp: new Date().toISOString(),
+        }
+
+        const syncResponse = await fetch("/api/sync-minted-video", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(syncPayload),
+        })
+
+        const syncData = await syncResponse.json()
+        if (syncData.success && syncData.synced) {
+          console.log("✅ Derivative successfully synced to platform!")
+          toast.success("Derivative synced to your profile!")
+        } else {
+          console.warn("⚠️ Derivative minted but not synced:", syncData.message)
+        }
+      } catch (syncError) {
+        console.error("❌ Sync request failed:", syncError)
+        toast.warning("Derivative minted but sync failed. Check your profile later.")
+      }
+
       // If community is specified, auto-submit to community
       if (communityId) {
         try {

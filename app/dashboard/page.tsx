@@ -9,17 +9,19 @@ import { useAuth } from '@campnetwork/origin/react'
 import AchievementsPanel from "@/components/gamification/AchievementsPanel"
 import { PremiumLeaderboard } from "@/components/leaderboard/PremiumLeaderboard"
 import { LicenseManager } from "@/components/licenses/LicenseManager"
-import { Trophy, Award, Package } from "lucide-react"
+import { CreatorVideos } from "@/components/dashboard/CreatorVideos"
+import { Trophy, Award, Package, Video } from "lucide-react"
 
 
 export default function DashboardPage() {
   const { walletAddress } = useAuth()
-  const [activeTab, setActiveTab] = useState<'leaderboards' | 'achievements' | 'licenses'>('leaderboards')
+  const [activeTab, setActiveTab] = useState<'leaderboards' | 'achievements' | 'licenses' | 'videos'>('videos')
 
   const tabs = [
+    { id: 'videos', name: 'My Videos', icon: Video },
+    { id: 'licenses', name: 'My Licenses', icon: Package },
     { id: 'leaderboards', name: 'Leaderboards', icon: Trophy },
-    { id: 'achievements', name: 'Achievements', icon: Award },
-    { id: 'licenses', name: 'My Licenses', icon: Package }
+    { id: 'achievements', name: 'Achievements', icon: Award }
   ]
 
   return (
@@ -67,18 +69,21 @@ export default function DashboardPage() {
 
               {/* Tab Content */}
               <div className="min-h-[600px]">
-                {activeTab === 'leaderboards' && (
-                  <PremiumLeaderboard userAddress={walletAddress || undefined} />
+                {activeTab === 'videos' && (
+                  <CreatorVideos userAddress={walletAddress || undefined} />
                 )}
-                
-                {activeTab === 'achievements' && (
-                  <AchievementsPanel userAddress={walletAddress || undefined} />
-                )}
-                
+
                 {activeTab === 'licenses' && (
                   <LicenseManager userAddress={walletAddress || undefined} />
                 )}
-                
+
+                {activeTab === 'leaderboards' && (
+                  <PremiumLeaderboard userAddress={walletAddress || undefined} />
+                )}
+
+                {activeTab === 'achievements' && (
+                  <AchievementsPanel userAddress={walletAddress || undefined} />
+                )}
               </div>
             </div>
           </div>
