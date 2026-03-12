@@ -475,12 +475,12 @@ export function HomePageClient({ platformStats }: HomePageClientProps) {
                   </a>
                   <span>by</span>
                   <a 
-                    href="https://x.com/divyanshueth" 
-                    target="_blank" 
+                    href="https://x.com/atharvshri_"
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-provn-accent font-semibold hover:text-provn-accent/80 transition-colors cursor-pointer"
                   >
-                    Divyanshu Urmaliya
+                    Atharv Shrivastava
                   </a>
                 </div>
               </div>
