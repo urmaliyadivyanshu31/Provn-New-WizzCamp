@@ -96,14 +96,14 @@ export default function AboutPage() {
         {/* Header */}
         <div className="w-full p-6 border-b border-provn-border/50">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <Link href="/whitelist">
+            <Link href="/">
               <ProvnLogo />
             </Link>
-            <Link 
-              href="/whitelist" 
+            <Link
+              href="/"
               className="text-provn-muted hover:text-provn-text transition-colors text-sm flex items-center space-x-2"
             >
-              <span>← Back to Whitelist</span>
+              <span>← Back to Home</span>
             </Link>
           </div>
         </div>
@@ -290,10 +290,10 @@ export default function AboutPage() {
                     <ExternalLinkIcon className="w-4 h-4" />
                   </a>
                   <Link
-                    href="/whitelist"
+                    href="/explore"
                     className="flex items-center space-x-2 px-6 py-3 border border-provn-border text-provn-text rounded-lg font-medium hover:border-provn-accent/50 hover:text-provn-accent transition-colors"
                   >
-                    <span>Join Beta Waitlist</span>
+                    <span>Explore Platform</span>
                     <ArrowRightIcon className="w-4 h-4" />
                   </Link>
                 </div>

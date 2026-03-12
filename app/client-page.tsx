@@ -30,7 +30,6 @@ import {
 } from "lucide-react"
 
 interface PlatformStats {
-  whitelistRequests: number
   totalCreators: number
   totalVideos: number
   lastUpdated: string
@@ -98,7 +97,7 @@ export function HomePageClient({ platformStats }: HomePageClientProps) {
       if (walletCookie) {
         const walletAddress = walletCookie.split('=')[1]
         setIsConnected(true)
-        console.log('✅ User is connected and whitelisted:', walletAddress)
+        console.log('✅ User is connected:', walletAddress)
         
         try {
           const response = await fetch(`/api/profile/${walletAddress}`)
@@ -128,7 +127,9 @@ export function HomePageClient({ platformStats }: HomePageClientProps) {
   // Helper function to handle protected navigation
   const handleProtectedNavigation = (href: string) => {
     if (!isConnected) {
-      window.location.href = '/whitelist'
+      // Prompt wallet connection via the navigation component
+      // Navigate to the page - the page itself will handle wallet connection
+      window.location.href = href
     } else if (!hasProfile) {
       setShowCreateProfile(true)
     } else {
@@ -177,7 +178,7 @@ export function HomePageClient({ platformStats }: HomePageClientProps) {
                 {isConnected ? (
                   <ProvnBadge className="bg-green-500/10 text-green-500 border-green-500/20 mb-6">
                     <CheckCircle className="w-4 h-4 mr-1" />
-                    Connected & Whitelisted
+                    Wallet Connected
                   </ProvnBadge>
                 ) : (
                   <ProvnBadge className="bg-provn-success/10 text-provn-success border-provn-success/20 mb-6">
@@ -201,49 +202,24 @@ export function HomePageClient({ platformStats }: HomePageClientProps) {
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center w-full px-4 sm:px-0">
-              {isConnected ? (
-                <>
-                  <ProvnButton
-                    size="lg"
-                    onClick={() => handleProtectedNavigation("/upload")}
-                    className="w-full sm:w-auto px-6 sm:px-12 py-3 sm:py-4 text-base sm:text-xl font-semibold group"
-                  >
-                    <Upload className="w-5 h-5 sm:w-6 sm:h-6 mr-2 group-hover:scale-110 transition-transform" />
-                    <span className="truncate">{hasProfile ? "Upload & Protect" : "Get Started"}</span>
-                    <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </ProvnButton>
-                  <ProvnButton
-                    variant="secondary"
-                    size="lg"
-                    onClick={() => handleProtectedNavigation("/explore")}
-                    className="w-full sm:w-auto px-6 sm:px-12 py-3 sm:py-4 text-base sm:text-xl group"
-                  >
-                    <Eye className="w-5 h-5 sm:w-6 sm:h-6 mr-2 group-hover:scale-110 transition-transform" />
-                    Explore Feed
-                  </ProvnButton>
-                </>
-              ) : (
-                <>
-                  <ProvnButton
-                    size="lg"
-                    onClick={() => handleProtectedNavigation("/whitelist")}
-                    className="w-full sm:w-auto px-6 sm:px-12 py-3 sm:py-4 text-base sm:text-xl font-semibold group"
-                  >
-                    <Upload className="w-5 h-5 sm:w-6 sm:h-6 mr-2 group-hover:scale-110 transition-transform" />
-                    <span className="truncate">Start Creating</span>
-                    <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </ProvnButton>
-                  <ProvnButton
-                    variant="secondary"
-                    size="lg"
-                    onClick={() => handleProtectedNavigation("/explore")}
-                    className="w-full sm:w-auto px-6 sm:px-12 py-3 sm:py-4 text-base sm:text-xl group"
-                  >
-                    <Eye className="w-5 h-5 sm:w-6 sm:h-6 mr-2 group-hover:scale-110 transition-transform" />
-                    Browse Videos
-                  </ProvnButton>
-                </>
-              )}
+              <ProvnButton
+                size="lg"
+                onClick={() => handleProtectedNavigation("/upload")}
+                className="w-full sm:w-auto px-6 sm:px-12 py-3 sm:py-4 text-base sm:text-xl font-semibold group"
+              >
+                <Upload className="w-5 h-5 sm:w-6 sm:h-6 mr-2 group-hover:scale-110 transition-transform" />
+                <span className="truncate">{isConnected && hasProfile ? "Upload & Protect" : "Start Creating"}</span>
+                <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 ml-2 group-hover:translate-x-1 transition-transform" />
+              </ProvnButton>
+              <ProvnButton
+                variant="secondary"
+                size="lg"
+                onClick={() => handleProtectedNavigation("/explore")}
+                className="w-full sm:w-auto px-6 sm:px-12 py-3 sm:py-4 text-base sm:text-xl group"
+              >
+                <Eye className="w-5 h-5 sm:w-6 sm:h-6 mr-2 group-hover:scale-110 transition-transform" />
+                Explore Feed
+              </ProvnButton>
             </div>
 
             {/* Hero Stats - Now with real server-side data */}

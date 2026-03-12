@@ -40,14 +40,14 @@ export default function PrivacyPolicy() {
         {/* Header */}
         <div className="w-full p-6 border-b border-provn-border/50">
           <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <Link href="/whitelist">
+            <Link href="/">
               <ProvnLogo />
             </Link>
-            <Link 
-              href="/whitelist" 
+            <Link
+              href="/"
               className="text-provn-muted hover:text-provn-text transition-colors text-sm"
             >
-              ← Back to Whitelist
+              ← Back to Home
             </Link>
           </div>
         </div>

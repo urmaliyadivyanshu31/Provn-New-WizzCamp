@@ -7,21 +7,17 @@ async function getPlatformStats() {
     
     // Fetch statistics in parallel for better performance
     const [
-      whitelistResult,
       creatorsResult,
       videosResult
     ] = await Promise.allSettled([
-      supabase.from('beta_whitelist').select('*', { count: 'exact', head: true }),
       supabase.from('profiles').select('*', { count: 'exact', head: true }).not('wallet_address', 'is', null),
       supabase.from('platform_videos').select('*', { count: 'exact', head: true }).eq('upload_status', 'ready').eq('visibility', 'public')
     ])
-    
-    const whitelistRequests = whitelistResult.status === 'fulfilled' ? Math.max(whitelistResult.value.count || 0, 0) : 2500
-    const totalCreators = creatorsResult.status === 'fulfilled' ? Math.max(creatorsResult.value.count || 0, 0) : 120  
+
+    const totalCreators = creatorsResult.status === 'fulfilled' ? Math.max(creatorsResult.value.count || 0, 0) : 120
     const totalVideos = videosResult.status === 'fulfilled' ? Math.max(videosResult.value.count || 0, 0) : 2200
-    
+
     return {
-      whitelistRequests,
       totalCreators,
       totalVideos,
       lastUpdated: new Date().toISOString()
@@ -30,7 +26,6 @@ async function getPlatformStats() {
     console.error('Server-side platform stats error:', error)
     // Return fallback stats
     return {
-      whitelistRequests: 2500,
       totalCreators: 120,
       totalVideos: 2200,
       lastUpdated: new Date().toISOString()
