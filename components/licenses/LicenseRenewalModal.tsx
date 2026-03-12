@@ -90,7 +90,8 @@ export function LicenseRenewalModal({
     }
   }
 
-  const formatPROVN = (amount: number) => {
+  const formatPROVN = (amount: number | null | undefined) => {
+    if (!amount || amount === 0) return "Free"
     return `${amount.toFixed(amount < 1 ? 2 : 1)} PROVN`
   }
 

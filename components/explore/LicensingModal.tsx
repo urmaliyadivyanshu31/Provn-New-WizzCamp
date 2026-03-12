@@ -209,9 +209,9 @@ export function LicensingModal({ isOpen, onClose, video, isAuthenticated }: Lice
     };
   }, [licenseTerms, video.licensing.price, video.licensing.duration, periods, hasLicenseConfig]);
 
-  const formatPROVN = useCallback((amount: number) => {
+  const formatPROVN = useCallback((amount: number | null | undefined) => {
     // Handle free content
-    if (amount === 0) return "Free";
+    if (!amount || amount === 0) return "Free";
     // Ensure proper decimal formatting for PROVN tokens
     return `${amount.toFixed(amount < 1 ? 2 : 1)} PROVN`;
   }, []);

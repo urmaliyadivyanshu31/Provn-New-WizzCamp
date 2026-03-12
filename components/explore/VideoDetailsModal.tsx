@@ -50,7 +50,8 @@ export function VideoDetailsModal({ video, isOpen, onClose, isAuthenticated }: V
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const formatPROVN = (amount: number) => {
+  const formatPROVN = (amount: number | null | undefined) => {
+    if (!amount || amount === 0) return "Free";
     return `${amount.toFixed(amount < 1 ? 2 : 1)} PROVN`;
   };
 

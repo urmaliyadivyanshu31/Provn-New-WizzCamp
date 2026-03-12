@@ -324,7 +324,7 @@ export default function CreateCommunityPage() {
                         <div className="text-sm text-provn-muted">Licenses Sold</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-provn-text">${topCreatorStatus.monthlyStats.revenue.toFixed(2)}</div>
+                        <div className="text-2xl font-bold text-provn-text">${(topCreatorStatus.monthlyStats.revenue || 0).toFixed(2)}</div>
                         <div className="text-sm text-provn-muted">Revenue</div>
                       </div>
                     </div>

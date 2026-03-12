@@ -42,7 +42,8 @@ const VideoOverlay = memo(function VideoOverlay({
     unfollowUser 
   } = useFollow(video.creator.walletAddress)
 
-  const formatCount = (count: number): string => {
+  const formatCount = (count: number | null | undefined): string => {
+    if (!count) return "0"
     if (count >= 1000000) {
       return `${(count / 1000000).toFixed(1)}M`
     } else if (count >= 1000) {

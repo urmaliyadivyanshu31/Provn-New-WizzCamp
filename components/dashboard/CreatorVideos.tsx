@@ -92,8 +92,8 @@ export function CreatorVideos({ userAddress }: CreatorVideosProps) {
     }
   }
 
-  const formatPROVN = (amount: number) => {
-    if (amount === 0) return "Free"
+  const formatPROVN = (amount: number | null | undefined) => {
+    if (!amount || amount === 0) return "Free"
     return `${amount.toFixed(2)} PROVN`
   }
 
@@ -158,7 +158,7 @@ export function CreatorVideos({ userAddress }: CreatorVideosProps) {
           <ProvnCardContent className="p-4">
             <div className="text-sm text-provn-muted mb-1">Total Revenue</div>
             <div className="text-2xl font-bold text-provn-accent">
-              {formatPROVN(videos.reduce((sum, v) => sum + v.total_revenue, 0))}
+              {formatPROVN(videos.reduce((sum, v) => sum + (v.total_revenue || 0), 0))}
             </div>
           </ProvnCardContent>
         </ProvnCard>
@@ -212,7 +212,7 @@ export function CreatorVideos({ userAddress }: CreatorVideosProps) {
                             Token #{video.token_id}
                           </p>
                           <div className="flex items-center gap-4 mt-2 text-xs text-provn-muted">
-                            <span>{formatPROVN(video.price_per_period)} / {Math.floor(video.license_duration / 86400)} days</span>
+                            <span>{formatPROVN(video.price_per_period)} / {Math.floor((video.license_duration || 0) / 86400)} days</span>
                             <span>•</span>
                             <span>{video.views_count} views</span>
                             {video.is_derivative && (
@@ -287,7 +287,7 @@ export function CreatorVideos({ userAddress }: CreatorVideosProps) {
                             Token #{video.token_id}
                           </p>
                           <div className="flex items-center gap-4 mt-2 text-xs text-provn-muted">
-                            <span>{formatPROVN(video.price_per_period)} / {Math.floor(video.license_duration / 86400)} days</span>
+                            <span>{formatPROVN(video.price_per_period)} / {Math.floor((video.license_duration || 0) / 86400)} days</span>
                             <span>•</span>
                             <span>{video.licenses_sold} licenses sold</span>
                             <span>•</span>

@@ -159,7 +159,8 @@ export default function LicensedContentPage() {
     })
   }
 
-  const formatCAMP = (amount: number) => {
+  const formatCAMP = (amount: number | null | undefined) => {
+    if (!amount || amount === 0) return "Free"
     return `${amount.toFixed(amount < 1 ? 2 : 1)} CAMP`
   }
 
